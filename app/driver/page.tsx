@@ -1,0 +1,207 @@
+"use client";
+
+import { ChevronLeft, MapPin, Navigation, Phone, Thermometer } from "lucide-react";
+import { useState } from "react";
+import { ExceptionForm, PodForm } from "@/components/Pod";
+import { Mark } from "@/components/Shell";
+import { StatusPill, cx } from "@/components/ui";
+import { clock, dateKey, tempBare } from "@/lib/format";
+import { useMaps, useNow } from "@/lib/hooks";
+import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
+import { useStore, useUi } from "@/lib/store";
+
+const KEY = "coldline-driver-route";
+
+export default function Driver() {
+  const routes = useStore((s) => s.routes);
+  const deliveries = useStore((s) => s.deliveries);
+  const runs = useStore((s) => s.runs);
+  const advance = useStore((s) => s.advance);
+  const dispatchRoute = useStore((s) => s.dispatchRoute);
+  const toast = useUi((s) => s.toast);
+  const maps = useMaps();
+  const now = useNow(15_000);
+  const today = dateKey(now);
+  const [routeId, setRouteId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(KEY);
+    } catch {
+      return null;
+    }
+  });
+  const [mode, setMode] = useState<"list" | "pod" | "problem">("list");
+
+  function chooseRoute(id: string | null) {
+    setRouteId(id);
+    try {
+      if (id) localStorage.setItem(KEY, id);
+      else localStorage.removeItem(KEY);
+    } catch {}
+  }
+
+  const route = routes.find((r) => r.id === routeId);
+
+  if (!route) {
+    return (
+      <Frame>
+        <h1 className="display mt-6 text-[30px] font-semibold">Which truck are you on?</h1>
+        <p className="mt-1 text-[15px] text-ink-2">Pick today&rsquo;s route to see your stops.</p>
+        <ul className="mt-5 space-y-3">
+          {routes.map((r) => {
+            const n = deliveries.filter((d) => d.routeId === r.id && d.date === today).length;
+            return (
+              <li key={r.id}>
+                <button onClick={() => chooseRoute(r.id)} className="w-full cursor-pointer rounded-xl border border-line bg-panel p-4 text-left hover:border-ink-3">
+                  <div className="display text-[22px] font-semibold">{r.name}</div>
+                  <div className="text-[15px] text-ink-2">
+                    {r.truck}, {r.driver}, {n} stops
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Frame>
+    );
+  }
+
+  const run = runs[runKey(route.id, today)];
+  const stops = deliveries.filter((d) => d.routeId === route.id && d.date === today).sort((a, b) => a.seq - b.seq);
+  const current = stops.find((d) => d.status === "ARRIVED") ?? stops.find((d) => d.status === "EN_ROUTE");
+  const loaded = stops.filter((d) => d.status === "LOADED").length;
+  const done = stops.filter((d) => d.status === "DELIVERED" || d.status === "EXCEPTION");
+  const box = run?.temps.at(-1);
+  const c = current ? maps.client.get(current.clientId) : undefined;
+  const o = current ? maps.order.get(current.orderId) : undefined;
+
+  return (
+    <Frame>
+      <div className="flex items-center justify-between gap-2 py-3">
+        <button className="btn btn-quiet btn-sm -ml-2" onClick={() => chooseRoute(null)}>
+          <ChevronLeft size={16} /> Routes
+        </button>
+        {box && (
+          <span className={cx("flex items-center gap-1 text-[15px] font-semibold", box.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink")}>
+            <Thermometer size={16} /> Box {tempBare(box.c)}C
+          </span>
+        )}
+      </div>
+      <h1 className="display text-[28px] leading-tight font-semibold">{route.name}</h1>
+      <p className="text-[15px] text-ink-2">
+        {route.truck}. {done.length} of {stops.length} stops done.
+      </p>
+
+      {!run?.departedAt && (
+        <div className="mt-4 rounded-xl border border-line bg-panel p-4">
+          <p className="text-[15px]">
+            {loaded} of {stops.length} stops are loaded. {stops.length - loaded > 0 && "The rest are still being picked."}
+          </p>
+          <button
+            className="btn btn-primary btn-lg mt-3 w-full"
+            disabled={loaded === 0}
+            onClick={() => {
+              dispatchRoute(route.id, today, route.driver);
+              toast("Route started. Dispatch can see you.");
+            }}
+          >
+            Start route
+          </button>
+        </div>
+      )}
+
+      {current && c && o && mode === "list" && (
+        <div className="mt-4 overflow-hidden rounded-xl border-2 border-ink bg-white">
+          <div className="bg-ink px-4 py-2 text-[14px] font-semibold text-white">
+            {current.status === "ARRIVED" ? "You are here" : `Next stop, ${current.eta ? `ETA ${clock(current.eta)}` : "en route"}`}
+          </div>
+          <div className="p-4">
+            <div className="text-[13px] text-ink-3">Stop {current.seq}</div>
+            <div className="display text-[26px] leading-tight font-semibold">{c.name}</div>
+            <div className="mt-1 flex items-start gap-1.5 text-[16px]">
+              <MapPin size={18} className="mt-0.5 shrink-0 text-ink-3" />
+              {c.address}, {c.city}
+            </div>
+            <div className="mt-1 text-[15px] text-ink-2">Window {c.window}. {o.lines.reduce((s, l) => s + l.qty, 0)} cases.</div>
+            <p className="mt-3 rounded-lg bg-sunk p-3 text-[15px]">{c.dockNote}</p>
+            {o.payMethod === "COD" && !o.paid && <p className="mt-2 rounded-lg bg-warn-bg p-3 text-[15px] font-semibold text-warn">Collect payment before unloading.</p>}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <a className="btn btn-ghost btn-lg" href={`tel:${c.phone.replace(/\D/g, "")}`}>
+                <Phone size={18} /> Call
+              </a>
+              <a className="btn btn-ghost btn-lg" href={`https://maps.google.com/?q=${encodeURIComponent(`${c.address}, ${c.city}`)}`} target="_blank" rel="noreferrer">
+                <Navigation size={18} /> Directions
+              </a>
+            </div>
+            {current.status === "EN_ROUTE" ? (
+              <button className="btn btn-primary btn-lg mt-2 w-full" onClick={() => advance(current.id, "ARRIVED", route.driver)}>
+                I&rsquo;ve arrived
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-lg mt-2 w-full" onClick={() => setMode("pod")}>
+                Unload and get signature
+              </button>
+            )}
+            <button className="btn btn-quiet mt-2 w-full text-bad" onClick={() => setMode("problem")}>
+              Report a problem
+            </button>
+          </div>
+        </div>
+      )}
+
+      {current && c && o && mode === "pod" && (
+        <div className="mt-4 rounded-xl border border-line bg-panel p-4">
+          <h2 className="display mb-3 text-[24px] font-semibold">{c.name}</h2>
+          <PodForm big delivery={current} order={o} by={route.driver} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
+        </div>
+      )}
+
+      {current && c && mode === "problem" && (
+        <div className="mt-4 rounded-xl border border-line bg-panel p-4">
+          <h2 className="display mb-3 text-[24px] font-semibold">Problem at {c.name}</h2>
+          <ExceptionForm delivery={current} by={route.driver} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
+        </div>
+      )}
+
+      {!current && run?.departedAt && (
+        <div className="mt-4 rounded-xl border border-line bg-panel p-5 text-center">
+          <div className="display text-[24px] font-semibold">{done.length === stops.length ? "Route complete" : "No stop in progress"}</div>
+          <p className="mt-1 text-[15px] text-ink-2">{done.length === stops.length ? "Head back to the dock and plug in the ref van." : "Ask dispatch to release your next stop."}</p>
+        </div>
+      )}
+
+      <h2 className="mt-6 mb-2 text-[15px] font-semibold text-ink-2">All stops</h2>
+      <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-panel">
+        {stops.map((d) => {
+          const cl = maps.client.get(d.clientId)!;
+          const at = d.pod?.at ?? d.exception?.at;
+          return (
+            <li key={d.id} className={cx("flex items-center gap-3 px-4 py-3", current?.id === d.id && "bg-cyan-bg/60")}>
+              <span className="display w-6 text-[20px] font-semibold text-ink-3">{d.seq}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15.5px] font-semibold">{cl.name}</div>
+                <div className="text-[13.5px] text-ink-3">{at ? `Done ${clock(at)}` : cl.window}</div>
+              </div>
+              <StatusPill status={d.status} />
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-4 mb-10 text-center text-[13px] text-ink-3">Updates sync to the dispatch board as you go.</p>
+    </Frame>
+  );
+}
+
+function Frame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-frost">
+      <div className="sticky top-0 z-10 border-b border-line bg-panel">
+        <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 py-2.5">
+          <Mark size={26} />
+          <span className="display text-[19px] font-bold">Clairon&rsquo;s</span>
+          <span className="text-[14px] text-ink-3">Driver</span>
+        </div>
+      </div>
+      <div className="mx-auto max-w-md px-4">{children}</div>
+    </div>
+  );
+}
