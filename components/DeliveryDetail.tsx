@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import type { Delivery } from "@/lib/types";
 import { TempTrace } from "./charts";
 import { AssignCarrier } from "./AssignCarrier";
+import { StopPlan } from "./StopPlan";
 import { ExceptionForm, PodForm } from "./Pod";
 import { Badge, Modal, Signature, StatusPill, cx } from "./ui";
 
@@ -88,6 +89,8 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
         <span className="text-ink-3">Delivered by</span>
         <AssignCarrier delivery={d} className="font-semibold" />
       </div>
+
+      <StopPlan key={`${d.id}|${d.note ?? ""}`} delivery={d} />
 
       <div className="mt-3 rounded-md bg-sunk px-3 py-2 text-[13.5px] text-ink-2">
         <span className="font-semibold text-ink">Dock note:</span> {c.dockNote}

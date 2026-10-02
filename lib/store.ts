@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { DAY, HOUR, dateKey, keyToTs, lotCode, uid, unitPlural } from "./format";
 import {
   ASSIGNABLE,
+  NOTE_MAX,
   allocateFEFO,
   freeBlastBin,
   nextSku,
@@ -12,6 +13,7 @@ import {
   priceLines,
   productError,
   receiptToError,
+  rescheduleError,
   reservedByLot,
   round2,
   runKey,
@@ -72,6 +74,10 @@ interface Actions {
   /** Give a stop to a rider, or back to the van on its route (riderId null). */
   assignDelivery(deliveryId: string, riderId: string | null, by: string): { ok: true } | { ok: false; error: string };
   saveRider(i: RiderInput): { ok: true; rider: Rider } | { ok: false; error: string };
+  /** Move a stop to another day before it is loaded. */
+  rescheduleDelivery(deliveryId: string, date: string, by: string): { ok: true } | { ok: false; error: string };
+  /** Set or clear dispatch's note on a stop. */
+  setDeliveryNote(deliveryId: string, note: string, by: string): { ok: true } | { ok: false; error: string };
   /** Add a product, or edit one (including deactivating it). */
   saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
   /** Record that a copy of the receipt went to the buyer. */
@@ -358,6 +364,49 @@ export const useStore = create<Store>()(
         set({
           deliveries: s.deliveries.map((x) =>
             x.id === deliveryId ? { ...x, riderId: riderId ?? undefined, seq, events: [...x.events, { status: x.status, at: Date.now(), by, note }] } : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      rescheduleDelivery: (deliveryId, date, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        if (!d) return { ok: false, error: "Stop not found." };
+        if (d.date === date) return { ok: true };
+        const k = runKey(d.routeId, date);
+        const error = rescheduleError(d, date, {
+          today: dateKey(Date.now()),
+          vanLeft: !!s.runs[k]?.departedAt,
+          lots: s.lots,
+          order: s.orders.find((o) => o.id === d.orderId),
+        });
+        if (error) return { ok: false, error };
+        // Join the end of the same carrier's list on the new day. Picking starts over on the day it goes.
+        const seq =
+          Math.max(0, ...s.deliveries.filter((x) => x.date === date && x.id !== d.id && (d.riderId ? x.riderId === d.riderId : x.routeId === d.routeId && !x.riderId)).map((x) => x.seq)) + 1;
+        const runs = d.riderId || s.runs[k] ? s.runs : { ...s.runs, [k]: { routeId: d.routeId, date, plannedDepart: keyToTs(date) + 5.5 * HOUR, temps: [] } };
+        const note = `Moved from ${d.date} to ${date}`;
+        set({
+          runs,
+          deliveries: s.deliveries.map((x) =>
+            x.id === deliveryId ? { ...x, date, seq, status: "SCHEDULED", eta: undefined, events: [...x.events, { status: "SCHEDULED", at: Date.now(), by, note }] } : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      setDeliveryNote: (deliveryId, note, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        if (!d) return { ok: false, error: "Stop not found." };
+        if (d.status === "DELIVERED" || d.status === "EXCEPTION") return { ok: false, error: "This stop is closed. Its note can't change now." };
+        const text = note.trim();
+        if (text.length > NOTE_MAX) return { ok: false, error: `Keep the note under ${NOTE_MAX} characters.` };
+        if (text === (d.note ?? "")) return { ok: true };
+        set({
+          deliveries: s.deliveries.map((x) =>
+            x.id === deliveryId ? { ...x, note: text || undefined, events: [...x.events, { status: x.status, at: Date.now(), by, note: text ? `Note: ${text}` : "Note removed" }] } : x,
           ),
         });
         return { ok: true };

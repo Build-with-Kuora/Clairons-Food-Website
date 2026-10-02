@@ -229,6 +229,8 @@ export interface Delivery {
   seq: number;
   /** Set when a motorbike rider takes this stop instead of the van on its route */
   riderId?: string;
+  /** Dispatch's note for this drop, shown to the driver or rider */
+  note?: string;
   status: DeliveryStatus;
   events: DeliveryEvent[];
   eta?: number;

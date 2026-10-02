@@ -19,7 +19,7 @@ import type {
   Tier,
   ZoneId,
 } from "./types";
-import { HOUR, dateTime, invoiceNumber, money } from "./format";
+import { DAY, HOUR, dateKey, dateTime, invoiceNumber, keyToTs, money, startOfDay } from "./format";
 
 export const ZONES: Record<ZoneId, { name: string; setPointC: number; maxC: number; color: string; prefix: string }> = {
   BLAST: { name: "Blast freezer", setPointC: -35, maxC: -28, color: "var(--color-z-blast)", prefix: "B" },
@@ -453,6 +453,44 @@ export function nextAction(d: Delivery): { to: DeliveryStatus; label: string } |
 
 /** A stop can change hands until it leaves the building. */
 export const ASSIGNABLE: DeliveryStatus[] = ["SCHEDULED", "PICKING", "LOADED"];
+
+/** A stop can move to another day until its stock is loaded, since loading takes it off the shelf. */
+export const RESCHEDULABLE: DeliveryStatus[] = ["SCHEDULED", "PICKING"];
+
+/** Vans and riders run Monday to Saturday. */
+export const isDeliveryDay = (key: string) => new Date(keyToTs(key)).getDay() !== 0;
+
+/** The next `n` delivery days as yyyy-mm-dd, starting today or tomorrow. Noon keeps daylight saving off the boundary. */
+export function deliveryDays(now: number, n: number, fromToday = false) {
+  const out: string[] = [];
+  let t = startOfDay(now) + (fromToday ? 0 : DAY) + 12 * HOUR;
+  while (out.length < n) {
+    const k = dateKey(t);
+    if (isDeliveryDay(k)) out.push(k);
+    t += DAY;
+  }
+  return out;
+}
+
+/** Why a stop can't move to `date`, or null when it can. `vanLeft` is whether the van on its route has left that day. */
+export function rescheduleError(d: Delivery, date: string, opts: { today: string; vanLeft: boolean; lots: Lot[]; order?: Order }) {
+  if (!RESCHEDULABLE.includes(d.status)) return "This stop is already loaded or on its way. Move it before it is loaded.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "Pick a date.";
+  if (date < opts.today) return "Pick today or a later day.";
+  if (!isDeliveryDay(date)) return "No deliveries on Sundays. Pick another day.";
+  if (!d.riderId && opts.vanLeft) return "The van has already left that day. Pick another day or give the stop to a rider.";
+  const byId = new Map(opts.lots.map((l) => [l.id, l]));
+  const end = keyToTs(date) + DAY;
+  for (const line of opts.order?.lines ?? []) {
+    for (const a of line.allocs) {
+      const lot = byId.get(a.lotId);
+      if (lot && lot.bestBy < end) return `Lot ${lot.code} of ${line.name} is past its best-by by then. Pick an earlier day.`;
+    }
+  }
+  return null;
+}
+
+export const NOTE_MAX = 300;
 
 /** The three steps riders and the phone table use, plus "problem". */
 export type SimpleStatus = "Pending" | "Out for delivery" | "Delivered" | "Problem";

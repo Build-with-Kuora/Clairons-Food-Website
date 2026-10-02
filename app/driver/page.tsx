@@ -161,6 +161,7 @@ export default function Driver() {
               {c.address}, {c.city}
             </div>
             <div className="mt-1 text-[15px] text-ink-2">Window {c.window}. {units(o.lines.reduce((s, l) => s + l.qty, 0), commonUnit(o.lines.map((l) => maps.product.get(l.sku))))}.</div>
+            {current.note && <p className="mt-3 rounded-lg border-2 border-ink p-3 text-[15px]"><span className="font-semibold">From dispatch:</span> {current.note}</p>}
             <p className="mt-3 rounded-lg bg-sunk p-3 text-[15px]">{c.dockNote}</p>
             {o.payMethod === "COD" && !o.paid && <p className="mt-2 rounded-lg bg-warn-bg p-3 text-[15px] font-semibold text-warn">Collect payment before unloading.</p>}
             <div className="mt-4 grid grid-cols-2 gap-2">

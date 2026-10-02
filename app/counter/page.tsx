@@ -5,23 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Field, Kbd, Modal, PageHead, cx } from "@/components/ui";
-import { DAY, dateKey, dayShort, keyToTs, money, money0, startOfDay, unitPlural, units } from "@/lib/format";
+import { dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
 import { useMaps, useStock } from "@/lib/hooks";
-import { DROP_MIN, PAY_LABEL, TERMS_LABEL, ZONES, allocateFEFO, casePrice, orderTotals, priceLines, priceUnit } from "@/lib/logic";
+import { DROP_MIN, PAY_LABEL, TERMS_LABEL, ZONES, allocateFEFO, deliveryDays, casePrice, orderTotals, priceLines, priceUnit } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Order, PayMethod } from "@/lib/types";
 
 const CATS: (Category | "All")[] = ["All", "Dimsum", "Streetfood", "Tocino & longganisa", "Pork", "Poultry", "Seafood", "Desserts", "Bakery", "Fries", "Chiller"];
-
-function deliveryDays(now: number) {
-  const out: string[] = [];
-  let t = startOfDay(now) + DAY + 2 * 3_600_000;
-  while (out.length < 6) {
-    if (new Date(t).getDay() !== 0) out.push(dateKey(t));
-    t += DAY;
-  }
-  return out;
-}
 
 export default function Counter() {
   const allProducts = useStore((s) => s.products);
@@ -41,7 +31,7 @@ export default function Counter() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
   const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
-  const [days] = useState(() => deliveryDays(Date.now()));
+  const [days] = useState(() => deliveryDays(Date.now(), 6));
   const [date, setDate] = useState(days[0]);
   const [payChoice, setPayChoice] = useState<PayMethod | null>(null);
   const [clientPo, setClientPo] = useState("");
