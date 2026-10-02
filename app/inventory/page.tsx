@@ -1,21 +1,21 @@
 "use client";
 
-import { ArrowDownToLine, PackagePlus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowRight, Factory, Search } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 import { Sparkline } from "@/components/charts";
-import { AdjustModal, HoldModal, MoveModal, ReceiveModal, ReceivePOModal } from "@/components/InventoryModals";
+import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { Badge, Drawer, Empty, LevelBar, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { count, dateTime, day, daysUntil, money, money0, temp, tempBare } from "@/lib/format";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
-import { ZONES, ZONE_ORDER, caseCost, receiveLimitC, zoneOfBin, type StockRow } from "@/lib/logic";
-import { useStore, useUi } from "@/lib/store";
-import type { Category, Lot, MoveType, PurchaseOrder, ZoneId } from "@/lib/types";
+import { ZONES, ZONE_ORDER, caseCost, coreLimitC, zoneOfBin, type StockRow } from "@/lib/logic";
+import { useStore } from "@/lib/store";
+import type { Category, Lot, MoveType, ZoneId } from "@/lib/types";
 
-type Tab = "stock" | "lots" | "moves" | "reorder" | "zones";
+type Tab = "stock" | "lots" | "moves" | "zones";
 
 const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"> = {
   PRODUCE: "good",
-  RECEIVE: "good",
   SHIP: "neutral",
   PICKUP: "neutral",
   ADJUST: "warn",
@@ -28,7 +28,6 @@ const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"
 
 const MOVE_LABEL: Record<MoveType, string> = {
   PRODUCE: "Produced",
-  RECEIVE: "Received",
   SHIP: "Shipped",
   PICKUP: "Will-call",
   ADJUST: "Count adj.",
@@ -42,10 +41,8 @@ const MOVE_LABEL: Record<MoveType, string> = {
 export default function Inventory() {
   const [tab, setTab] = useState<Tab>(() => (queryParam("tab") as Tab | null) ?? "stock");
   const [openSku, setOpenSku] = useState<string | null>(() => queryParam("sku"));
-  const [receiving, setReceiving] = useState<string | false>(false);
   const { rows } = useStock();
   const lots = useStore((s) => s.lots);
-  const pos = useStore((s) => s.pos);
   const now = useNow();
 
   const all = [...rows.values()];
@@ -61,35 +58,41 @@ export default function Inventory() {
         title="Inventory"
         sub={`${all.length} SKUs, ${count(totalCases)} cases on hand, ${money0(value)} at cost.`}
         actions={
-          <button className="btn btn-primary" onClick={() => setReceiving("")}>
-            <ArrowDownToLine size={16} /> Receive stock
-          </button>
+          <Link href="/production" className="btn btn-primary">
+            <Factory size={16} /> Record batch
+          </Link>
         }
       />
 
-      <Tabs<Tab>
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { id: "stock", label: "Stock", count: all.length },
-          { id: "lots", label: "Lots and dating", count: shortDated.length + held.length || undefined },
-          { id: "moves", label: "Movements" },
-          { id: "reorder", label: "Reorder", count: low.length || undefined },
-          { id: "zones", label: "Freezer zones" },
-        ]}
-      />
+      <div className="flex items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <Tabs<Tab>
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { id: "stock", label: "Stock", count: all.length },
+              { id: "lots", label: "Lots and dating", count: shortDated.length + held.length || undefined },
+              { id: "moves", label: "Movements" },
+              { id: "zones", label: "Freezer zones" },
+            ]}
+          />
+        </div>
+        <Link href="/production" className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line text-[14.5px] font-semibold whitespace-nowrap text-ink-3 hover:text-ink">
+          To make
+          {low.length > 0 && <span className="rounded bg-warn-bg px-1.5 text-[12px] text-warn">{low.length}</span>}
+          <ArrowRight size={14} aria-hidden />
+        </Link>
+      </div>
       <div className="mt-4">
         {tab === "stock" && <StockTab rows={all} onOpen={setOpenSku} />}
         {tab === "lots" && <LotsTab onOpen={setOpenSku} />}
         {tab === "moves" && <MovesTab />}
-        {tab === "reorder" && <ReorderTab rows={all} pos={pos} onOpen={setOpenSku} />}
         {tab === "zones" && <ZonesTab />}
       </div>
 
       {openSku && rows.get(openSku) && (
-        <ProductDrawer row={rows.get(openSku)!} onClose={() => setOpenSku(null)} onReceive={() => setReceiving(openSku)} />
+        <ProductDrawer row={rows.get(openSku)!} onClose={() => setOpenSku(null)} />
       )}
-      {receiving !== false && <ReceiveModal open onClose={() => setReceiving(false)} sku={receiving || undefined} />}
     </div>
   );
 }
@@ -197,9 +200,8 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
   );
 }
 
-function ProductDrawer({ row, onClose, onReceive }: { row: StockRow; onClose: () => void; onReceive: () => void }) {
+function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void }) {
   const p = row.product;
-  const maps = useMaps();
   const movements = useStore((s) => s.movements);
   const { reserved } = useStock();
   const now = useNow();
@@ -219,14 +221,13 @@ function ProductDrawer({ row, onClose, onReceive }: { row: StockRow; onClose: ()
           <span className="code">{p.sku}</span>
           <span>{p.pack}</span>
           <ZoneTag zone={p.zone} />
-          <span>{maps.supplier.get(p.supplierId)?.name}</span>
         </span>
       }
       footer={
         <>
-          <button className="btn btn-primary" onClick={onReceive}>
-            <PackagePlus size={16} /> Receive this SKU
-          </button>
+          <Link href={`/production?sku=${p.sku}`} className="btn btn-primary">
+            <Factory size={16} /> Make a batch
+          </Link>
           <span className="ml-auto text-[13px] text-ink-3">Home bin {p.bin}, shelf life {p.shelfDays} days</span>
         </>
       }
@@ -256,7 +257,7 @@ function ProductDrawer({ row, onClose, onReceive }: { row: StockRow; onClose: ()
             <tr>
               <th>Lot</th>
               <th>Bin</th>
-              <th>Received</th>
+              <th>Made</th>
               <th>Best-by</th>
               <th className="r">Cases</th>
               <th></th>
@@ -276,8 +277,8 @@ function ProductDrawer({ row, onClose, onReceive }: { row: StockRow; onClose: ()
                     <div className="text-[12px] text-ink-3">{ZONES[zoneOfBin(l.bin)].name}</div>
                   </td>
                   <td>
-                    <div>{day(l.receivedAt)}</div>
-                    <div className={cx("text-[12.5px]", l.receiveTempC > receiveLimitC(p.zone) ? "font-semibold text-bad" : "text-ink-3")}>at {temp(l.receiveTempC)}</div>
+                    <div>{day(l.madeAt)}</div>
+                    <div className={cx("text-[12.5px]", l.coreTempC > coreLimitC(p.zone) ? "font-semibold text-bad" : "text-ink-3")}>core {temp(l.coreTempC)}</div>
                   </td>
                   <td className={cx(d <= 30 && "font-semibold text-warn")}>
                     {day(l.bestBy)}
@@ -296,7 +297,7 @@ function ProductDrawer({ row, onClose, onReceive }: { row: StockRow; onClose: ()
             })}
           </tbody>
         </table>
-        {row.lots.length === 0 && <Empty title="No stock on hand">Receive a delivery to create the first lot.</Empty>}
+        {row.lots.length === 0 && <Empty title="No stock on hand">Record a production batch to create the first lot.</Empty>}
       </div>
       {row.lots.filter((l) => l.holdReason).map((l) => (
         <p key={l.id} className="mt-2 rounded-md border border-bad/25 bg-bad-bg p-2.5 text-[13px] text-bad">
@@ -316,7 +317,7 @@ function ProductDrawer({ row, onClose, onReceive }: { row: StockRow; onClose: ()
         </thead>
         <tbody>
           <tr>
-            <td className="text-ink-3">Landed cost</td>
+            <td className="text-ink-3">Production cost</td>
             <td className="r text-ink-3">{money(p.cost)}</td>
             <td className="r text-ink-3">{money(caseCost(p))}</td>
             <td className="r text-ink-3">–</td>
@@ -391,7 +392,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
               <th>Lot</th>
               <th>Product</th>
               <th>Bin</th>
-              <th>Received</th>
+              <th>Made</th>
               <th className="r">Cases</th>
               <th className="r">Reserved</th>
               <th>Status</th>
@@ -417,7 +418,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                     <div className="text-[12px] text-ink-3">{ZONES[zoneOfBin(l.bin)].name}</div>
                   </td>
                   <td className="text-ink-2">
-                    {day(l.receivedAt)} <span className="text-[12.5px] text-ink-3">at {tempBare(l.receiveTempC)}C</span>
+                    {day(l.madeAt)} <span className="text-[12.5px] text-ink-3">core {tempBare(l.coreTempC)}C</span>
                   </td>
                   <td className="r font-semibold">{l.qty}</td>
                   <td className="r text-ink-2">{reserved[l.id] || "–"}</td>
@@ -491,120 +492,6 @@ function MovesTab() {
         </table>
       </div>
     </Panel>
-  );
-}
-
-function ReorderTab({ rows, pos, onOpen }: { rows: StockRow[]; pos: PurchaseOrder[]; onOpen: (sku: string) => void }) {
-  const createPO = useStore((s) => s.createPO);
-  const toast = useUi((s) => s.toast);
-  const maps = useMaps();
-  const [receivingPo, setReceivingPo] = useState<PurchaseOrder | null>(null);
-  const incoming = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const po of pos) if (po.status === "SENT") for (const l of po.lines) m.set(l.sku, (m.get(l.sku) ?? 0) + l.qty);
-    return m;
-  }, [pos]);
-  const suggestions = rows
-    .map((r) => ({ r, inc: incoming.get(r.product.sku) ?? 0 }))
-    .filter(({ r, inc }) => r.available + inc < r.product.reorderPoint)
-    .map(({ r, inc }) => ({ r, inc, suggest: Math.max(1, r.product.par - r.available - inc) }));
-  const bySupplier = new Map<string, typeof suggestions>();
-  for (const s of suggestions) {
-    const k = s.r.product.supplierId;
-    bySupplier.set(k, [...(bySupplier.get(k) ?? []), s]);
-  }
-  const open = pos.filter((p) => p.status === "SENT");
-  const recent = pos.filter((p) => p.status === "RECEIVED").slice(0, 5);
-
-  return (
-    <div className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
-      <Panel title="Suggested buys" actions={<span className="text-[13px] text-ink-3">Par minus free stock minus what&rsquo;s already on order</span>} bodyClass="divide-y divide-line">
-        {bySupplier.size === 0 && <Empty title="Nothing to reorder">Every SKU is above its reorder point once open POs land.</Empty>}
-        {[...bySupplier.entries()].map(([sid, items]) => {
-          const sup = maps.supplier.get(sid)!;
-          const total = items.reduce((s, i) => s + i.suggest * caseCost(i.r.product), 0);
-          return (
-            <div key={sid} className="p-4">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="font-semibold">{sup.name}</div>
-                  <div className="text-[13px] text-ink-3">
-                    {sup.leadDays}-day lead time, {sup.phone}
-                  </div>
-                </div>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => {
-                    const po = createPO(sid, items.map((i) => ({ sku: i.r.product.sku, qty: i.suggest })));
-                    toast(`${po.number} sent to ${sup.name}`);
-                  }}
-                >
-                  Send PO, {money0(total)}
-                </button>
-              </div>
-              <table className="tbl">
-                <tbody>
-                  {items.map(({ r, inc, suggest }) => (
-                    <tr key={r.product.sku} className="clickable" onClick={() => onOpen(r.product.sku)}>
-                      <td className="w-[90px]">
-                        <span className="code">{r.product.sku}</span>
-                      </td>
-                      <td>{r.product.name}</td>
-                      <td className="r text-[13px] text-ink-3">
-                        {r.available} free{inc ? `, ${inc} inbound` : ""}
-                      </td>
-                      <td className="r w-[90px] font-semibold">+{suggest} cs</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          );
-        })}
-      </Panel>
-
-      <Panel title="Purchase orders" bodyClass="divide-y divide-line">
-        {open.length === 0 && <p className="p-4 text-[14px] text-ink-3">No open POs.</p>}
-        {open.map((po) => (
-          <div key={po.id} className="p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="code font-medium">{po.number}</span>
-                  <Badge tone="accent">Due {day(po.eta)}</Badge>
-                </div>
-                <div className="mt-0.5 text-[14px] font-semibold">{maps.supplier.get(po.supplierId)?.name}</div>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setReceivingPo(po)}>
-                <ArrowDownToLine size={14} /> Receive
-              </button>
-            </div>
-            <ul className="mt-2 text-[13.5px] text-ink-2">
-              {po.lines.map((l) => (
-                <li key={l.sku} className="flex justify-between">
-                  <span className="truncate">{maps.product.get(l.sku)?.name}</span>
-                  <span className="ml-2 shrink-0">{l.qty} cs</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-        {recent.length > 0 && (
-          <div className="p-4">
-            <div className="mb-1 text-[13px] font-semibold text-ink-3">Recently received</div>
-            {recent.map((po) => (
-              <div key={po.id} className="flex justify-between text-[13.5px]">
-                <span>
-                  <span className="code">{po.number}</span> {maps.supplier.get(po.supplierId)?.name}
-                </span>
-                <span className="text-ink-3">{po.receivedAt ? day(po.receivedAt) : ""}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-      {receivingPo && <ReceivePOModal key={receivingPo.id} po={receivingPo} onClose={() => setReceivingPo(null)} />}
-    </div>
   );
 }
 

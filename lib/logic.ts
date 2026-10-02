@@ -28,8 +28,8 @@ export function zoneOfBin(bin: string): ZoneId {
   return (ZONE_ORDER.find((z) => ZONES[z].prefix === p) ?? "FRZ") as ZoneId;
 }
 
-/** Highest product temperature we accept at the dock, by storage zone. */
-export const receiveLimitC = (zone: ZoneId) => (zone === "COOL" ? 5 : FROZEN_LIMIT_C);
+/** Warmest core temperature a batch may have when put away, by storage zone. Warmer goes on QA hold. */
+export const coreLimitC = (zone: ZoneId) => (zone === "COOL" ? 5 : FROZEN_LIMIT_C);
 
 /** Frozen product targets −18°C; it may drift briefly but never above −15°C. */
 export const FROZEN_LIMIT_C = -15;
