@@ -143,8 +143,12 @@ export default function Shell({ children }: { children: ReactNode }) {
             <div className="flex shrink-0 items-center gap-3 py-2">
               <Logo height={30} className="lg:hidden" />
               <div className="leading-tight">
-                <div className="text-[14px] font-semibold whitespace-nowrap">{dayLong(now)}</div>
-                <div className="text-[13px] text-ink-3">{clock(now)}</div>
+                <div className="text-[14px] font-semibold whitespace-nowrap" suppressHydrationWarning>
+                  {dayLong(now)}
+                </div>
+                <div className="text-[13px] text-ink-3" suppressHydrationWarning>
+                  {clock(now)}
+                </div>
               </div>
             </div>
             {ready && <ZoneStrip />}
