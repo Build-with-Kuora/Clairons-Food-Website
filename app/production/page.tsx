@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge, Empty, Field, PageHead, Panel, cx } from "@/components/ui";
 import { DAY, clock, dateTime, plural, startOfDay } from "@/lib/format";
-import { useStock, useToday } from "@/lib/hooks";
+import { queryParam, useStock, useToday } from "@/lib/hooks";
 import { producedBySku, toMake, zoneOfBin } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
@@ -20,7 +20,7 @@ export default function Production() {
   const toast = useUi((s) => s.toast);
   const { rows } = useStock();
 
-  const [sku, setSku] = useState("");
+  const [sku, setSku] = useState(() => queryParam("sku") ?? "");
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");

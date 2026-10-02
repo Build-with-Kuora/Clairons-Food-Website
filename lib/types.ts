@@ -39,7 +39,6 @@ export interface Product {
   price: Record<Tier, number>;
   reorderPoint: number;
   par: number;
-  supplierId: string;
   shelfDays: number;
 }
 
@@ -49,23 +48,21 @@ export interface Lot {
   id: string;
   sku: string;
   code: string;
-  receivedAt: number;
+  madeAt: number;
   bestBy: number;
-  receivedQty: number;
+  madeQty: number;
   qty: number; // cases physically on hand
   bin: string;
-  supplierId: string;
-  receiveTempC: number;
-  po?: string;
-  /** Production batch number, for lots made in-house */
-  batch?: string;
+  /** Core temperature when the batch was put away */
+  coreTempC: number;
+  /** Production batch number */
+  batch: string;
   status: LotStatus;
   holdReason?: string;
 }
 
 export type MoveType =
   | "PRODUCE"
-  | "RECEIVE"
   | "SHIP"
   | "PICKUP"
   | "ADJUST"
@@ -85,13 +82,6 @@ export interface Movement {
   ref?: string;
   by: string;
   note?: string;
-}
-
-export interface Supplier {
-  id: string;
-  name: string;
-  leadDays: number;
-  phone: string;
 }
 
 export type Terms = "COD" | "NET15" | "NET30";
@@ -232,15 +222,4 @@ export interface Batch {
   by: string;
   lotId: string;
   note?: string;
-}
-
-export interface PurchaseOrder {
-  id: string;
-  number: string;
-  supplierId: string;
-  createdAt: number;
-  eta: number;
-  lines: { sku: string; qty: number; cost: number }[];
-  status: "SENT" | "RECEIVED";
-  receivedAt?: number;
 }

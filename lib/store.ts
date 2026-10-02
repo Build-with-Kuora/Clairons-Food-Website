@@ -8,7 +8,6 @@ import {
   freeBlastBin,
   orderTotals,
   priceLines,
-  receiveLimitC,
   reservedByLot,
   round2,
   runKey,
@@ -24,7 +23,6 @@ import type {
   OrderLine,
   PayMethod,
   Pod,
-  PurchaseOrder,
   Run,
 } from "./types";
 
@@ -46,16 +44,6 @@ export interface ProduceInput {
   note?: string;
 }
 
-export interface ReceiveInput {
-  sku: string;
-  qty: number;
-  bestBy: number;
-  bin: string;
-  tempC: number;
-  po?: string;
-  by: string;
-}
-
 interface Actions {
   reset(): void;
   tick(): void;
@@ -66,12 +54,9 @@ interface Actions {
   completeDelivery(deliveryId: string, pod: Omit<Pod, "at">, by: string): void;
   reportException(deliveryId: string, reason: string, note: string, by: string): void;
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
-  receive(i: ReceiveInput): Lot;
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
   setHold(lotId: string, hold: boolean, reason: string, by: string): void;
-  createPO(supplierId: string, lines: { sku: string; qty: number }[]): PurchaseOrder;
-  receivePO(poId: string, entries: { sku: string; qty: number; tempC: number }[], by: string): void;
 }
 
 export type Store = Data & Actions;
@@ -86,10 +71,8 @@ const empty: Data = {
   routes: [],
   runs: {},
   zones: [],
-  suppliers: [],
-  pos: [],
   batches: [],
-  counters: { so: 0, po: 0, batch: 0 },
+  counters: { so: 0, batch: 0 },
   seededAt: 0,
 };
 
@@ -97,7 +80,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v2";
+export const STORAGE_KEY = "clairons-coldline-ph-v3";
 
 export const useStore = create<Store>()(
   persist(
@@ -341,14 +324,13 @@ export const useStore = create<Store>()(
         const lot: Lot = {
           id: uid(),
           sku: p.sku,
-          code: lotCode(now, s.lots.filter((l) => l.receivedAt > now - DAY).length + 1),
-          receivedAt: now,
+          code: lotCode(now, s.lots.filter((l) => l.madeAt > now - DAY).length + 1),
+          madeAt: now,
           bestBy: now + p.shelfDays * DAY,
-          receivedQty: i.qty,
+          madeQty: i.qty,
           qty: i.qty,
           bin,
-          supplierId: p.supplierId,
-          receiveTempC: -18,
+          coreTempC: -18,
           batch: number,
           status: "AVAILABLE",
         };
@@ -363,31 +345,6 @@ export const useStore = create<Store>()(
         return { ok: true, batch, lot };
       },
 
-      receive: (i) => {
-        const s = get();
-        const p = s.products.find((x) => x.sku === i.sku)!;
-        const now = Date.now();
-        const warm = i.tempC > receiveLimitC(p.zone);
-        const lot: Lot = {
-          id: uid(),
-          sku: i.sku,
-          code: lotCode(now, s.lots.filter((l) => l.receivedAt > now - DAY).length + 1),
-          receivedAt: now,
-          bestBy: i.bestBy,
-          receivedQty: i.qty,
-          qty: i.qty,
-          bin: i.bin,
-          supplierId: p.supplierId,
-          receiveTempC: i.tempC,
-          po: i.po,
-          status: warm ? "HOLD" : "AVAILABLE",
-          holdReason: warm ? `Received at ${i.tempC}°C, above the ${receiveLimitC(p.zone)}°C limit. Probe and inspect before release.` : undefined,
-        };
-        const moves = [mv({ sku: i.sku, lotCode: lot.code, type: "RECEIVE", qty: i.qty, ref: i.po, by: i.by, note: `${i.tempC}°C at dock, put away to ${i.bin}` })];
-        if (warm) moves.unshift(mv({ sku: i.sku, lotCode: lot.code, type: "HOLD", qty: 0, by: i.by, note: "Auto hold: warm at receipt" }));
-        set({ lots: [...s.lots, lot], movements: [...moves, ...s.movements] });
-        return lot;
-      },
 
       adjust: (lotId, delta, type, note, by) => {
         const s = get();
@@ -419,37 +376,6 @@ export const useStore = create<Store>()(
           lots: s.lots.map((l) => (l.id === lotId ? { ...l, status: hold ? "HOLD" : "AVAILABLE", holdReason: hold ? reason : undefined } : l)),
           movements: [mv({ sku: lot.sku, lotCode: lot.code, type: hold ? "HOLD" : "RELEASE", qty: 0, by, note: reason }), ...s.movements],
         });
-      },
-
-      createPO: (supplierId, lines) => {
-        const s = get();
-        const sup = s.suppliers.find((x) => x.id === supplierId)!;
-        const n = s.counters.po + 1;
-        const now = Date.now();
-        const po: PurchaseOrder = {
-          id: `po-${n}`,
-          number: `PO-${n}`,
-          supplierId,
-          createdAt: now,
-          eta: now + sup.leadDays * DAY,
-          status: "SENT",
-          lines: lines.map((l) => ({ ...l, cost: s.products.find((p) => p.sku === l.sku)?.cost ?? 0 })),
-        };
-        set({ pos: [po, ...s.pos], counters: { ...s.counters, po: n } });
-        return po;
-      },
-
-      receivePO: (poId, entries, by) => {
-        const s = get();
-        const po = s.pos.find((x) => x.id === poId);
-        if (!po) return;
-        const now = Date.now();
-        for (const e of entries) {
-          if (e.qty <= 0) continue;
-          const p = s.products.find((x) => x.sku === e.sku)!;
-          get().receive({ sku: e.sku, qty: e.qty, tempC: e.tempC, bestBy: now + p.shelfDays * DAY, bin: p.bin, po: po.number, by });
-        }
-        set({ pos: get().pos.map((x) => (x.id === poId ? { ...x, status: "RECEIVED", receivedAt: now } : x)) });
       },
     }),
     {
