@@ -13,13 +13,13 @@ import type { Category, Lot, MoveType, PurchaseOrder, ZoneId } from "@/lib/types
 
 type Tab = "stock" | "lots" | "moves" | "reorder" | "zones";
 
-const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "cyan"> = {
+const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"> = {
   RECEIVE: "good",
   SHIP: "neutral",
   PICKUP: "neutral",
   ADJUST: "warn",
   WASTE: "bad",
-  TRANSFER: "cyan",
+  TRANSFER: "accent",
   RETURN: "warn",
   HOLD: "bad",
   RELEASE: "good",
@@ -419,7 +419,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                   </td>
                   <td className="r font-semibold">{l.qty}</td>
                   <td className="r text-ink-2">{reserved[l.id] || "–"}</td>
-                  <td>{l.status === "HOLD" ? <Badge tone="bad">QA hold</Badge> : zoneOfBin(l.bin) === "BLAST" ? <Badge tone="cyan">Blast freezing</Badge> : <Badge>Sellable</Badge>}</td>
+                  <td>{l.status === "HOLD" ? <Badge tone="bad">QA hold</Badge> : zoneOfBin(l.bin) === "BLAST" ? <Badge tone="accent">Blast freezing</Badge> : <Badge>Sellable</Badge>}</td>
                 </tr>
               );
             })}
@@ -569,7 +569,7 @@ function ReorderTab({ rows, pos, onOpen }: { rows: StockRow[]; pos: PurchaseOrde
               <div>
                 <div className="flex items-center gap-2">
                   <span className="code font-medium">{po.number}</span>
-                  <Badge tone="cyan">Due {day(po.eta)}</Badge>
+                  <Badge tone="accent">Due {day(po.eta)}</Badge>
                 </div>
                 <div className="mt-0.5 text-[14px] font-semibold">{maps.supplier.get(po.supplierId)?.name}</div>
               </div>

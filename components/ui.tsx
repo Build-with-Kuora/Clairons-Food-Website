@@ -64,14 +64,14 @@ export function Panel({
   );
 }
 
-type Tone = "neutral" | "good" | "warn" | "bad" | "cyan" | "ink";
+type Tone = "neutral" | "good" | "warn" | "bad" | "accent" | "ink";
 
 const toneClass: Record<Tone, string> = {
   neutral: "bg-sunk text-ink-2 border-line",
   good: "bg-good-bg text-good border-good/25",
   warn: "bg-warn-bg text-warn border-warn/25",
   bad: "bg-bad-bg text-bad border-bad/25",
-  cyan: "bg-cyan-bg text-cyan border-cyan/25",
+  accent: "bg-accent-bg text-accent border-accent/25",
   ink: "bg-ink text-white border-ink",
 };
 
@@ -103,8 +103,8 @@ const STATUS_TONE: Record<DeliveryStatus, Tone> = {
   SCHEDULED: "neutral",
   PICKING: "neutral",
   LOADED: "neutral",
-  EN_ROUTE: "cyan",
-  ARRIVED: "cyan",
+  EN_ROUTE: "accent",
+  ARRIVED: "accent",
   DELIVERED: "good",
   EXCEPTION: "bad",
 };

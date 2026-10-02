@@ -3,7 +3,7 @@
 import { ChevronLeft, MapPin, Navigation, Phone, Thermometer } from "lucide-react";
 import { useState } from "react";
 import { ExceptionForm, PodForm } from "@/components/Pod";
-import { Mark } from "@/components/Shell";
+import { Logo } from "@/components/Logo";
 import { StatusPill, cx } from "@/components/ui";
 import { clock, dateKey, tempBare } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
@@ -175,7 +175,7 @@ export default function Driver() {
           const cl = maps.client.get(d.clientId)!;
           const at = d.pod?.at ?? d.exception?.at;
           return (
-            <li key={d.id} className={cx("flex items-center gap-3 px-4 py-3", current?.id === d.id && "bg-cyan-bg/60")}>
+            <li key={d.id} className={cx("flex items-center gap-3 px-4 py-3", current?.id === d.id && "bg-accent-bg/60")}>
               <span className="display w-6 text-[20px] font-semibold text-ink-3">{d.seq}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15.5px] font-semibold">{cl.name}</div>
@@ -193,11 +193,11 @@ export default function Driver() {
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-frost">
+    <div className="min-h-screen bg-page">
       <div className="sticky top-0 z-10 border-b border-line bg-panel">
         <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 py-2.5">
-          <Mark size={26} />
-          <span className="display text-[19px] font-bold">Clairon&rsquo;s</span>
+          <Logo height={26} />
+          
           <span className="text-[14px] text-ink-3">Driver</span>
         </div>
       </div>

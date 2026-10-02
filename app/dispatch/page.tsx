@@ -113,7 +113,7 @@ export default function Dispatch() {
                         <Truck size={14} /> Dispatch truck
                       </button>
                     )}
-                    {run?.departedAt && <Badge tone="cyan">Out since {clock(run.departedAt)}</Badge>}
+                    {run?.departedAt && <Badge tone="accent">Out since {clock(run.departedAt)}</Badge>}
                   </>
                 }
                 bodyClass=""

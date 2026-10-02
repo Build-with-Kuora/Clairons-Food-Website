@@ -65,31 +65,31 @@ export function RouteLine({
             key={d.id}
             role="listitem"
             onClick={() => onSelect?.(d.id)}
-            className={cx("group relative flex min-w-[92px] flex-1 cursor-pointer flex-col items-center rounded-md pb-1", selected && "bg-cyan-bg/70")}
+            className={cx("group relative flex min-w-[92px] flex-1 cursor-pointer flex-col items-center rounded-md pb-1", selected && "bg-accent-bg/70")}
             aria-label={`Stop ${d.seq}, ${c?.name}, ${sub}`}
           >
             <div className="relative flex h-8 w-full items-center justify-center">
               <span
                 className={cx(
                   "absolute top-1/2 right-1/2 left-[-50%] -translate-y-1/2",
-                  reached ? "h-[3px] bg-ink" : driving ? "h-0 border-t-[3px] border-dashed border-cyan" : "h-0 border-t-2 border-dashed border-line-2",
+                  reached ? "h-[3px] bg-ink" : driving ? "h-0 border-t-[3px] border-dashed border-accent" : "h-0 border-t-2 border-dashed border-line-2",
                 )}
                 aria-hidden
               />
               {driving && (
-                <span className="absolute top-1/2 left-0 z-[2] grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-cyan text-white" aria-hidden>
+                <span className="absolute top-1/2 left-0 z-[2] grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-accent text-white" aria-hidden>
                   <Truck size={13} strokeWidth={2.4} />
                 </span>
               )}
               <span className="relative z-[1] grid place-items-center" aria-hidden>
-                {d.status === "ARRIVED" && <span className="ping-ring absolute h-5 w-5 rounded-full bg-cyan" />}
+                {d.status === "ARRIVED" && <span className="ping-ring absolute h-5 w-5 rounded-full bg-accent" />}
                 <span
                   className={cx(
                     "relative grid h-5 w-5 place-items-center rounded-full border-2 text-[11px] font-bold",
                     d.status === "DELIVERED" && "border-ink bg-ink text-white",
                     d.status === "EXCEPTION" && "border-bad bg-bad text-white",
-                    d.status === "ARRIVED" && "border-cyan bg-cyan text-white",
-                    d.status === "EN_ROUTE" && (driving ? "border-cyan bg-white" : "border-ink-3 bg-white"),
+                    d.status === "ARRIVED" && "border-accent bg-accent text-white",
+                    d.status === "EN_ROUTE" && (driving ? "border-accent bg-white" : "border-ink-3 bg-white"),
                     d.status === "LOADED" && "border-ink-3 bg-white",
                     (d.status === "PICKING" || d.status === "SCHEDULED") && "border-dashed border-line-2 bg-white",
                   )}
