@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { dateKey } from "./format";
-import { reservedByLot, stockRows } from "./logic";
+import { reservedByLot, salesOf, stockRows } from "./logic";
 import { useStore } from "./store";
 
 /** Re-render on an interval so relative times ("12 min ago", ETAs) stay honest. */
@@ -24,6 +24,13 @@ export function useStock() {
     const reserved = reservedByLot(orders, deliveries);
     return { reserved, rows: stockRows(products, lots, reserved) };
   }, [products, lots, orders, deliveries]);
+}
+
+/** Every order that counts as a sale so far, with when it counted. */
+export function useSales() {
+  const orders = useStore((s) => s.orders);
+  const deliveries = useStore((s) => s.deliveries);
+  return useMemo(() => salesOf(orders, deliveries), [orders, deliveries]);
 }
 
 export function useToday() {

@@ -125,12 +125,50 @@ export function allocateFEFO(
   return left > 0 ? null : out;
 }
 
-/** Cases sold per SKU on orders placed since `since` (cancelled orders excluded). */
-export function soldBySku(orders: Order[], since: number) {
-  const out = new Map<string, number>();
+/** Paid when the order is placed, so it counts as a sale right away. */
+const PAID_UPFRONT: PayMethod[] = ["CASH", "CARD", "CHECK", "GCASH"];
+
+export interface Sale {
+  orderId: string;
+  clientId: string;
+  at: number;
+  lines: { sku: string; qty: number; amount: number }[];
+  fees: number;
+  total: number;
+}
+
+/**
+ * Orders that count as sales (decision 0.6). Walk-ins and orders paid upfront count when placed;
+ * deliveries on account or COD count when delivered. Cases refused at the door are not sold.
+ */
+export function salesOf(orders: Order[], deliveries: Delivery[]): Sale[] {
+  const byId = new Map(deliveries.map((d) => [d.id, d]));
+  const out: Sale[] = [];
   for (const o of orders) {
-    if (o.status === "CANCELLED" || o.createdAt < since) continue;
-    for (const l of o.lines) out.set(l.sku, (out.get(l.sku) ?? 0) + l.qty);
+    if (o.status === "CANCELLED") continue;
+    const d = o.deliveryId ? byId.get(o.deliveryId) : undefined;
+    const at = o.fulfillment === "PICKUP" || PAID_UPFRONT.includes(o.payMethod) ? o.createdAt : d?.pod?.at;
+    if (at === undefined) continue;
+    const refused = new Map<string, number>();
+    for (const sh of d?.pod?.shorts ?? []) refused.set(sh.sku, (refused.get(sh.sku) ?? 0) + sh.qty);
+    const lines = o.lines
+      .map((l) => {
+        const qty = Math.max(0, l.qty - (refused.get(l.sku) ?? 0));
+        return { sku: l.sku, qty, amount: round2((l.lineTotal * qty) / l.qty) };
+      })
+      .filter((l) => l.qty > 0);
+    const fees = o.dropFee + o.fuel;
+    out.push({ orderId: o.id, clientId: o.clientId, at, lines, fees, total: round2(lines.reduce((t, l) => t + l.amount, 0) + fees) });
+  }
+  return out;
+}
+
+/** Cases sold per SKU since `since`. */
+export function soldBySku(sales: Sale[], since: number) {
+  const out = new Map<string, number>();
+  for (const s of sales) {
+    if (s.at < since) continue;
+    for (const l of s.lines) out.set(l.sku, (out.get(l.sku) ?? 0) + l.qty);
   }
   return out;
 }

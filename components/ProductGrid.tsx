@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DAY, money0, startOfDay } from "@/lib/format";
-import { useStock } from "@/lib/hooks";
+import { useSales, useStock } from "@/lib/hooks";
 import { soldBySku } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Category } from "@/lib/types";
@@ -26,7 +26,7 @@ const TOP = 8;
  */
 export function ProductGrid({ now }: { now: number }) {
   const products = useStore((s) => s.products);
-  const orders = useStore((s) => s.orders);
+  const sales = useSales();
   const { rows } = useStock();
   const [period, setPeriod] = useState<PeriodId>("day");
   const [cat, setCat] = useState<Category | "All">("All");
@@ -36,7 +36,7 @@ export function ProductGrid({ now }: { now: number }) {
   const p = PERIODS.find((x) => x.id === period)!;
   const since = startOfDay(now) - (p.days - 1) * DAY;
 
-  const sold = useMemo(() => soldBySku(orders, since), [orders, since]);
+  const sold = useMemo(() => soldBySku(sales, since), [sales, since]);
 
   const cats = useMemo(() => ["All" as const, ...new Set(products.map((x) => x.category))], [products]);
   const needle = q.trim().toLowerCase();
