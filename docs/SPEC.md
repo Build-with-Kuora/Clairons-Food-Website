@@ -62,10 +62,11 @@ These change what we build, so they come first.
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 4.1 | List of products with how many were produced (per day) | Missing | No production module |
-| 4.2 | Record a production batch: product, quantity, date, made by | Missing | |
-| 4.3 | Produced quantity adds to inventory and shows on the Dashboard | Missing | **[changed]** Each batch becomes a stock lot with a best-by date, the same way receiving from a supplier does (`receive` in `lib/store.ts`), so first-expiry-first-out and expiry alerts work for in-house products too. |
-| 4.4 | Batch blast-freezes before it can be sold | Partial | The prototype already models blast-freezing for received stock. |
+| 4.1 | List of products with how many were produced (per day) | Done | `/production`: produced by product, today and 7 days |
+| 4.2 | Record a production batch: product, quantity, date, made by | Done | Plus an optional note. "To make" suggests what to run next, from reorder point and par. |
+| 4.3 | Produced quantity adds to inventory and shows on the Dashboard | Done | **[changed]** Each batch becomes a stock lot with a best-by date, the same way receiving from a supplier does (`receive` in `lib/store.ts`), so first-expiry-first-out and expiry alerts work for in-house products too. |
+| 4.4 | Batch blast-freezes before it is put away | Partial | Batches land in a blast-freezer bin; staff move them to a freezer bin from Inventory. Nothing yet stops selling a lot that is still blast freezing. |
+| 4.6 | Seeded history comes from production batches, not supplier POs (decision 0.1) | Missing | Demo stock and the Inventory "Reorder" tab still use suppliers and purchase orders. Turn Reorder into a link to Production. |
 | 4.5 | Consumes raw materials per recipe | Deferred | Decision 0.2 |
 
 ## 5. Delivery
@@ -136,11 +137,20 @@ The prototype has no backend yet, but every feature follows three rules. When th
 
 New features (Production, riders, products admin) add a type, a logic function where there is a rule, and a store action. They don't put logic inside a page.
 
+## Future notes for the main app
+
+Not built in the prototype. Do these once the client approves the prototype and the main app (with a real database) starts.
+
+- **Offline delivery.** The rider/driver side must keep working with no signal: view stops, mark arrived/delivered, capture proof of delivery and COD collected. Store data on the phone in **IndexedDB** and queue each change. When the phone is back online, sync the queue to the database. Each queued change carries an id, so a retry doesn't apply it twice. Conflicts (e.g. dispatch reassigned a stop while the rider was offline) are flagged for dispatch to resolve rather than silently overwritten. The prototype's store actions (`advance`, `completeDelivery`, `reportException`) are the operations to queue.
+- **Shared database and API**, logins and roles (10.2, 10.3).
+- **E-commerce** (section 9) once its scope is decided (0.7).
+- **BIR registration** of the invoicing system (7.2).
+
 ## Suggested build order (prototype, no database)
 
 1. Get the open decision (0.7, e-commerce scope) from the client.
 2. ~~Dashboard product grid (2.1–2.7)~~ Done.
-3. Production page (4.1–4.3), recording batches as stock lots. Rework the seed so finished goods come from production runs instead of supplier POs (decision 0.1).
+3. ~~Production page (4.1–4.3)~~ Done. Next: rework the seed and the Reorder tab so finished goods come from production instead of supplier POs (4.6).
 4. Phone bottom navigation (1.3–1.4).
 5. Delivery table view and rider editing (5.1, 5.3, 5.7).
 6. Sales table with totals; count a sale on delivery (6.1–6.3).
