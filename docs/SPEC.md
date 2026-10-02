@@ -16,7 +16,7 @@ These change what we build, so they come first.
 1. **Decided: Clairon's is a manufacturer.** They make all their own products and sell them wholesale. The prototype still treats finished goods as bought from suppliers (Ongpin Dimsum Commissary, Valenzuela Fishball Factory…) and received on purchase orders. **Production batches replace that as the way finished goods come in.** The supplier, PO and reorder screens either go away or become purchasing for raw materials (see 0.2).
 2. **Decided: finished goods only, for now.** A production batch adds finished stock. Raw materials and recipes can be added later without changing how batches work.
 3. **Decided: the Dashboard upper-left box shows price.** Quantity produced belongs on the Production page.
-4. **Decided: the owner sets the unit per product.** Each product has a selling unit (e.g. "case", "pack", "tray") and what is inside it (e.g. "10 × 50 pcs"). Stock, production and sales are counted in that unit. Part of add/edit products (2.8). Until then the prototype counts cases.
+4. **Decided: the owner sets the unit per product.** Each product has a selling unit (e.g. "case", "pack", "tray") and what is inside it (e.g. "10 × 50 pcs"). Stock, production and sales are counted in that unit. Built with add/edit products (2.8). The demo sells ice cream by the tub and everything else by the case.
 5. **Decided: both riders and vans.** Refrigerated vans on routes for big accounts (keeping temperature logs), riders on motorbikes for small drops. A delivery is assigned to either a van route or a rider.
 6. **Decided: a sale counts when the order is delivered or paid** (see 6.3).
 7. **E-commerce scope:** is this a public online store, or ordering for regular accounts only (restaurants, carts)? These are very different builds.
@@ -45,7 +45,7 @@ These change what we build, so they come first.
 | 2.5 | Lower-right box: stock left (*bilin nga stock*). Shows **free to sell** stock, i.e. on hand minus already reserved for orders | Done | **[changed]** Raw on-hand would overstate what can be sold. |
 | 2.6 | Low stock is highlighted on the card | Done | Amber below reorder point, red when out |
 | 2.7 | **[changed]** With many products: search and category filter on the grid | Done | The sketch shows 4 products; the catalogue has 48 SKUs. |
-| 2.8 | Owner can add / edit / deactivate products: name, price, **selling unit and its contents** (decision 0.4), reorder level, par level | Missing | Products come from the seed only. |
+| 2.8 | Owner can add / edit / deactivate products: name, price, **selling unit and its contents** (decision 0.4), reorder level, par level | Done | Inventory → Products: add, edit, deactivate. Also tier prices, weight per unit, catch weight, storage zone, home bin and shelf life, which a new product needs to be stocked and sold. New SKUs are numbered by category. Inactive products keep their stock and history but drop off the Counter, the Dashboard grid, "To make" and the batch picker. Rules are `productError` and `nextSku` in `lib/logic.ts`; the store action is `saveProduct`. Price changes are not logged yet. |
 | 2.9 | Current dashboard content (headline figures, routes, freezer temps, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. |
 
 ## 3. Inventory (finished goods)
@@ -149,10 +149,9 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5).
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4).
 
-1. **Add/edit products** (2.8, decision 0.4): name, price, owner-set selling unit and contents, reorder level, par.
-2. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
-3. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
-4. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
-5. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
+1. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
+2. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
+3. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
+4. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
