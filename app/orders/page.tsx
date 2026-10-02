@@ -1,11 +1,12 @@
 "use client";
 
-import { Printer, Search } from "lucide-react";
+import { Printer, Search, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Invoice } from "@/components/Invoice";
+import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Drawer, Empty, PageHead, Panel, StatusPill, cx } from "@/components/ui";
-import { dateTime, dayShort, keyToTs, money, money0, startOfDay } from "@/lib/format";
+import { dateTime, dayShort, invoiceNumber, keyToTs, money, money0, startOfDay } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
 import { PAY_LABEL } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
@@ -23,6 +24,7 @@ export default function Orders() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
+  const [sending, setSending] = useState(false);
 
   const dById = new Map(deliveries.map((d) => [d.id, d]));
   const dayStart = startOfDay(now);
@@ -34,7 +36,10 @@ export default function Orders() {
       if (filter === "cancelled") return o.status === "CANCELLED";
       return true;
     })
-    .filter((o) => !q || o.number.toLowerCase().includes(q.toLowerCase()) || maps.client.get(o.clientId)?.name.toLowerCase().includes(q.toLowerCase()))
+    .filter((o) => {
+      const needle = q.trim().toLowerCase();
+      return !needle || o.number.toLowerCase().includes(needle) || invoiceNumber(o.invoiceNo).toLowerCase().includes(needle) || maps.client.get(o.clientId)?.name.toLowerCase().includes(needle);
+    })
     .sort((a, b) => b.createdAt - a.createdAt);
 
   const open = orders.find((o) => o.id === openId);
@@ -52,7 +57,7 @@ export default function Orders() {
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
           <div className="relative min-w-[220px] flex-1">
             <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" />
-            <input className="input pl-8" placeholder="Order number or client" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="input pl-8" placeholder="Order, invoice number or client" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {(
             [
@@ -73,6 +78,7 @@ export default function Orders() {
             <thead>
               <tr>
                 <th>Order</th>
+                <th>Invoice</th>
                 <th>Placed</th>
                 <th>Client</th>
                 <th>Fulfillment</th>
@@ -87,6 +93,7 @@ export default function Orders() {
                 return (
                   <tr key={o.id} className="clickable" onClick={() => setOpenId(o.id)}>
                     <td className="code font-medium">{o.number}</td>
+                    <td className="code text-ink-2">{invoiceNumber(o.invoiceNo)}</td>
                     <td className="whitespace-nowrap text-ink-2">{dateTime(o.createdAt)}</td>
                     <td className="font-semibold">{maps.client.get(o.clientId)?.name}</td>
                     <td className="text-ink-2">
@@ -118,6 +125,9 @@ export default function Orders() {
               <button className="btn btn-ghost" onClick={() => window.print()}>
                 <Printer size={16} /> Print invoice
               </button>
+              <button className="btn btn-ghost" onClick={() => setSending(true)}>
+                <Send size={16} /> Send receipt
+              </button>
               {openD && (
                 <Link className="btn btn-ghost" href={`/dispatch?stop=${openD.id}`}>
                   Track delivery
@@ -138,6 +148,7 @@ export default function Orders() {
           }
         >
           <OrderBody order={open} />
+          {sending && <SendReceipt order={open} client={maps.client.get(open.clientId)!} by="Counter 1" onClose={() => setSending(false)} />}
         </Drawer>
       )}
     </div>
@@ -152,7 +163,7 @@ function OrderBody({ order }: { order: Order }) {
   return (
     <div className="-mx-5 -my-4">
       {d && (
-        <div className="flex items-center gap-3 border-b border-line bg-sunk px-5 py-2.5 text-[14px]">
+        <div className="flex flex-wrap items-center gap-3 border-b border-line bg-sunk px-5 py-2.5 text-[14px]">
           <StatusPill status={d.status} />
           {d.pod ? (
             <span>

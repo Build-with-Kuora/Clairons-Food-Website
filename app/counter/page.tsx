@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, History, Minus, Plus, Printer, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, History, Minus, Plus, Printer, Search, Send, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Invoice } from "@/components/Invoice";
+import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Field, Kbd, Modal, PageHead, cx } from "@/components/ui";
 import { DAY, dateKey, dayShort, keyToTs, money, money0, startOfDay, unitPlural, units } from "@/lib/format";
 import { useMaps, useStock } from "@/lib/hooks";
@@ -48,6 +49,7 @@ export default function Counter() {
   const [override, setOverride] = useState(false);
   const [extras, setExtras] = useState(false);
   const [done, setDone] = useState<Order | null>(null);
+  const [sending, setSending] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const client = clients.find((c) => c.id === clientId);
@@ -478,6 +480,9 @@ export default function Counter() {
             <button className="btn btn-ghost" onClick={() => window.print()}>
               <Printer size={16} /> Print
             </button>
+            <button className="btn btn-ghost" onClick={() => setSending(true)}>
+              <Send size={16} /> Send receipt
+            </button>
             <button className="btn btn-primary" onClick={reset}>
               Start next order
             </button>
@@ -496,6 +501,10 @@ export default function Counter() {
           </div>
         )}
       </Modal>
+      {done && sending && (
+        // The placed order lives in the store; read it back so a logged send shows up.
+        <SendReceipt order={orders.find((o) => o.id === done.id) ?? done} client={maps.client.get(done.clientId)!} by="Counter 1" onClose={() => setSending(false)} />
+      )}
     </div>
   );
 }

@@ -111,6 +111,10 @@ export interface Client {
   routeId: string;
   window: string;
   dockNote: string;
+  /** Where e-mailed receipts go */
+  email?: string;
+  /** Buyer TIN, printed on the invoice when the account has one */
+  tin?: string;
 }
 
 export interface Alloc {
@@ -132,9 +136,40 @@ export interface OrderLine {
 
 export type PayMethod = "ACCOUNT" | "CARD" | "CASH" | "CHECK" | "GCASH" | "COD";
 
+export type ReceiptChannel = "SMS" | "EMAIL";
+
+/** A copy of the receipt sent to the buyer. */
+export interface ReceiptSend {
+  at: number;
+  channel: ReceiptChannel;
+  to: string;
+  by: string;
+}
+
+/** The registered business printed on every invoice. */
+export interface Seller {
+  registeredName: string;
+  tradeName: string;
+  /** VAT-registered TIN with branch code */
+  tin: string;
+  address: string;
+  phone: string;
+  email: string;
+  /** BIR Permit to Use number and date for the invoicing system */
+  permitNo: string;
+  permitDate: string;
+  /** Approved invoice serial range */
+  seriesFrom: number;
+  seriesTo: number;
+  /** True while the details are made up for the prototype */
+  sample: boolean;
+}
+
 export interface Order {
   id: string;
   number: string;
+  /** Sales invoice serial, issued in order when the order is placed and never reused */
+  invoiceNo: number;
   clientId: string;
   createdAt: number;
   by: string;
@@ -150,6 +185,7 @@ export interface Order {
   status: "OPEN" | "FULFILLED" | "CANCELLED";
   clientPo?: string;
   notes?: string;
+  receipts?: ReceiptSend[];
 }
 
 export type DeliveryStatus =

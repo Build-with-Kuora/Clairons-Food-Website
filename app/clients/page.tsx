@@ -163,7 +163,14 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
         </div>
         <div>
           <dt className="text-[12.5px] text-ink-3">Contact</dt>
-          <dd>{c.contact}</dd>
+          <dd>
+            {c.contact}
+            {c.email && <div className="text-ink-2">{c.email}</div>}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[12.5px] text-ink-3">TIN</dt>
+          <dd>{c.tin ?? <span className="text-ink-3">None on file</span>}</dd>
         </div>
         <div>
           <dt className="text-[12.5px] text-ink-3">Deliveries signed</dt>

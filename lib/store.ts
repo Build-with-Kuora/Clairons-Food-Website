@@ -11,12 +11,13 @@ import {
   orderTotals,
   priceLines,
   productError,
+  receiptToError,
   reservedByLot,
   round2,
   runKey,
   zoneOfBin,
 } from "./logic";
-import { buildSeed, type Data } from "./seed";
+import { SELLER, buildSeed, type Data } from "./seed";
 import type {
   Batch,
   DeliveryStatus,
@@ -28,6 +29,7 @@ import type {
   Pod,
   Product,
   ProductInput,
+  ReceiptChannel,
   Rider,
   Run,
 } from "./types";
@@ -72,6 +74,8 @@ interface Actions {
   saveRider(i: RiderInput): { ok: true; rider: Rider } | { ok: false; error: string };
   /** Add a product, or edit one (including deactivating it). */
   saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
+  /** Record that a copy of the receipt went to the buyer. */
+  logReceipt(orderId: string, channel: ReceiptChannel, to: string, by: string): { ok: true } | { ok: false; error: string };
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
@@ -81,6 +85,7 @@ interface Actions {
 export type Store = Data & Actions;
 
 const empty: Data = {
+  seller: SELLER,
   products: [],
   lots: [],
   movements: [],
@@ -92,7 +97,7 @@ const empty: Data = {
   runs: {},
   zones: [],
   batches: [],
-  counters: { so: 0, batch: 0 },
+  counters: { so: 0, batch: 0, invoice: 0 },
   seededAt: 0,
 };
 
@@ -100,7 +105,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v6";
+export const STORAGE_KEY = "clairons-coldline-ph-v7";
 
 export const useStore = create<Store>()(
   persist(
@@ -154,9 +159,11 @@ export const useStore = create<Store>()(
         const subtotal = round2(lines.reduce((t, l) => t + l.lineTotal, 0));
         const totals = orderTotals(subtotal, i.fulfillment);
         const n = s.counters.so + 1;
+        const invoiceNo = s.counters.invoice + 1;
         const order: Order = {
           id: `o-${n}`,
           number: `SO-${n}`,
+          invoiceNo,
           clientId: client.id,
           createdAt: now,
           by: i.by,
@@ -211,7 +218,7 @@ export const useStore = create<Store>()(
             ? s.clients.map((c) => (c.id === client.id ? { ...c, balance: round2(c.balance + order.total) } : c))
             : s.clients;
 
-        set({ orders: [...s.orders, order], lots, movements, deliveries, runs, clients, counters: { ...s.counters, so: n } });
+        set({ orders: [...s.orders, order], lots, movements, deliveries, runs, clients, counters: { ...s.counters, so: n, invoice: invoiceNo } });
         return { ok: true, order };
       },
 
@@ -382,6 +389,16 @@ export const useStore = create<Store>()(
         };
         set({ products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product] });
         return { ok: true, product };
+      },
+
+      logReceipt: (orderId, channel, to, by) => {
+        const s = get();
+        if (!s.orders.some((o) => o.id === orderId)) return { ok: false, error: "Order not found." };
+        const error = receiptToError(channel, to);
+        if (error) return { ok: false, error };
+        const send = { at: Date.now(), channel, to: to.trim(), by };
+        set({ orders: s.orders.map((o) => (o.id === orderId ? { ...o, receipts: [...(o.receipts ?? []), send] } : o)) });
+        return { ok: true };
       },
 
       produce: (i) => {

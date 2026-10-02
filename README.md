@@ -21,7 +21,7 @@ Everything runs in the browser. Data is seeded relative to the current time and 
 | `/production` | Record a batch (it becomes a lot in the blast freezer), what to make next from reorder point and par, batches made, produced per product today and over 7 days. |
 | `/dispatch` Delivery | **Routes**: each van route drawn as a line of stops, plus rider drops. **Table**: every stop for the day with rider or driver, customer, amount and status, and the rider can be changed until the stop leaves. **Riders**: add and edit motorbike riders. Per stop: status ladder with timestamps, ref van temperature trace against the −15°C frozen limit, proof of delivery (signature, receiver, product temp, shorts, COD collected), activity log. Advance picking, loading and dispatch from here. |
 | `/sales` | Sales by product for any date range (today, 7 days, 30 days, this month, or custom): cases sold, VATable sales, 12% VAT and amount per product, with delivery fees and a total row. Prints as a report. |
-| `/orders` | All orders with payment and delivery status, invoice view, cancel (releases reserved stock). |
+| `/orders` | All orders with invoice number, payment and delivery status. Sales invoice with BIR details (sample seller TIN and permit for now), print, send the receipt by SMS or e-mail, cancel (releases reserved stock). |
 | `/clients` | Accounts with terms, credit use, past due, and full delivery history showing who signed and at what temperature. |
 | `/driver` | Phone-sized handheld for van drivers and riders: start route, arrive, unload, capture signature and temps, report problems. Open it in a second tab next to Dispatch to watch updates sync. |
 

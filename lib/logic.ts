@@ -10,6 +10,8 @@ import type {
   PayMethod,
   Product,
   ProductInput,
+  ReceiptChannel,
+  Seller,
   Rider,
   Route,
   Run,
@@ -17,7 +19,7 @@ import type {
   Tier,
   ZoneId,
 } from "./types";
-import { HOUR } from "./format";
+import { HOUR, dateTime, invoiceNumber, money } from "./format";
 
 export const ZONES: Record<ZoneId, { name: string; setPointC: number; maxC: number; color: string; prefix: string }> = {
   BLAST: { name: "Blast freezer", setPointC: -35, maxC: -28, color: "var(--color-z-blast)", prefix: "B" },
@@ -365,6 +367,58 @@ export const PAY_LABEL: Record<PayMethod, string> = {
   GCASH: "GCash",
   COD: "Collect on delivery",
 };
+
+/** Why a receipt can't go to this address or number, or null when it can. */
+export function receiptToError(channel: ReceiptChannel, to: string): string | null {
+  const v = to.trim();
+  if (channel === "EMAIL") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : "Enter an e-mail address, e.g. name@example.com.";
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 13 ? null : "Enter a mobile number, e.g. 0917 555 1234.";
+}
+
+/** The receipt as plain text: one short line for SMS, the full breakdown for e-mail. */
+export function receiptMessage(o: Order, buyer: Client, seller: Seller, channel: ReceiptChannel) {
+  const no = invoiceNumber(o.invoiceNo);
+  const v = vatSplit(o.total);
+  const status = o.paid ? "Paid" : o.payMethod === "COD" ? "Pay on delivery" : "Charged to your account";
+  const subject = `${seller.tradeName} sales invoice ${no}`;
+  if (channel === "SMS") {
+    const items = o.lines.reduce((t, l) => t + l.qty, 0);
+    return { subject, body: `${seller.tradeName}: invoice ${no}, ${dateTime(o.createdAt)}. ${items} items, total ${money(o.total)} incl. VAT ${money(v.vat)}. ${status}. Thank you!` };
+  }
+  const lines = o.lines.map((l) => `${l.qty} × ${l.name} (${l.sku}) @ ${money(l.unitPrice)}${l.catchWeight ? "/kg" : ""} = ${money(l.lineTotal)}`);
+  const fees = [o.dropFee > 0 && `Small-drop fee ${money(o.dropFee)}`, o.fuel > 0 && `Fuel surcharge ${money(o.fuel)}`].filter(Boolean) as string[];
+  const body = [
+    `${seller.registeredName}`,
+    `VAT Reg. TIN ${seller.tin}`,
+    seller.address,
+    "",
+    `Sales invoice ${no}, order ${o.number}`,
+    `Date: ${dateTime(o.createdAt)}`,
+    `Sold to: ${buyer.name}${buyer.tin ? `, TIN ${buyer.tin}` : ""}`,
+    `${buyer.address}, ${buyer.city}`,
+    "",
+    ...lines,
+    ...fees,
+    "",
+    `VATable sales: ${money(v.net)}`,
+    "VAT-exempt sales: ₱0.00",
+    "Zero-rated sales: ₱0.00",
+    `VAT 12%: ${money(v.vat)}`,
+    `Total: ${money(o.total)}`,
+    `${PAY_LABEL[o.payMethod]}. ${status}.`,
+    ...(o.status === "CANCELLED" ? ["", "This invoice was cancelled."] : []),
+    "",
+    `Questions: ${seller.phone}, ${seller.email}`,
+  ].join("\n");
+  return { subject, body };
+}
+
+/** Opens the device's own SMS or mail app with the receipt filled in. */
+export function receiptHref(channel: ReceiptChannel, to: string, msg: { subject: string; body: string }) {
+  if (channel === "SMS") return `sms:${to.replace(/[^\d+]/g, "")}?body=${encodeURIComponent(msg.body)}`;
+  return `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(msg.subject)}&body=${encodeURIComponent(msg.body)}`;
+}
 
 export const runKey = (routeId: string, date: string) => `${routeId}|${date}`;
 

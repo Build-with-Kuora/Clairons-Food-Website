@@ -17,6 +17,7 @@ import type {
   Rider,
   Route,
   Run,
+  Seller,
   TempReading,
   Zone,
   ZoneId,
@@ -187,7 +188,37 @@ function reeferLog(
   return out;
 }
 
+/** Made-up business details for the prototype. Replace with the registered ones before going live. */
+export const SELLER: Seller = {
+  registeredName: "Clairon's Food Trading Corp.",
+  tradeName: "Clairon's Food",
+  tin: "000-000-000-00000",
+  address: "88 Sto. Cristo St, Binondo, Manila 1006",
+  phone: "(02) 8000-0000",
+  email: "orders@example.com",
+  permitNo: "SAMPLE-PTU-0000-000000",
+  permitDate: "Jan 1, 2026",
+  seriesFrom: 1,
+  seriesTo: 999999,
+  sample: true,
+};
+
+/** Receipt e-mail and buyer TIN for the larger accounts. Fake: example.com addresses, 000- TINs. */
+const CLIENT_EXTRA: Record<string, Pick<Client, "email" | "tin">> = {
+  "c-wahlee": { email: "benson@wahlee.example.com", tin: "000-201-334-00000" },
+  "c-lucky": { email: "grace@luckydragon.example.com" },
+  "c-dapitan": { email: "canteen@dapitan.example.com", tin: "000-318-552-00000" },
+  "c-murallas": { email: "purchasing@casamurallas.example.com", tin: "000-402-117-00000" },
+  "c-titababy": { email: "commissary@titababy.example.com", tin: "000-415-906-00000" },
+  "c-sampaguita": { email: "receiving@sampaguita.example.com", tin: "000-509-221-00003" },
+  "c-stisidore": { email: "dietary@stisidore.example.com", tin: "000-611-480-00000" },
+  "c-kapitolyo": { email: "mika@kapitolyokitchen.example.com", tin: "000-704-385-00000" },
+  "c-lorenzo": { email: "canteen@sanlorenzo.example.com", tin: "000-812-670-00000" },
+  "c-rizalmart": { email: "warehouse@rizalmart.example.com", tin: "000-905-142-00002" },
+};
+
 export interface Data {
+  seller: Seller;
   products: Product[];
   lots: Lot[];
   movements: Movement[];
@@ -199,7 +230,7 @@ export interface Data {
   runs: Record<string, Run>;
   zones: Zone[];
   batches: Batch[];
-  counters: { so: number; batch: number };
+  counters: { so: number; batch: number; invoice: number };
   seededAt: number;
 }
 
@@ -321,7 +352,7 @@ export function buildSeed(now = Date.now()): Data {
       .sort((a, b) => a.bestBy - b.bestBy)[0];
 
   // ---------- Orders and deliveries ----------
-  const clients = CLIENTS.map((c) => ({ ...c }));
+  const clients = CLIENTS.map((c) => ({ ...c, ...CLIENT_EXTRA[c.id] }));
   const clientById = new Map(clients.map((c) => [c.id, c]));
   const orders: Order[] = [];
   const deliveries: Delivery[] = [];
@@ -368,6 +399,7 @@ export function buildSeed(now = Date.now()): Data {
     const o: Order = {
       id: `o-${++so}`,
       number: `SO-${so}`,
+      invoiceNo: 0, // numbered in date order once every order exists
       clientId: c.id,
       createdAt,
       by,
@@ -599,7 +631,11 @@ export function buildSeed(now = Date.now()): Data {
   batches.sort((a, b) => b.madeAt - a.madeAt);
 
   movements.sort((a, b) => b.at - a.at);
+  // Invoices are issued in the order sales were placed.
+  let invoice = 1200;
+  for (const o of [...orders].sort((a, b) => a.createdAt - b.createdAt)) o.invoiceNo = ++invoice;
   return {
+    seller: SELLER,
     products,
     lots,
     movements,
@@ -611,7 +647,7 @@ export function buildSeed(now = Date.now()): Data {
     runs,
     zones,
     batches,
-    counters: { so, batch: lots.length },
+    counters: { so, batch: lots.length, invoice },
     seededAt: now,
   };
 }
