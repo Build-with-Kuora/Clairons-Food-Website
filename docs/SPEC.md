@@ -148,11 +148,15 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 ## Suggested build order (prototype, no database)
 
-1. Get the open decision (0.7, e-commerce scope) from the client.
-2. ~~Dashboard product grid (2.1–2.7)~~ Done.
-3. ~~Production page (4.1–4.3)~~ Done. Next: rework the seed and the Reorder tab so finished goods come from production instead of supplier POs (4.6).
-4. Phone bottom navigation (1.3–1.4).
-5. Delivery table view and rider editing (5.1, 5.3, 5.7).
-6. Sales table with totals; count a sale on delivery (6.1–6.3).
-7. Add/edit products (2.8).
-8. Later, with the database: logins, e-commerce, BIR fields, sending receipts.
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3).
+
+1. **Production replaces suppliers** (4.6): seed demo stock from production batches, turn the Inventory "Reorder" tab into a link to Production, drop purchase orders for finished goods.
+2. **Sale rule** (6.3, decision 0.6): count a sale when delivered or paid, not when placed. Updates "Sold today", the sales chart and the dashboard cards (2.3).
+3. **No selling stock that is still blast freezing** (4.4): reserve from freezer bins only and show "ready at" on fresh batches.
+4. **Phone bottom navigation** (1.3–1.4): Inventory · Production · Home · Delivery · Sales, with Counter, Orders and Clients under Sales/More.
+5. **Delivery table and riders** (5.1, 5.3, 5.7, 5.8): flat Rider · Customer · Amount table, rider list, assign a stop to a van route or a rider, change the rider.
+6. **Sales table with totals** (6.1, 6.2, 6.5): sales by product, date range, total row, with and without VAT.
+7. **Add/edit products** (2.8, decision 0.4): name, price, owner-set selling unit and contents, reorder level, par.
+8. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
+9. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
+10. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
