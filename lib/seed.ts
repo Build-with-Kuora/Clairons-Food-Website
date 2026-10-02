@@ -1,5 +1,5 @@
 import { DAY, HOUR, MIN, dateKey, lotCode, startOfDay } from "./format";
-import { ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey } from "./logic";
+import { ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey, zoneOfBin } from "./logic";
 import type {
   Alloc,
   Category,
@@ -230,11 +230,18 @@ export function buildSeed(now = Date.now()): Data {
     supplierId,
     shelfDays,
   }));
-  const bySku = new Map(products.map((p) => [p.sku, p]));
 
   // ---------- Lots ----------
+  // `qty` is what is on hand now. `receivedQty`, the PO number and the RECEIVE movement are filled
+  // in at the end, once every shipment, return and write-off against the lot is known, so each
+  // lot's ledger adds up to its on-hand.
   const lots: Lot[] = [];
   const movements: Movement[] = [];
+  const overflow: Partial<Record<ZoneId, number>> = {};
+  // Dated stock that needs selling first: days left on the oldest lot
+  const expiring: Record<string, number> = { "CH-9002": 3, "CH-9001": 6, "CH-9003": 12, "BR-3001": 20 };
+  // Fresh product still hard-freezing in the blast freezer: hours since receipt, blast bin
+  const blasting: Record<string, [number, string]> = { "DM-1001": [26, "B-01-02"], "ST-2001": [4, "B-01-01"] };
   let lotN = 0;
   for (const p of products) {
     const target = LOW.has(p.sku)
@@ -243,59 +250,77 @@ export function buildSeed(now = Date.now()): Data {
     const n = target < 8 ? 1 : int(2, 3);
     let left = target;
     for (let i = 0; i < n; i++) {
+      const first = i === 0;
       const last = i === n - 1;
       const qty = last ? left : Math.max(1, Math.round(left * (0.18 + r() * 0.2)));
       left -= qty;
       const age = Math.round((n - i) * p.shelfDays * 0.16 * (0.6 + r() * 0.5)) + int(1, 3);
-      const receivedAt = today - age * DAY + int(6, 13) * HOUR;
-      const receivedQty = last ? qty + int(0, Math.ceil(qty * 0.4)) : qty + int(qty, qty * 3);
-      const frozen = p.zone !== "COOL";
-      const lot: Lot = {
+      let receivedAt = today - age * DAY + int(6, 13) * HOUR;
+      let receiveTempC = p.zone !== "COOL" ? round1(-22 + r() * 5) : round1(2 + r() * 2.5);
+      let seq = int(1, 14);
+      let bin: string | undefined;
+      const lot: Partial<Lot> = { status: "AVAILABLE" };
+
+      if (first && expiring[p.sku] !== undefined) receivedAt = today + (expiring[p.sku] - p.shelfDays) * DAY + int(6, 13) * HOUR;
+      if (last && n > 1 && blasting[p.sku]) {
+        receivedAt = now - blasting[p.sku][0] * HOUR;
+        bin = blasting[p.sku][1];
+        receiveTempC = -16.5;
+        seq = 7;
+      }
+      if (last && n > 1 && p.sku === "SE-6001") {
+        // Came in warm yesterday and is waiting on QA
+        receivedAt = today - DAY + 15 * HOUR;
+        receiveTempC = -9.5;
+        lot.status = "HOLD";
+        lot.holdReason = "Received at −9.5°C, warmer than the −15°C limit. Probe core temp and check for thaw before release.";
+      }
+      // Blasted overnight two days ago, put away yesterday morning
+      if (last && n > 1 && p.sku === "DM-1010") receivedAt = today - 2 * DAY + 14 * HOUR;
+
+      // The oldest lot sits in the home pick bin; newer lots go to overstock bins in the same zone.
+      if (!bin && first) bin = p.bin;
+      if (!bin) {
+        const k = (overflow[p.zone] = (overflow[p.zone] ?? 0) + 1);
+        bin = `${ZONES[p.zone].prefix}-OS-${String(k).padStart(2, "0")}`;
+      }
+
+      lots.push({
+        ...lot,
         id: `lot-${++lotN}`,
         sku: p.sku,
-        code: lotCode(receivedAt, int(1, 14)),
+        code: lotCode(receivedAt, seq),
         receivedAt,
         bestBy: startOfDay(receivedAt + p.shelfDays * DAY),
-        receivedQty,
+        receivedQty: 0,
         qty,
-        bin: p.bin.slice(0, -1) + String(1 + i),
+        bin,
         supplierId: p.supplierId,
-        receiveTempC: frozen ? round1(-22 + r() * 5) : round1(2 + r() * 2.5),
-        po: `PO-${7600 + lotN}`,
-        status: "AVAILABLE",
-      };
-      lots.push(lot);
-      movements.push({ id: mvId(), at: receivedAt, sku: p.sku, lotCode: lot.code, type: "RECEIVE", qty: receivedQty, ref: lot.po, by: "Receiving" });
+        receiveTempC,
+      } as Lot);
     }
   }
   const lotsOf = (sku: string) => lots.filter((l) => l.sku === sku).sort((a, b) => a.receivedAt - b.receivedAt);
 
-  // Dated stock that needs selling first
-  const expiring: [string, number][] = [["CH-9002", 3], ["CH-9001", 6], ["CH-9003", 12], ["BR-3001", 20]];
-  for (const [sku, d] of expiring) lotsOf(sku)[0].bestBy = today + d * DAY;
+  // Purchase order numbers follow receiving order; open POs continue the sequence.
+  [...lots].sort((a, b) => a.receivedAt - b.receivedAt).forEach((l, i) => (l.po = `PO-${7601 + i}`));
+  let po = 7600 + lots.length;
 
-  // A lot that came in warm and is waiting on QA
   const warm = lotsOf("SE-6001").at(-1)!;
-  warm.status = "HOLD";
-  warm.receiveTempC = -9.5;
-  warm.receivedAt = today - DAY + 15 * HOUR;
-  warm.holdReason = "Received at −9.5°C, warmer than the −15°C limit. Probe core temp and check for thaw before release.";
   movements.push({ id: mvId(), at: warm.receivedAt + 20 * MIN, sku: warm.sku, lotCode: warm.code, type: "HOLD", qty: 0, by: "Receiving", note: "Auto hold: warm at receipt" });
 
-  // Fresh product still hard-freezing in the blast freezer
-  for (const [sku, hours, bin] of [["DM-1001", 26, "B-01-02"], ["ST-2001", 4, "B-01-01"]] as const) {
-    const l = lotsOf(sku).at(-1)!;
-    l.receivedAt = now - hours * HOUR;
-    l.bin = bin;
-    l.receiveTempC = -16.5;
-    l.code = lotCode(l.receivedAt, 7);
-  }
-
+  const putAway = lotsOf("DM-1010").at(-1)!;
   movements.push(
     { id: mvId(), at: today - 3 * DAY + 15 * HOUR, sku: "FR-8501", lotCode: lotsOf("FR-8501")[0].code, type: "ADJUST", qty: -1, by: "Inventory", note: "Cycle count variance" },
     { id: mvId(), at: today - 2 * DAY + 10 * HOUR, sku: "DE-7001", lotCode: lotsOf("DE-7001")[0].code, type: "WASTE", qty: -2, by: "Inventory", note: "Tub lid cracked, freezer burn" },
-    { id: mvId(), at: today - DAY + 9 * HOUR, sku: "DM-1010", lotCode: lotsOf("DM-1010")[0].code, type: "TRANSFER", qty: 0, by: "Inventory", note: "B-01-03 to F-01-B1 after blast" },
+    { id: mvId(), at: today - DAY + 9 * HOUR, sku: "DM-1010", lotCode: putAway.code, type: "TRANSFER", qty: 0, by: "Inventory", note: `B-01-03 to ${putAway.bin} after blast` },
   );
+
+  /** Lot a past shipment came from: earliest best-by among lots already received, sellable and out of the blast freezer. */
+  const shipLot = (sku: string, at: number) =>
+    lots
+      .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.receivedAt < at && l.bestBy > at && zoneOfBin(l.bin) !== "BLAST")
+      .sort((a, b) => a.bestBy - b.bestBy)[0];
 
   // ---------- Orders and deliveries ----------
   const clients = CLIENTS.map((c) => ({ ...c }));
@@ -306,33 +331,37 @@ export function buildSeed(now = Date.now()): Data {
   const reserved: Record<string, number> = {};
   let so = 24010;
 
-  function draftLines(c: Client, reserve: boolean) {
-    const cats = BUYS[c.type];
-    const pool = products.filter((p) => cats.includes(p.category));
+  /**
+   * reserve: allocate FEFO from what is free now (order not picked yet).
+   * Otherwise the cases already left: take them from the lot that was sellable when the order was placed.
+   */
+  function draftLines(c: Client, reserve: boolean, at: number) {
+    const pool = products.filter((p) => BUYS[c.type].includes(p.category));
     const n = int(3, 6);
-    const chosen = new Set<string>();
-    while (chosen.size < n) chosen.add(pick(pool).sku);
     const big = BIG.includes(c.type);
+    const tried = new Set<string>();
     const out: { sku: string; qty: number; allocs: Alloc[] }[] = [];
-    for (const sku of chosen) {
-      const p = bySku.get(sku)!;
+    while (out.length < n && tried.size < pool.length) {
+      const p = pick(pool);
+      if (tried.has(p.sku)) continue;
+      tried.add(p.sku);
       let qty = p.catchWeight ? int(1, 2) : big ? (reserve ? int(2, 5) : int(3, 10)) : reserve ? int(1, 3) : int(1, 5);
       if (!reserve) {
-        const l = lotsOf(sku)[0];
-        out.push({ sku, qty, allocs: [{ lotId: l.id, lotCode: l.code, qty }] });
+        const l = shipLot(p.sku, at);
+        if (l) out.push({ sku: p.sku, qty, allocs: [{ lotId: l.id, lotCode: l.code, qty }] });
         continue;
       }
       let allocs: Alloc[] | null = null;
-      while (qty > 0 && !(allocs = allocateFEFO(lots, sku, qty, reserved, now))) qty--;
+      while (qty > 0 && !(allocs = allocateFEFO(lots, p.sku, qty, reserved, now))) qty--;
       if (!allocs || qty === 0) continue;
       for (const a of allocs) reserved[a.lotId] = (reserved[a.lotId] ?? 0) + a.qty;
-      out.push({ sku, qty, allocs });
+      out.push({ sku: p.sku, qty, allocs });
     }
     return out;
   }
 
   function makeOrder(c: Client, createdAt: number, fulfillment: Order["fulfillment"], reserve: boolean, by = "Counter 1"): Order {
-    const drafted = draftLines(c, reserve);
+    const drafted = draftLines(c, reserve, createdAt);
     const priced = priceLines(products, c, drafted);
     const lines: OrderLine[] = priced.map((l, i) => ({ ...l, allocs: drafted[i].allocs }));
     const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
@@ -476,7 +505,7 @@ export function buildSeed(now = Date.now()): Data {
     plan.stops.forEach((s, i) => {
       const c = clientById.get(s.client)!;
       const reserving = s.status === "SCHEDULED" || s.status === "PICKING";
-      const o = makeOrder(c, yesterday - int(0, 1) * DAY + int(9, 17) * HOUR + int(0, 59) * MIN, "DELIVERY", reserving);
+      const o = makeOrder(c, yesterday + int(9, 17) * HOUR + int(0, 59) * MIN, "DELIVERY", reserving);
       const evs: DeliveryEvent[] = [{ status: "SCHEDULED", at: o.createdAt, by: o.by }];
       const loadedAt = plan.departed ? plan.depart - 25 * MIN : now - 20 * MIN;
       if (s.status !== "SCHEDULED") evs.push({ status: "PICKING", at: loadedAt - (reserving ? 0 : 50 * MIN) - (s.status === "PICKING" ? 15 * MIN : 0), by: "Night pick" });
@@ -506,6 +535,7 @@ export function buildSeed(now = Date.now()): Data {
           note: `Box warmed past −15°C after the rear door stayed open at the prior stop. Receiver refused ${refused} cs ${ic.name.toLowerCase()} as soft; rest accepted. Refused cases returning to dock for QA.`,
         };
         extra.pod = { ...pod(c, s.at!, o.total, o.payMethod), productTempC: -9.2, shorts: [{ sku: ic.sku, qty: refused, reason: "Refused, soft on arrival" }] };
+        movements.push({ id: mvId(), at: s.at!, sku: ic.sku, lotCode: ic.allocs[0].lotCode, type: "RETURN", qty: refused, ref: o.number, by: rt.driver, note: "Refused, soft on arrival" });
       }
       if (s.eta) extra.eta = s.eta;
       makeDelivery(o, todayKey, i + 1, s.status, evs, extra);
@@ -550,10 +580,23 @@ export function buildSeed(now = Date.now()): Data {
   });
 
   // ---------- Purchase orders in flight ----------
+  const openPo = (supplierId: string, createdAt: number, eta: number, lines: PurchaseOrder["lines"]): PurchaseOrder => {
+    po++;
+    return { id: `po-${po}`, number: `PO-${po}`, supplierId, createdAt, eta, status: "SENT", lines };
+  };
   const pos: PurchaseOrder[] = [
-    { id: "po-7731", number: "PO-7731", supplierId: "navotas", createdAt: now - 2 * DAY, eta: today + DAY + 9 * HOUR, status: "SENT", lines: [{ sku: "SE-6002", qty: 20, cost: 3300 }, { sku: "SE-6003", qty: 15, cost: 1700 }] },
-    { id: "po-7732", number: "PO-7732", supplierId: "bakers", createdAt: now - DAY, eta: today + 3 * DAY + 11 * HOUR, status: "SENT", lines: [{ sku: "BK-8002", qty: 18, cost: 1100 }, { sku: "BK-8001", qty: 20, cost: 680 }] },
+    openPo("navotas", now - 2 * DAY, today + DAY + 9 * HOUR, [{ sku: "SE-6002", qty: 20, cost: 3300 }, { sku: "SE-6003", qty: 15, cost: 1700 }]),
+    openPo("bakers", now - DAY, today + 3 * DAY + 11 * HOUR, [{ sku: "BK-8002", qty: 18, cost: 1100 }, { sku: "BK-8001", qty: 20, cost: 680 }]),
   ];
+
+  // ---------- Receiving ----------
+  // Received = on hand now + everything that left since (shipments, pickups, write-offs) − returns.
+  const net = new Map<string, number>();
+  for (const m of movements) if (m.lotCode) net.set(`${m.sku}|${m.lotCode}`, (net.get(`${m.sku}|${m.lotCode}`) ?? 0) + m.qty);
+  for (const l of lots) {
+    l.receivedQty = l.qty - (net.get(`${l.sku}|${l.code}`) ?? 0);
+    movements.push({ id: mvId(), at: l.receivedAt, sku: l.sku, lotCode: l.code, type: "RECEIVE", qty: l.receivedQty, ref: l.po, by: "Receiving" });
+  }
 
   movements.sort((a, b) => b.at - a.at);
   return {
@@ -568,7 +611,7 @@ export function buildSeed(now = Date.now()): Data {
     zones,
     suppliers: SUPPLIERS,
     pos,
-    counters: { so, po: 7732 },
+    counters: { so, po },
     seededAt: now,
   };
 }
