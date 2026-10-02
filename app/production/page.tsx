@@ -3,10 +3,10 @@
 import { Factory } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Badge, Empty, Field, PageHead, Panel, cx } from "@/components/ui";
+import { Empty, Field, LotBadge, PageHead, Panel, cx } from "@/components/ui";
 import { DAY, clock, dateTime, plural, startOfDay } from "@/lib/format";
 import { queryParam, useStock, useToday } from "@/lib/hooks";
-import { producedBySku, toMake, zoneOfBin } from "@/lib/logic";
+import { BLAST_HOURS, producedBySku, toMake } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
 const BY = "Production line";
@@ -54,7 +54,7 @@ export default function Production() {
 
   return (
     <div className="mx-auto max-w-[1400px]">
-      <PageHead title="Production" sub={`${plural(madeToday.length, "batch", "batches")} today, ${plural(casesToday, "case")} made. Finished batches go straight to the blast freezer and into stock.`} />
+      <PageHead title="Production" sub={`${plural(madeToday.length, "batch", "batches")} today, ${plural(casesToday, "case")} made. Finished batches go into the blast freezer and can be sold once frozen, ${BLAST_HOURS} hours later.`} />
 
       <div className="mb-5 grid items-start gap-5 xl:grid-cols-[380px_1fr]">
         <Panel title="Record a batch">
@@ -142,7 +142,6 @@ export default function Production() {
                 <tbody>
                   {batches.map((b) => {
                     const lot = lotById.get(b.lotId);
-                    const blasting = lot && zoneOfBin(lot.bin) === "BLAST";
                     return (
                       <tr key={b.id}>
                         <td className="whitespace-nowrap">{b.madeAt >= dayStart ? clock(b.madeAt) : dateTime(b.madeAt)}</td>
@@ -155,7 +154,7 @@ export default function Production() {
                         </td>
                         <td className="r font-semibold">{b.qty}</td>
                         <td className="code text-ink-2">{lot?.code}</td>
-                        <td>{lot?.status === "HOLD" ? <Badge tone="bad">QA hold</Badge> : blasting ? <Badge tone="accent">Blast freezing</Badge> : <Badge>In stock</Badge>}</td>
+                        <td>{lot && <LotBadge lot={lot} now={now} sellable="In stock" />}</td>
                       </tr>
                     );
                   })}

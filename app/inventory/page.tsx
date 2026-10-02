@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { Sparkline } from "@/components/charts";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
-import { Badge, Drawer, Empty, LevelBar, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
+import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { count, dateTime, day, daysUntil, money, money0, temp, tempBare } from "@/lib/format";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
-import { ZONES, ZONE_ORDER, caseCost, coreLimitC, zoneOfBin, type StockRow } from "@/lib/logic";
+import { ZONES, ZONE_ORDER, caseCost, coreLimitC, isFreezing, zoneOfBin, type StockRow } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Category, Lot, MoveType, ZoneId } from "@/lib/types";
 
@@ -147,6 +147,7 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
               <th className="r">On hand</th>
               <th className="r">Reserved</th>
               <th className="r">Held</th>
+              <th className="r">Freezing</th>
               <th className="r">Free to sell</th>
               <th>Level vs par</th>
               <th>Next best-by</th>
@@ -171,6 +172,7 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
                   <td className="r font-semibold">{r.onHand}</td>
                   <td className="r text-ink-2">{r.reserved || "–"}</td>
                   <td className={cx("r", r.held ? "font-semibold text-bad" : "text-ink-3")}>{r.held || "–"}</td>
+                  <td className={cx("r", r.freezing ? "font-semibold text-accent" : "text-ink-3")}>{r.freezing || "–"}</td>
                   <td className={cx("r font-semibold", r.available < r.product.reorderPoint && "text-warn", r.available === 0 && "text-bad")}>{r.available}</td>
                   <td>
                     <LevelBar value={r.available} reorder={r.product.reorderPoint} par={r.product.par} />
@@ -232,11 +234,12 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
         </>
       }
     >
-      <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-line">
+      <div className="grid grid-cols-5 overflow-hidden rounded-lg border border-line">
         {[
           ["On hand", row.onHand],
           ["Reserved", row.reserved],
           ["Held", row.held],
+          ["Freezing", row.freezing],
           ["Free to sell", row.available],
         ].map(([l, v], i) => (
           <div key={l} className={cx("px-3 py-2", i > 0 && "border-l border-line")}>
@@ -270,7 +273,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
                 <tr key={l.id} className={l.status === "HOLD" ? "bg-bad-bg/40" : undefined}>
                   <td>
                     <div className="code font-medium">{l.code}</div>
-                    {l.status === "HOLD" ? <Badge tone="bad">QA hold</Badge> : reserved[l.id] ? <span className="text-[12.5px] text-ink-3">{reserved[l.id]} reserved</span> : null}
+                    {l.status === "HOLD" || isFreezing(l) ? <LotBadge lot={l} now={now} /> : reserved[l.id] ? <span className="text-[12.5px] text-ink-3">{reserved[l.id]} reserved</span> : null}
                   </td>
                   <td>
                     <div className="code">{l.bin}</div>
@@ -422,7 +425,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                   </td>
                   <td className="r font-semibold">{l.qty}</td>
                   <td className="r text-ink-2">{reserved[l.id] || "–"}</td>
-                  <td>{l.status === "HOLD" ? <Badge tone="bad">QA hold</Badge> : zoneOfBin(l.bin) === "BLAST" ? <Badge tone="accent">Blast freezing</Badge> : <Badge>Sellable</Badge>}</td>
+                  <td><LotBadge lot={l} now={now} /></td>
                 </tr>
               );
             })}

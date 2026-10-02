@@ -11,9 +11,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
-import { STATUS_LABEL, ZONES } from "@/lib/logic";
-import { tempBare } from "@/lib/format";
-import type { DeliveryStatus, ZoneId } from "@/lib/types";
+import { STATUS_LABEL, ZONES, isFreezing, readyAt } from "@/lib/logic";
+import { clock, dateTime, startOfDay, tempBare } from "@/lib/format";
+import type { DeliveryStatus, Lot, ZoneId } from "@/lib/types";
 import { useUi } from "@/lib/store";
 
 export function cx(...c: (string | false | null | undefined)[]) {
@@ -128,6 +128,15 @@ export function ZoneTag({ zone, temp = true }: { zone: ZoneId; temp?: boolean })
       {temp && <span className="text-ink-3">{tempBare(z.setPointC, 0)}</span>}
     </span>
   );
+}
+
+/** Whether a lot can be sold: QA hold, still blast freezing (with when it is ready), or sellable. */
+export function LotBadge({ lot, now, sellable = "Sellable" }: { lot: Lot; now: number; sellable?: string }) {
+  if (lot.status === "HOLD") return <Badge tone="bad">QA hold</Badge>;
+  if (!isFreezing(lot)) return <Badge>{sellable}</Badge>;
+  const at = readyAt(lot);
+  if (at <= now) return <Badge tone="warn">Frozen, move to freezer</Badge>;
+  return <Badge tone="accent">Freezing, ready {startOfDay(at) === startOfDay(now) ? clock(at) : dateTime(at)}</Badge>;
 }
 
 export function Modal({

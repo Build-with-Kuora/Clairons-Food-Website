@@ -13,6 +13,7 @@ import type {
   Tier,
   ZoneId,
 } from "./types";
+import { HOUR } from "./format";
 
 export const ZONES: Record<ZoneId, { name: string; setPointC: number; maxC: number; color: string; prefix: string }> = {
   BLAST: { name: "Blast freezer", setPointC: -35, maxC: -28, color: "var(--color-z-blast)", prefix: "B" },
@@ -30,6 +31,12 @@ export function zoneOfBin(bin: string): ZoneId {
 
 /** Warmest core temperature a batch may have when put away, by storage zone. Warmer goes on QA hold. */
 export const coreLimitC = (zone: ZoneId) => (zone === "COOL" ? 5 : FROZEN_LIMIT_C);
+
+/** Hours a fresh batch spends in the blast freezer before it can be put away and sold. */
+export const BLAST_HOURS = 24;
+
+export const isFreezing = (l: Lot) => zoneOfBin(l.bin) === "BLAST";
+export const readyAt = (l: Lot) => l.madeAt + BLAST_HOURS * HOUR;
 
 /** Frozen product targets −18°C; it may drift briefly but never above −15°C. */
 export const FROZEN_LIMIT_C = -15;
@@ -60,6 +67,8 @@ export interface StockRow {
   onHand: number;
   reserved: number;
   held: number;
+  /** Still in the blast freezer, not sellable yet */
+  freezing: number;
   available: number;
   lots: Lot[];
   nextBestBy?: number;
@@ -79,12 +88,14 @@ export function stockRows(products: Product[], lots: Lot[], reserved: Record<str
     const ls = (bySku.get(p.sku) ?? []).sort((a, b) => a.bestBy - b.bestBy);
     let onHand = 0;
     let held = 0;
+    let freezing = 0;
     let res = 0;
     let nextBestBy: number | undefined;
     for (const l of ls) {
       onHand += l.qty;
       res += reserved[l.id] ?? 0;
       if (l.status === "HOLD" || l.bestBy <= now) held += l.qty;
+      else if (isFreezing(l)) freezing += l.qty;
       else if (nextBestBy === undefined) nextBestBy = l.bestBy;
     }
     rows.set(p.sku, {
@@ -92,7 +103,8 @@ export function stockRows(products: Product[], lots: Lot[], reserved: Record<str
       onHand,
       reserved: res,
       held,
-      available: Math.max(0, onHand - held - res),
+      freezing,
+      available: Math.max(0, onHand - held - freezing - res),
       lots: ls,
       nextBestBy,
       value: onHand * caseCost(p),
@@ -101,7 +113,7 @@ export function stockRows(products: Product[], lots: Lot[], reserved: Record<str
   return rows;
 }
 
-/** First-expired, first-out. Returns null when there is not enough sellable stock. */
+/** First-expired, first-out, from lots that are released, in date and out of the blast freezer. Returns null when there is not enough sellable stock. */
 export function allocateFEFO(
   lots: Lot[],
   sku: string,
@@ -110,7 +122,7 @@ export function allocateFEFO(
   now = Date.now(),
 ): Alloc[] | null {
   const candidates = lots
-    .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.bestBy > now && l.qty > 0)
+    .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.bestBy > now && l.qty > 0 && !isFreezing(l))
     .sort((a, b) => a.bestBy - b.bestBy);
   const out: Alloc[] = [];
   let left = qty;

@@ -80,7 +80,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v3";
+export const STORAGE_KEY = "clairons-coldline-ph-v4";
 
 export const useStore = create<Store>()(
   persist(
@@ -123,7 +123,7 @@ export const useStore = create<Store>()(
         const lines: OrderLine[] = [];
         for (const l of priceLines(s.products, client, qtyLines)) {
           const allocs = allocateFEFO(s.lots, l.sku, l.qty, reserved);
-          if (!allocs) return { ok: false, error: `Not enough sellable stock for ${l.sku}. Lower the quantity or check held lots.` };
+          if (!allocs) return { ok: false, error: `Not enough sellable stock for ${l.sku}. Lower the quantity, or check held lots and batches still in the blast freezer.` };
           for (const a of allocs) reserved[a.lotId] = (reserved[a.lotId] ?? 0) + a.qty;
           lines.push({ ...l, allocs });
         }
