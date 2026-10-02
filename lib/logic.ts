@@ -187,6 +187,44 @@ export function soldBySku(sales: Sale[], since: number) {
   return out;
 }
 
+export const VAT_RATE = 0.12;
+
+/** Prices are VAT-inclusive: split a gross amount into VATable sales and the VAT inside it. */
+export function vatSplit(gross: number) {
+  const net = round2(gross / (1 + VAT_RATE));
+  return { net, vat: round2(gross - net) };
+}
+
+export interface ProductSales {
+  sku: string;
+  qty: number;
+  amount: number;
+  /** Sales this product appeared in */
+  orders: number;
+}
+
+/** Sales that counted between `from` (inclusive) and `to` (exclusive), per product, plus the delivery fees charged. */
+export function salesSummary(sales: Sale[], from: number, to: number) {
+  const bySku = new Map<string, ProductSales>();
+  let fees = 0;
+  let count = 0;
+  for (const s of sales) {
+    if (s.at < from || s.at >= to) continue;
+    count++;
+    fees += s.fees;
+    for (const l of s.lines) {
+      const r = bySku.get(l.sku) ?? { sku: l.sku, qty: 0, amount: 0, orders: 0 };
+      r.qty += l.qty;
+      r.amount = round2(r.amount + l.amount);
+      r.orders++;
+      bySku.set(l.sku, r);
+    }
+  }
+  const rows = [...bySku.values()].sort((a, b) => b.amount - a.amount || a.sku.localeCompare(b.sku));
+  const products = round2(rows.reduce((t, r) => t + r.amount, 0));
+  return { rows, count, cases: rows.reduce((t, r) => t + r.qty, 0), products, fees: round2(fees), total: round2(products + fees) };
+}
+
 /** Cases produced per SKU in batches made since `since`. */
 export function producedBySku(batches: Batch[], since: number) {
   const out = new Map<string, number>();

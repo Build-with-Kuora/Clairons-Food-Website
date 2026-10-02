@@ -1,7 +1,7 @@
 "use client";
 
 import { dateTime, dayShort, keyToTs, money } from "@/lib/format";
-import { PAY_LABEL, TERMS_LABEL } from "@/lib/logic";
+import { PAY_LABEL, TERMS_LABEL, vatSplit } from "@/lib/logic";
 import type { Client, Delivery, Order, Product, Rider, Route } from "@/lib/types";
 import { Logo } from "./Logo";
 
@@ -139,11 +139,11 @@ export function Invoice({
           )}
           <div className="flex justify-between py-0.5 text-[12.5px] text-ink-3">
             <dt>VATable sales</dt>
-            <dd>{money(order.total / 1.12)}</dd>
+            <dd>{money(vatSplit(order.total).net)}</dd>
           </div>
           <div className="flex justify-between py-0.5 text-[12.5px] text-ink-3">
             <dt>VAT 12%, included</dt>
-            <dd>{money(order.total - order.total / 1.12)}</dd>
+            <dd>{money(vatSplit(order.total).vat)}</dd>
           </div>
           <div className="mt-1 flex justify-between border-t-2 border-ink pt-1.5 text-[16px] font-bold">
             <dt>Total</dt>

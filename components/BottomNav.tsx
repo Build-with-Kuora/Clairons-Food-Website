@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, Factory, Gauge, ReceiptText, ScanBarcode, Smartphone, Truck, Wallet, X } from "lucide-react";
+import { Boxes, Building2, ChartColumn, Factory, Gauge, ReceiptText, ScanBarcode, Smartphone, Truck, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -14,6 +14,7 @@ const SIDE_RIGHT = [{ href: "/dispatch", label: "Delivery", icon: Truck }];
 
 /** Screens without their own slot live under Sales. */
 const SALES = [
+  { href: "/sales", label: "Sales", sub: "Sold by product, with VAT", icon: ChartColumn },
   { href: "/counter", label: "Counter", sub: "Take an order", icon: ScanBarcode },
   { href: "/orders", label: "Orders", sub: "Every order and invoice", icon: ReceiptText },
   { href: "/clients", label: "Clients", sub: "Accounts, terms, balances", icon: Building2 },
