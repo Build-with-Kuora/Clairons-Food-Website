@@ -124,6 +124,16 @@ export function allocateFEFO(
   return left > 0 ? null : out;
 }
 
+/** Cases sold per SKU on orders placed since `since` (cancelled orders excluded). */
+export function soldBySku(orders: Order[], since: number) {
+  const out = new Map<string, number>();
+  for (const o of orders) {
+    if (o.status === "CANCELLED" || o.createdAt < since) continue;
+    for (const l of o.lines) out.set(l.sku, (out.get(l.sku) ?? 0) + l.qty);
+  }
+  return out;
+}
+
 export const DROP_MIN = 5000;
 export const DROP_FEE = 300;
 export const FUEL_FEE = 150;
