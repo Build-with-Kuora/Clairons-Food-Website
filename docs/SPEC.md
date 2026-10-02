@@ -14,11 +14,11 @@ Changes from the original checklist are marked **[changed]** with the reason. Ea
 These change what we build, so they come first.
 
 1. **Decided: Clairon's is a manufacturer.** They make all their own products and sell them wholesale. The prototype still treats finished goods as bought from suppliers (Ongpin Dimsum Commissary, Valenzuela Fishball Factory…) and received on purchase orders. **Production batches replace that as the way finished goods come in.** The supplier, PO and reorder screens either go away or become purchasing for raw materials (see 0.2).
-2. **Does production use up raw materials?** "Finished goods" suggests there is raw-material stock too (flour, pork, wrappers). If they want that tracked, Production must deduct ingredients, which needs a recipe per product. If not, Production simply adds finished goods.
+2. **Decided: finished goods only, for now.** A production batch adds finished stock. Raw materials and recipes can be added later without changing how batches work.
 3. **Decided: the Dashboard upper-left box shows price.** Quantity produced belongs on the Production page.
-4. **What unit is stock counted in?** Pieces, packs or cases. The prototype counts cases (e.g. 10 × 50 pcs siomai). The sketches look like they count packs.
+4. **Decided: the owner sets the unit per product.** Each product has a selling unit (e.g. "case", "pack", "tray") and what is inside it (e.g. "10 × 50 pcs"). Stock, production and sales are counted in that unit. Part of add/edit products (2.8). Until then the prototype counts cases.
 5. **Decided: both riders and vans.** Refrigerated vans on routes for big accounts (keeping temperature logs), riders on motorbikes for small drops. A delivery is assigned to either a van route or a rider.
-6. **When does a sale count?** See 6.3.
+6. **Decided: a sale counts when the order is delivered or paid** (see 6.3).
 7. **E-commerce scope:** is this a public online store, or ordering for regular accounts only (restaurants, carts)? These are very different builds.
 
 ---
@@ -44,7 +44,7 @@ These change what we build, so they come first.
 | 2.5 | Lower-right box: stock left (*bilin nga stock*). Shows **free to sell** stock, i.e. on hand minus already reserved for orders | Done | **[changed]** Raw on-hand would overstate what can be sold. |
 | 2.6 | Low stock is highlighted on the card | Done | Amber below reorder point, red when out |
 | 2.7 | **[changed]** With many products: search and category filter on the grid | Done | The sketch shows 4 products; the catalogue has 48 SKUs. |
-| 2.8 | Owner can add / edit / deactivate products (name, price, unit, reorder level) | Missing | Products come from the seed only. |
+| 2.8 | Owner can add / edit / deactivate products: name, price, **selling unit and its contents** (decision 0.4), reorder level, par level | Missing | Products come from the seed only. |
 | 2.9 | Current dashboard content (headline figures, routes, freezer temps, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. |
 
 ## 3. Inventory (finished goods)
@@ -56,7 +56,7 @@ These change what we build, so they come first.
 | 3.3 | Stock adjustments (count corrections, spoilage write-off) with a reason | Done | Count / write-off on each lot |
 | 3.4 | Every change is logged (who, when, why) | Done | Movements tab |
 | 3.5 | Best-by dates and first-expiry-first-out | Done | Lots, FEFO, short-dated alerts |
-| 3.6 | Raw materials inventory | Missing | Only if decision 0.2 says yes |
+| 3.6 | Raw materials inventory | Deferred | Decision 0.2: finished goods only for now |
 
 ## 4. Production
 
@@ -66,7 +66,7 @@ These change what we build, so they come first.
 | 4.2 | Record a production batch: product, quantity, date, made by | Missing | |
 | 4.3 | Produced quantity adds to inventory and shows on the Dashboard | Missing | **[changed]** Each batch becomes a stock lot with a best-by date, the same way receiving from a supplier does (`receive` in `lib/store.ts`), so first-expiry-first-out and expiry alerts work for in-house products too. |
 | 4.4 | Batch blast-freezes before it can be sold | Partial | The prototype already models blast-freezing for received stock. |
-| 4.5 | Consumes raw materials per recipe | Missing | Only if decision 0.2 says yes |
+| 4.5 | Consumes raw materials per recipe | Deferred | Decision 0.2 |
 
 ## 5. Delivery
 
@@ -138,7 +138,7 @@ New features (Production, riders, products admin) add a type, a logic function w
 
 ## Suggested build order (prototype, no database)
 
-1. Get the open decisions (0.2, 0.4, 0.6, 0.7) from the client.
+1. Get the open decision (0.7, e-commerce scope) from the client.
 2. ~~Dashboard product grid (2.1–2.7)~~ Done.
 3. Production page (4.1–4.3), recording batches as stock lots. Rework the seed so finished goods come from production runs instead of supplier POs (decision 0.1).
 4. Phone bottom navigation (1.3–1.4).
