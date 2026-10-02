@@ -286,10 +286,14 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
   );
 }
 
-export function Toaster() {
+/** `aboveNav` lifts toasts over the phone bottom navigation. */
+export function Toaster({ aboveNav = false }: { aboveNav?: boolean }) {
   const toasts = useUi((s) => s.toasts);
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-[60] flex flex-col items-end gap-2" aria-live="polite">
+    <div
+      className={cx("pointer-events-none fixed right-4 z-[60] flex flex-col items-end gap-2", aboveNav ? "bottom-[calc(76px+env(safe-area-inset-bottom))] lg:bottom-4" : "bottom-4")}
+      aria-live="polite"
+    >
       {toasts.map((t) => (
         <div
           key={t.id}

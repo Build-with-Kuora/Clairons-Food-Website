@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google";
 import Shell from "@/components/Shell";
 import "./globals.css";
@@ -24,6 +24,13 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Coldline | Clairon's Foods",
   description: "Order entry, cold-storage inventory and delivery tracking for Clairon's Foods.",
+};
+
+// Cover the whole screen so the phone bottom bar can pad for the home indicator.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
