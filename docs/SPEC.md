@@ -31,7 +31,7 @@ These change what we build, so they come first.
 | 1.1 | Header with page title on every screen | Done | |
 | 1.2 | **[changed]** Works on phones *and* on desktop/tablet. Phones get a bottom navigation bar; wider screens keep the sidebar. | Done | Original said "mobile app layout". POS and the inventory tables are used at the counter on a bigger screen, so the app must work there as well. `components/BottomNav.tsx` below desktop width, sidebar above it. |
 | 1.3 | Bottom nav on phones: Inventory · Production · **Home** (center) · Delivery · Sales | Done | Delivery opens the Delivery page (`/dispatch`). |
-| 1.4 | **[changed]** Screens with no bottom-nav slot (POS counter, Orders, Customers, Driver view) sit under **Sales** or a "More" menu | Done | The original five tabs leave out the POS counter, orders and customers. Sales opens a menu with Counter, Orders, Clients and the driver handheld. When the sales table (6.1) lands it goes first in that menu. |
+| 1.4 | **[changed]** Screens with no bottom-nav slot (POS counter, Orders, Customers, Driver view) sit under **Sales** or a "More" menu | Done | The original five tabs leave out the POS counter, orders and customers. Sales opens a menu with the sales table first, then Counter, Orders, Clients and the driver handheld. |
 | 1.5 | Home/Dashboard is the default landing screen | Done | `/` Today |
 
 ## 2. Dashboard / Home
@@ -87,11 +87,11 @@ These change what we build, so they come first.
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 6.1 | Sales table: Products sold · Amount | Partial | Orders lists each order with its total. A per-product summary is missing. |
-| 6.2 | Total sales at the bottom, computed automatically | Partial | Dashboard shows "Sold today". The sales table needs a total row. |
+| 6.1 | Sales table: Products sold · Amount | Done | `/sales`: one row per product with cases sold and amount, highest amount first. Uses the sale rule (6.3), so refused cases are left out. `salesSummary` in `lib/logic.ts`. |
+| 6.2 | Total sales at the bottom, computed automatically | Done | Footer rows for products, delivery fees (small drop and fuel) and the total. Headline figures above the table. |
 | 6.3 | **[changed]** Sales rules: **order placed → stock reserved**; **loaded / handed over → stock deducted**; **delivered (or paid at the counter) → counted as a sale**. Cancelled orders release the stock. Refused cases come back to stock and are credited. | Partial | Original said "a delivered order counts toward sales and deducts from inventory". Deducting only on delivery lets the counter sell stock that is already on a truck. Walk-ins and orders paid upfront (cash, card, GCash, check) count when placed; on-account and COD deliveries count at proof of delivery. Refused cases are not counted. Rule is `salesOf` in `lib/logic.ts`. |
 | 6.4 | Orders, delivery and sales are linked | Done | One order → one delivery, with shared status |
-| 6.5 | **[changed]** Sales table can be filtered by date range and shows sales with and without VAT | Missing | Needed for BIR reporting |
+| 6.5 | **[changed]** Sales table can be filtered by date range and shows sales with and without VAT | Done | Needed for BIR reporting. Today, yesterday, 7 days, 30 days, this month, or any from/to dates. Every row shows VATable sales, 12% VAT and the VAT-inclusive amount (`vatSplit`, also used by the invoice). Prints as a report. |
 | 6.6 | Customers list with terms, credit limit and balance | Done | `/clients` |
 
 ## 7. Receipts and invoicing
@@ -149,11 +149,10 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3).
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5).
 
-1. **Sales table with totals** (6.1, 6.2, 6.5): sales by product, date range, total row, with and without VAT.
-2. **Add/edit products** (2.8, decision 0.4): name, price, owner-set selling unit and contents, reorder level, par.
-3. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
-4. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
-5. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
-6. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
+1. **Add/edit products** (2.8, decision 0.4): name, price, owner-set selling unit and contents, reorder level, par.
+2. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
+3. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
+4. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
+5. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
