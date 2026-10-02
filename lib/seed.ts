@@ -14,10 +14,8 @@ import type {
   OrderLine,
   Pod,
   Product,
-  PurchaseOrder,
   Route,
   Run,
-  Supplier,
   TempReading,
   Zone,
   ZoneId,
@@ -35,71 +33,58 @@ function rng(seed: number) {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export const SUPPLIERS: Supplier[] = [
-  { id: "ongpin", name: "Ongpin Dimsum Commissary", leadDays: 2, phone: "(02) 8241-5521" },
-  { id: "valenzuela", name: "Valenzuela Fishball Factory", leadDays: 2, phone: "0917 555 0182" },
-  { id: "pampanga", name: "Pampanga Pride Meats", leadDays: 3, phone: "(045) 961-2208" },
-  { id: "batangas", name: "Batangas Hog Traders", leadDays: 3, phone: "0918 555 4410" },
-  { id: "bulacan", name: "Bulacan Poultry Farms", leadDays: 2, phone: "(044) 791-3302" },
-  { id: "navotas", name: "Navotas Seafood Trading", leadDays: 2, phone: "(02) 8282-7731" },
-  { id: "creamery", name: "Manila Creamery Co.", leadDays: 3, phone: "(02) 8634-1190" },
-  { id: "lola", name: "Kusina ni Lola Desserts", leadDays: 4, phone: "0927 555 7716" },
-  { id: "bakers", name: "Northern Bakers Supply", leadDays: 4, phone: "(02) 8361-4471" },
-  { id: "spud", name: "Spudland Imports", leadDays: 10, phone: "(02) 8817-6060" },
-];
+type Raw = [string, string, Category, string, number, boolean, ZoneId, string, number, number, number, number, number];
 
-type Raw = [string, string, Category, string, number, boolean, ZoneId, string, number, number, number, number, string, number];
-
-// sku, name, category, pack, case kg, catch weight, zone, home bin, cost ₱, tier-A price ₱, reorder point, par, supplier, shelf days
+// sku, name, category, pack, case kg, catch weight, zone, home bin, cost ₱, tier-A price ₱, reorder point, par, shelf days
 const RAW: Raw[] = [
-  ["DM-1001", "Siomai, pork, Japanese style", "Dimsum", "10 × 50 pcs", 10, false, "FRZ", "F-01-A1", 1580, 1950, 25, 80, "ongpin", 180],
-  ["DM-1002", "Siomai, shrimp and pork", "Dimsum", "10 × 40 pcs", 10, false, "FRZ", "F-01-A2", 1920, 2350, 15, 50, "ongpin", 180],
-  ["DM-1010", "Siopao asado, large", "Dimsum", "6 × 12 pcs", 9, false, "FRZ", "F-01-B1", 1240, 1580, 20, 60, "ongpin", 150],
-  ["DM-1011", "Siopao bola-bola, large", "Dimsum", "6 × 12 pcs", 9, false, "FRZ", "F-01-B2", 1300, 1650, 15, 50, "ongpin", 150],
-  ["DM-1015", "Siopao asado, mini", "Dimsum", "10 × 20 pcs", 8, false, "FRZ", "F-01-C1", 1350, 1720, 10, 30, "ongpin", 150],
-  ["DM-1020", "Hakaw, shrimp dumpling", "Dimsum", "10 × 30 pcs", 7, false, "FRZ", "F-01-C2", 1980, 2450, 8, 24, "ongpin", 180],
-  ["DM-1030", "Chicken feet, black bean (tausi)", "Dimsum", "10 × 1 kg", 10, false, "FRZ", "F-02-A1", 1290, 1650, 10, 30, "ongpin", 180],
-  ["DM-1031", "Spareribs, black bean (tausi)", "Dimsum", "10 × 1 kg", 10, false, "FRZ", "F-02-A2", 2250, 2800, 8, 24, "ongpin", 180],
-  ["DM-1040", "Kuapao, braised pork belly bun", "Dimsum", "6 × 12 pcs", 8, false, "FRZ", "F-02-B1", 1180, 1500, 8, 24, "ongpin", 150],
-  ["DM-1050", "Machang, sticky rice in bamboo leaf", "Dimsum", "4 × 10 pcs", 8, false, "FRZ", "F-02-B2", 1650, 2100, 6, 18, "ongpin", 180],
-  ["DM-1060", "Lumpiang shanghai, pork", "Dimsum", "12 × 20 pcs", 7, false, "FRZ", "F-02-C1", 1120, 1450, 20, 60, "ongpin", 180],
-  ["ST-2001", "Fish balls, flat", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-A1", 640, 850, 40, 120, "valenzuela", 270],
-  ["ST-2002", "Squid balls", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-A2", 860, 1100, 25, 80, "valenzuela", 270],
-  ["ST-2003", "Kikiam", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-B1", 720, 950, 30, 90, "valenzuela", 270],
-  ["ST-2004", "Chicken balls", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-B2", 680, 900, 20, 60, "valenzuela", 270],
-  ["ST-2010", "Fish tempura, street style", "Streetfood", "10 × 500 g", 5, false, "FRZ", "F-03-C1", 520, 700, 15, 45, "valenzuela", 270],
-  ["ST-2020", "Chicken isaw, cleaned, on stick", "Streetfood", "10 × 50 sticks", 8, false, "FRZ", "F-04-A1", 1300, 1700, 10, 30, "bulacan", 120],
-  ["ST-2021", "Pork barbecue, marinated, on stick", "Streetfood", "8 × 25 sticks", 8, false, "FRZ", "F-04-A2", 2000, 2600, 10, 30, "batangas", 120],
-  ["ST-2030", "Hotdog, jumbo red", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-04-B1", 1250, 1650, 25, 70, "pampanga", 180],
-  ["ST-2040", "Turon, banana spring roll", "Streetfood", "10 × 20 pcs", 9, false, "FRZ", "F-04-B2", 1500, 2000, 8, 24, "lola", 120],
-  ["BR-3001", "Pork tocino, sweet cured", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-A1", 1850, 2400, 20, 60, "pampanga", 120],
-  ["BR-3002", "Chicken tocino", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-A2", 1650, 2150, 10, 30, "pampanga", 120],
-  ["BR-3010", "Longganisa, Vigan style garlic", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-B1", 1780, 2300, 15, 45, "pampanga", 150],
-  ["BR-3011", "Longganisa, Lucban style", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-B2", 1700, 2200, 10, 30, "pampanga", 150],
-  ["BR-3012", "Longganisa, skinless hamonado", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-C1", 1620, 2100, 15, 45, "pampanga", 150],
-  ["BR-3020", "Beef tapa, marinated", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-C2", 3050, 3900, 10, 30, "pampanga", 120],
-  ["BR-3030", "Embutido, pork roll", "Tocino & longganisa", "20 × 500 g", 10, false, "FRZ", "F-06-A1", 2000, 2600, 8, 24, "pampanga", 150],
-  ["PK-4001", "Pork liempo, skin-on slab", "Pork", "~20 kg", 20, true, "FRZ", "F-07-A1", 275, 330, 10, 30, "batangas", 180],
-  ["PK-4002", "Pork pata, whole (for crispy pata)", "Pork", "~20 kg", 20, true, "FRZ", "F-07-A2", 215, 265, 8, 24, "batangas", 180],
-  ["PL-5001", "Chicken wings, mid-joint", "Poultry", "12 × 1 kg", 12, false, "FRZ", "F-08-A1", 1650, 2100, 20, 60, "bulacan", 270],
-  ["PL-5002", "Chicken leg quarter", "Poultry", "10 × 2 kg", 20, false, "FRZ", "F-08-A2", 2450, 3200, 15, 45, "bulacan", 270],
-  ["SE-6001", "Daing na bangus, boneless marinated", "Seafood", "24 × 400 g", 10, false, "DEEP", "D-01-A1", 2400, 3100, 10, 30, "navotas", 180],
-  ["SE-6002", "Shrimp, vannamei 41/50", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-A2", 3300, 4200, 8, 24, "navotas", 270],
-  ["SE-6003", "Squid rings, breaded", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-B1", 1700, 2200, 10, 30, "navotas", 270],
-  ["DE-7001", "Ice cream, ube", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A1", 1020, 1350, 20, 60, "creamery", 270],
-  ["DE-7002", "Ice cream, keso (cheese)", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A2", 1020, 1350, 15, 45, "creamery", 270],
-  ["DE-7003", "Ice cream, mango", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-B1", 1020, 1350, 10, 30, "creamery", 270],
-  ["DE-7010", "Leche flan, llanera", "Desserts", "12 × 1 pc", 5, false, "FRZ", "F-09-A1", 880, 1150, 8, 24, "lola", 90],
-  ["DE-7020", "Buchi, sesame ball with mongo", "Desserts", "10 × 30 pcs", 9, false, "FRZ", "F-09-A2", 1000, 1300, 8, 24, "ongpin", 150],
-  ["BK-8001", "Pandesal dough balls", "Bakery", "1 × 200 pcs", 8, false, "FRZ", "F-10-A1", 680, 900, 15, 45, "bakers", 90],
-  ["BK-8002", "Ensaymada, butter and cheese", "Bakery", "6 × 12 pcs", 6, false, "FRZ", "F-10-A2", 1100, 1450, 6, 18, "bakers", 90],
-  ["BK-8003", "Mantou, fried bun", "Bakery", "10 × 20 pcs", 8, false, "FRZ", "F-10-B1", 850, 1100, 8, 24, "ongpin", 150],
-  ["FR-8501", "Fries, 3/8\" straight cut", "Fries", "6 × 2 kg", 12, false, "FRZ", "F-11-A1", 1050, 1350, 30, 90, "spud", 540],
-  ["FR-8502", "Fries, shoestring", "Fries", "6 × 2 kg", 12, false, "FRZ", "F-11-A2", 1100, 1400, 20, 60, "spud", 540],
-  ["CH-9001", "Quail eggs, boiled and peeled (kwek-kwek)", "Chiller", "10 × 1 kg", 10, false, "COOL", "C-01-A1", 1250, 1600, 8, 24, "bulacan", 21],
-  ["CH-9002", "Kesong puti, carabao", "Chiller", "12 × 200 g", 3, false, "COOL", "C-01-A2", 850, 1100, 6, 18, "creamery", 14],
-  ["CH-9003", "Ube halaya", "Chiller", "6 × 1 kg", 6, false, "COOL", "C-01-B1", 1350, 1750, 6, 18, "lola", 30],
-  ["CH-9004", "Cheese, quick-melt", "Chiller", "6 × 2 kg", 12, false, "COOL", "C-01-B2", 2400, 3100, 8, 24, "creamery", 180],
+  ["DM-1001", "Siomai, pork, Japanese style", "Dimsum", "10 × 50 pcs", 10, false, "FRZ", "F-01-A1", 1580, 1950, 25, 80, 180],
+  ["DM-1002", "Siomai, shrimp and pork", "Dimsum", "10 × 40 pcs", 10, false, "FRZ", "F-01-A2", 1920, 2350, 15, 50, 180],
+  ["DM-1010", "Siopao asado, large", "Dimsum", "6 × 12 pcs", 9, false, "FRZ", "F-01-B1", 1240, 1580, 20, 60, 150],
+  ["DM-1011", "Siopao bola-bola, large", "Dimsum", "6 × 12 pcs", 9, false, "FRZ", "F-01-B2", 1300, 1650, 15, 50, 150],
+  ["DM-1015", "Siopao asado, mini", "Dimsum", "10 × 20 pcs", 8, false, "FRZ", "F-01-C1", 1350, 1720, 10, 30, 150],
+  ["DM-1020", "Hakaw, shrimp dumpling", "Dimsum", "10 × 30 pcs", 7, false, "FRZ", "F-01-C2", 1980, 2450, 8, 24, 180],
+  ["DM-1030", "Chicken feet, black bean (tausi)", "Dimsum", "10 × 1 kg", 10, false, "FRZ", "F-02-A1", 1290, 1650, 10, 30, 180],
+  ["DM-1031", "Spareribs, black bean (tausi)", "Dimsum", "10 × 1 kg", 10, false, "FRZ", "F-02-A2", 2250, 2800, 8, 24, 180],
+  ["DM-1040", "Kuapao, braised pork belly bun", "Dimsum", "6 × 12 pcs", 8, false, "FRZ", "F-02-B1", 1180, 1500, 8, 24, 150],
+  ["DM-1050", "Machang, sticky rice in bamboo leaf", "Dimsum", "4 × 10 pcs", 8, false, "FRZ", "F-02-B2", 1650, 2100, 6, 18, 180],
+  ["DM-1060", "Lumpiang shanghai, pork", "Dimsum", "12 × 20 pcs", 7, false, "FRZ", "F-02-C1", 1120, 1450, 20, 60, 180],
+  ["ST-2001", "Fish balls, flat", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-A1", 640, 850, 40, 120, 270],
+  ["ST-2002", "Squid balls", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-A2", 860, 1100, 25, 80, 270],
+  ["ST-2003", "Kikiam", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-B1", 720, 950, 30, 90, 270],
+  ["ST-2004", "Chicken balls", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-03-B2", 680, 900, 20, 60, 270],
+  ["ST-2010", "Fish tempura, street style", "Streetfood", "10 × 500 g", 5, false, "FRZ", "F-03-C1", 520, 700, 15, 45, 270],
+  ["ST-2020", "Chicken isaw, cleaned, on stick", "Streetfood", "10 × 50 sticks", 8, false, "FRZ", "F-04-A1", 1300, 1700, 10, 30, 120],
+  ["ST-2021", "Pork barbecue, marinated, on stick", "Streetfood", "8 × 25 sticks", 8, false, "FRZ", "F-04-A2", 2000, 2600, 10, 30, 120],
+  ["ST-2030", "Hotdog, jumbo red", "Streetfood", "10 × 1 kg", 10, false, "FRZ", "F-04-B1", 1250, 1650, 25, 70, 180],
+  ["ST-2040", "Turon, banana spring roll", "Streetfood", "10 × 20 pcs", 9, false, "FRZ", "F-04-B2", 1500, 2000, 8, 24, 120],
+  ["BR-3001", "Pork tocino, sweet cured", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-A1", 1850, 2400, 20, 60, 120],
+  ["BR-3002", "Chicken tocino", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-A2", 1650, 2150, 10, 30, 120],
+  ["BR-3010", "Longganisa, Vigan style garlic", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-B1", 1780, 2300, 15, 45, 150],
+  ["BR-3011", "Longganisa, Lucban style", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-B2", 1700, 2200, 10, 30, 150],
+  ["BR-3012", "Longganisa, skinless hamonado", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-C1", 1620, 2100, 15, 45, 150],
+  ["BR-3020", "Beef tapa, marinated", "Tocino & longganisa", "10 × 1 kg", 10, false, "FRZ", "F-05-C2", 3050, 3900, 10, 30, 120],
+  ["BR-3030", "Embutido, pork roll", "Tocino & longganisa", "20 × 500 g", 10, false, "FRZ", "F-06-A1", 2000, 2600, 8, 24, 150],
+  ["PK-4001", "Pork liempo, skin-on slab", "Pork", "~20 kg", 20, true, "FRZ", "F-07-A1", 275, 330, 10, 30, 180],
+  ["PK-4002", "Pork pata, whole (for crispy pata)", "Pork", "~20 kg", 20, true, "FRZ", "F-07-A2", 215, 265, 8, 24, 180],
+  ["PL-5001", "Chicken wings, mid-joint", "Poultry", "12 × 1 kg", 12, false, "FRZ", "F-08-A1", 1650, 2100, 20, 60, 270],
+  ["PL-5002", "Chicken leg quarter", "Poultry", "10 × 2 kg", 20, false, "FRZ", "F-08-A2", 2450, 3200, 15, 45, 270],
+  ["SE-6001", "Daing na bangus, boneless marinated", "Seafood", "24 × 400 g", 10, false, "DEEP", "D-01-A1", 2400, 3100, 10, 30, 180],
+  ["SE-6002", "Shrimp, vannamei 41/50", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-A2", 3300, 4200, 8, 24, 270],
+  ["SE-6003", "Squid rings, breaded", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-B1", 1700, 2200, 10, 30, 270],
+  ["DE-7001", "Ice cream, ube", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A1", 1020, 1350, 20, 60, 270],
+  ["DE-7002", "Ice cream, keso (cheese)", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A2", 1020, 1350, 15, 45, 270],
+  ["DE-7003", "Ice cream, mango", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-B1", 1020, 1350, 10, 30, 270],
+  ["DE-7010", "Leche flan, llanera", "Desserts", "12 × 1 pc", 5, false, "FRZ", "F-09-A1", 880, 1150, 8, 24, 90],
+  ["DE-7020", "Buchi, sesame ball with mongo", "Desserts", "10 × 30 pcs", 9, false, "FRZ", "F-09-A2", 1000, 1300, 8, 24, 150],
+  ["BK-8001", "Pandesal dough balls", "Bakery", "1 × 200 pcs", 8, false, "FRZ", "F-10-A1", 680, 900, 15, 45, 90],
+  ["BK-8002", "Ensaymada, butter and cheese", "Bakery", "6 × 12 pcs", 6, false, "FRZ", "F-10-A2", 1100, 1450, 6, 18, 90],
+  ["BK-8003", "Mantou, fried bun", "Bakery", "10 × 20 pcs", 8, false, "FRZ", "F-10-B1", 850, 1100, 8, 24, 150],
+  ["FR-8501", "Fries, 3/8\" straight cut", "Fries", "6 × 2 kg", 12, false, "FRZ", "F-11-A1", 1050, 1350, 30, 90, 540],
+  ["FR-8502", "Fries, shoestring", "Fries", "6 × 2 kg", 12, false, "FRZ", "F-11-A2", 1100, 1400, 20, 60, 540],
+  ["CH-9001", "Quail eggs, boiled and peeled (kwek-kwek)", "Chiller", "10 × 1 kg", 10, false, "COOL", "C-01-A1", 1250, 1600, 8, 24, 21],
+  ["CH-9002", "Kesong puti, carabao", "Chiller", "12 × 200 g", 3, false, "COOL", "C-01-A2", 850, 1100, 6, 18, 14],
+  ["CH-9003", "Ube halaya", "Chiller", "6 × 1 kg", 6, false, "COOL", "C-01-B1", 1350, 1750, 6, 18, 30],
+  ["CH-9004", "Cheese, quick-melt", "Chiller", "6 × 2 kg", 12, false, "COOL", "C-01-B2", 2400, 3100, 8, 24, 180],
 ];
 
 export const ROUTES: Route[] = [
@@ -199,10 +184,8 @@ export interface Data {
   routes: Route[];
   runs: Record<string, Run>;
   zones: Zone[];
-  suppliers: Supplier[];
-  pos: PurchaseOrder[];
   batches: Batch[];
-  counters: { so: number; po: number; batch: number };
+  counters: { so: number; batch: number };
   seededAt: number;
 }
 
@@ -216,7 +199,7 @@ export function buildSeed(now = Date.now()): Data {
   let mv = 0;
   const mvId = () => `mv-${++mv}`;
 
-  const products: Product[] = RAW.map(([sku, name, category, pack, caseKg, catchWeight, zone, bin, cost, a, reorderPoint, par, supplierId, shelfDays]) => ({
+  const products: Product[] = RAW.map(([sku, name, category, pack, caseKg, catchWeight, zone, bin, cost, a, reorderPoint, par, shelfDays]) => ({
     sku,
     name,
     category,
@@ -229,20 +212,19 @@ export function buildSeed(now = Date.now()): Data {
     price: { A: a, B: Math.round(a * 1.05), C: Math.round(a * 1.1) },
     reorderPoint,
     par,
-    supplierId,
     shelfDays,
   }));
 
   // ---------- Lots ----------
-  // `qty` is what is on hand now. `receivedQty`, the PO number and the RECEIVE movement are filled
-  // in at the end, once every shipment, return and write-off against the lot is known, so each
-  // lot's ledger adds up to its on-hand.
+  // Every lot is one production batch. `qty` is what is on hand now. `madeQty`, the batch record and
+  // the PRODUCE movement are filled in at the end, once every shipment, return and write-off against
+  // the lot is known, so each lot's ledger adds up to its on-hand.
   const lots: Lot[] = [];
   const movements: Movement[] = [];
   const overflow: Partial<Record<ZoneId, number>> = {};
   // Dated stock that needs selling first: days left on the oldest lot
   const expiring: Record<string, number> = { "CH-9002": 3, "CH-9001": 6, "CH-9003": 12, "BR-3001": 20 };
-  // Fresh product still hard-freezing in the blast freezer: hours since receipt, blast bin
+  // Fresh batches still hard-freezing in the blast freezer: hours since made, blast bin
   const blasting: Record<string, [number, string]> = { "DM-1001": [26, "B-01-02"], "ST-2001": [4, "B-01-01"] };
   let lotN = 0;
   for (const p of products) {
@@ -257,28 +239,28 @@ export function buildSeed(now = Date.now()): Data {
       const qty = last ? left : Math.max(1, Math.round(left * (0.18 + r() * 0.2)));
       left -= qty;
       const age = Math.round((n - i) * p.shelfDays * 0.16 * (0.6 + r() * 0.5)) + int(1, 3);
-      let receivedAt = today - age * DAY + int(6, 13) * HOUR;
-      let receiveTempC = p.zone !== "COOL" ? round1(-22 + r() * 5) : round1(2 + r() * 2.5);
+      let madeAt = today - age * DAY + int(6, 13) * HOUR;
+      let coreTempC = p.zone !== "COOL" ? round1(-22 + r() * 5) : round1(2 + r() * 2.5);
       let seq = int(1, 14);
       let bin: string | undefined;
       const lot: Partial<Lot> = { status: "AVAILABLE" };
 
-      if (first && expiring[p.sku] !== undefined) receivedAt = today + (expiring[p.sku] - p.shelfDays) * DAY + int(6, 13) * HOUR;
+      if (first && expiring[p.sku] !== undefined) madeAt = today + (expiring[p.sku] - p.shelfDays) * DAY + int(6, 13) * HOUR;
       if (last && n > 1 && blasting[p.sku]) {
-        receivedAt = now - blasting[p.sku][0] * HOUR;
+        madeAt = now - blasting[p.sku][0] * HOUR;
         bin = blasting[p.sku][1];
-        receiveTempC = -16.5;
+        coreTempC = -16.5;
         seq = 7;
       }
       if (last && n > 1 && p.sku === "SE-6001") {
-        // Came in warm yesterday and is waiting on QA
-        receivedAt = today - DAY + 15 * HOUR;
-        receiveTempC = -9.5;
+        // Came out of the blast freezer warm yesterday and is waiting on QA
+        madeAt = today - DAY + 15 * HOUR;
+        coreTempC = -9.5;
         lot.status = "HOLD";
-        lot.holdReason = "Received at −9.5°C, warmer than the −15°C limit. Probe core temp and check for thaw before release.";
+        lot.holdReason = "Core temp −9.5°C at put-away, warmer than the −15°C limit. Re-probe after 12 hours in the freezer before release.";
       }
       // Blasted overnight two days ago, put away yesterday morning
-      if (last && n > 1 && p.sku === "DM-1010") receivedAt = today - 2 * DAY + 14 * HOUR;
+      if (last && n > 1 && p.sku === "DM-1010") madeAt = today - 2 * DAY + 14 * HOUR;
 
       // The oldest lot sits in the home pick bin; newer lots go to overstock bins in the same zone.
       if (!bin && first) bin = p.bin;
@@ -291,25 +273,23 @@ export function buildSeed(now = Date.now()): Data {
         ...lot,
         id: `lot-${++lotN}`,
         sku: p.sku,
-        code: lotCode(receivedAt, seq),
-        receivedAt,
-        bestBy: startOfDay(receivedAt + p.shelfDays * DAY),
-        receivedQty: 0,
+        code: lotCode(madeAt, seq),
+        madeAt,
+        bestBy: startOfDay(madeAt + p.shelfDays * DAY),
+        madeQty: 0,
         qty,
         bin,
-        supplierId: p.supplierId,
-        receiveTempC,
+        coreTempC,
       } as Lot);
     }
   }
-  const lotsOf = (sku: string) => lots.filter((l) => l.sku === sku).sort((a, b) => a.receivedAt - b.receivedAt);
+  const lotsOf = (sku: string) => lots.filter((l) => l.sku === sku).sort((a, b) => a.madeAt - b.madeAt);
 
-  // Purchase order numbers follow receiving order; open POs continue the sequence.
-  [...lots].sort((a, b) => a.receivedAt - b.receivedAt).forEach((l, i) => (l.po = `PO-${7601 + i}`));
-  let po = 7600 + lots.length;
+  // Batch numbers follow production order; new batches continue the sequence.
+  [...lots].sort((a, b) => a.madeAt - b.madeAt).forEach((l, i) => (l.batch = `PB-${String(i + 1).padStart(4, "0")}`));
 
   const warm = lotsOf("SE-6001").at(-1)!;
-  movements.push({ id: mvId(), at: warm.receivedAt + 20 * MIN, sku: warm.sku, lotCode: warm.code, type: "HOLD", qty: 0, by: "Receiving", note: "Auto hold: warm at receipt" });
+  movements.push({ id: mvId(), at: warm.madeAt + 20 * MIN, sku: warm.sku, lotCode: warm.code, type: "HOLD", qty: 0, by: "QA", note: "Auto hold: warm at put-away" });
 
   const putAway = lotsOf("DM-1010").at(-1)!;
   movements.push(
@@ -318,10 +298,10 @@ export function buildSeed(now = Date.now()): Data {
     { id: mvId(), at: today - DAY + 9 * HOUR, sku: "DM-1010", lotCode: putAway.code, type: "TRANSFER", qty: 0, by: "Inventory", note: `B-01-03 to ${putAway.bin} after blast` },
   );
 
-  /** Lot a past shipment came from: earliest best-by among lots already received, sellable and out of the blast freezer. */
+  /** Lot a past shipment came from: earliest best-by among lots already made, sellable and out of the blast freezer. */
   const shipLot = (sku: string, at: number) =>
     lots
-      .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.receivedAt < at && l.bestBy > at && zoneOfBin(l.bin) !== "BLAST")
+      .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.madeAt < at && l.bestBy > at && zoneOfBin(l.bin) !== "BLAST")
       .sort((a, b) => a.bestBy - b.bestBy)[0];
 
   // ---------- Orders and deliveries ----------
@@ -581,24 +561,18 @@ export function buildSeed(now = Date.now()): Data {
     return { id, name: z.name, setPointC: z.setPointC, maxC: z.maxC, capacity: cap[0], used: cap[1], readings };
   });
 
-  // ---------- Purchase orders in flight ----------
-  const openPo = (supplierId: string, createdAt: number, eta: number, lines: PurchaseOrder["lines"]): PurchaseOrder => {
-    po++;
-    return { id: `po-${po}`, number: `PO-${po}`, supplierId, createdAt, eta, status: "SENT", lines };
-  };
-  const pos: PurchaseOrder[] = [
-    openPo("navotas", now - 2 * DAY, today + DAY + 9 * HOUR, [{ sku: "SE-6002", qty: 20, cost: 3300 }, { sku: "SE-6003", qty: 15, cost: 1700 }]),
-    openPo("bakers", now - DAY, today + 3 * DAY + 11 * HOUR, [{ sku: "BK-8002", qty: 18, cost: 1100 }, { sku: "BK-8001", qty: 20, cost: 680 }]),
-  ];
-
-  // ---------- Receiving ----------
-  // Received = on hand now + everything that left since (shipments, pickups, write-offs) − returns.
+  // ---------- Production ----------
+  // Made = on hand now + everything that left since (shipments, pickups, write-offs) − returns.
   const net = new Map<string, number>();
   for (const m of movements) if (m.lotCode) net.set(`${m.sku}|${m.lotCode}`, (net.get(`${m.sku}|${m.lotCode}`) ?? 0) + m.qty);
+  const batches: Batch[] = [];
   for (const l of lots) {
-    l.receivedQty = l.qty - (net.get(`${l.sku}|${l.code}`) ?? 0);
-    movements.push({ id: mvId(), at: l.receivedAt, sku: l.sku, lotCode: l.code, type: "RECEIVE", qty: l.receivedQty, ref: l.po, by: "Receiving" });
+    l.madeQty = l.qty - (net.get(`${l.sku}|${l.code}`) ?? 0);
+    batches.push({ id: `pb-${Number(l.batch.slice(3))}`, number: l.batch, sku: l.sku, qty: l.madeQty, madeAt: l.madeAt, by: "Production line", lotId: l.id });
+    const note = zoneOfBin(l.bin) === "BLAST" ? `Into blast freezer ${l.bin}` : undefined;
+    movements.push({ id: mvId(), at: l.madeAt, sku: l.sku, lotCode: l.code, type: "PRODUCE", qty: l.madeQty, ref: l.batch, by: "Production line", note });
   }
+  batches.sort((a, b) => b.madeAt - a.madeAt);
 
   movements.sort((a, b) => b.at - a.at);
   return {
@@ -611,10 +585,8 @@ export function buildSeed(now = Date.now()): Data {
     routes: ROUTES,
     runs,
     zones,
-    suppliers: SUPPLIERS,
-    pos,
-    batches: [],
-    counters: { so, po, batch: 0 },
+    batches,
+    counters: { so, batch: lots.length },
     seededAt: now,
   };
 }

@@ -17,7 +17,8 @@ Everything runs in the browser. Data is seeded relative to the current time and 
 | --- | --- |
 | `/` Today | Sales, stops delivered, trucks out, live route lines, freezer temps, and a "needs attention" list (exceptions, low stock, short-dated lots, held lots, accounts past due). |
 | `/counter` | Wholesale order entry. Tier pricing per account, catch-weight items, FEFO lot reservation, ₱300 small-drop fee under ₱5,000, ₱150 fuel surcharge, credit hold with manager override, truck delivery or will-call, GCash/cash/card/check/on-account payment, printable invoice with 12% VAT breakdown. Type `SKU qty` (e.g. `DM-1001 4`) and Enter to add fast. Press `/` to focus search. |
-| `/inventory` | Stock vs reorder point and par, lots with best-by and receiving temp, QA hold/release, cycle counts and write-offs, bin moves, movement ledger, reorder suggestions grouped by supplier, purchase orders and receiving, freezer zone readouts. |
+| `/inventory` | Stock vs reorder point and par, lots with best-by and core temp at put-away, QA hold/release, cycle counts and write-offs, bin moves, movement ledger, freezer zone readouts. Links to Production for what to make. |
+| `/production` | Record a batch (it becomes a lot in the blast freezer), what to make next from reorder point and par, batches made, produced per product today and over 7 days. |
 | `/dispatch` | Each route drawn as a line of stops. Per stop: status ladder with timestamps, ref van temperature trace against the −15°C frozen limit, proof of delivery (signature, receiver, product temp, shorts, COD collected), activity log. Advance picking, loading and dispatch from here. |
 | `/orders` | All orders with payment and delivery status, invoice view, cancel (releases reserved stock). |
 | `/clients` | Accounts with terms, credit use, past due, and full delivery history showing who signed and at what temperature. |
@@ -29,14 +30,14 @@ Everything runs in the browser. Data is seeded relative to the current time and 
 2. **Loaded** on the truck: reserved cases leave on-hand and a `SHIP` movement is written per lot.
 3. **Delivered**: proof of delivery is stored. Refused or damaged cases come back as a `RETURN` and the account is credited.
 4. **Will-call** sales deduct immediately.
-5. **Receiving** creates a new lot. Product warmer than the zone limit (−15°C frozen, 5°C chiller) goes on QA hold automatically.
+5. **Production**: every batch creates a new lot in the blast freezer with a `PRODUCE` movement. Clairon's makes all its products, so there are no suppliers or purchase orders.
 
 ## Code map
 
-- `lib/types.ts`: domain model (products, lots, movements, clients, orders, deliveries, route runs, POs).
+- `lib/types.ts`: domain model (products, lots, movements, clients, orders, deliveries, route runs, production batches).
 - `lib/logic.ts`: pure rules: FEFO allocation, stock rollups, pricing and fees, status flow.
 - `lib/seed.ts`: deterministic demo data generator.
-- `lib/store.ts`: Zustand store with every action (place order, advance delivery, POD, receive, adjust, hold, PO).
+- `lib/store.ts`: Zustand store with every action (place order, advance delivery, POD, produce, adjust, hold).
 - `components/`: shell, charts, route line, invoice, POD and signature pad, inventory modals.
 
 ## Next steps toward production

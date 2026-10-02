@@ -20,6 +20,7 @@ These change what we build, so they come first.
 5. **Decided: both riders and vans.** Refrigerated vans on routes for big accounts (keeping temperature logs), riders on motorbikes for small drops. A delivery is assigned to either a van route or a rider.
 6. **Decided: a sale counts when the order is delivered or paid** (see 6.3).
 7. **E-commerce scope:** is this a public online store, or ordering for regular accounts only (restaurants, carts)? These are very different builds.
+8. **Confirm the catalogue is all made in-house.** Some demo products look bought-in rather than made: imported fries, vannamei shrimp, ice cream tubs, quick-melt cheese. The prototype treats all 48 as produced (decision 0.1). If some are resold, either drop them or bring back a small receiving step for those items only.
 
 ---
 
@@ -64,9 +65,9 @@ These change what we build, so they come first.
 |---|---|---|---|
 | 4.1 | List of products with how many were produced (per day) | Done | `/production`: produced by product, today and 7 days |
 | 4.2 | Record a production batch: product, quantity, date, made by | Done | Plus an optional note. "To make" suggests what to run next, from reorder point and par. |
-| 4.3 | Produced quantity adds to inventory and shows on the Dashboard | Done | **[changed]** Each batch becomes a stock lot with a best-by date, the same way receiving from a supplier does (`receive` in `lib/store.ts`), so first-expiry-first-out and expiry alerts work for in-house products too. |
+| 4.3 | Produced quantity adds to inventory and shows on the Dashboard | Done | **[changed]** Each batch becomes a stock lot with a best-by date (`produce` in `lib/store.ts`), so first-expiry-first-out and expiry alerts work for in-house products too. |
 | 4.4 | Batch blast-freezes before it is put away | Partial | Batches land in a blast-freezer bin; staff move them to a freezer bin from Inventory. Nothing yet stops selling a lot that is still blast freezing. |
-| 4.6 | Seeded history comes from production batches, not supplier POs (decision 0.1) | Missing | Demo stock and the Inventory "Reorder" tab still use suppliers and purchase orders. Turn Reorder into a link to Production. |
+| 4.6 | Seeded history comes from production batches, not supplier POs (decision 0.1) | Done | Every demo lot is a batch with a PRODUCE movement. Suppliers, purchase orders and receiving are gone. Inventory links to Production ("To make", "Record batch", "Make a batch" on a product). |
 | 4.5 | Consumes raw materials per recipe | Deferred | Decision 0.2 |
 
 ## 5. Delivery
@@ -132,7 +133,7 @@ These change what we build, so they come first.
 The prototype has no backend yet, but every feature follows three rules. When the database lands, only `lib/store.ts` changes; the screens stay the same.
 
 1. **Rules live in `lib/logic.ts`** as pure functions: pricing, fees, first-expiry-first-out allocation, stock rollups, sold-per-product. The server reuses the same functions, so prototype and production behave identically.
-2. **Writes go through a store action** (`placeOrder`, `advance`, `receive`, …). Each action becomes one API endpoint, so components never change data directly.
+2. **Writes go through a store action** (`placeOrder`, `advance`, `produce`, …). Each action becomes one API endpoint, so components never change data directly.
 3. **Shapes live in `lib/types.ts`**, and the API returns exactly those types. The seed (`lib/seed.ts`) is the test fixture for the database.
 
 New features (Production, riders, products admin) add a type, a logic function where there is a rule, and a store action. They don't put logic inside a page.
@@ -148,15 +149,14 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3).
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6).
 
-1. **Production replaces suppliers** (4.6): seed demo stock from production batches, turn the Inventory "Reorder" tab into a link to Production, drop purchase orders for finished goods.
-2. **Sale rule** (6.3, decision 0.6): count a sale when delivered or paid, not when placed. Updates "Sold today", the sales chart and the dashboard cards (2.3).
-3. **No selling stock that is still blast freezing** (4.4): reserve from freezer bins only and show "ready at" on fresh batches.
-4. **Phone bottom navigation** (1.3–1.4): Inventory · Production · Home · Delivery · Sales, with Counter, Orders and Clients under Sales/More.
-5. **Delivery table and riders** (5.1, 5.3, 5.7, 5.8): flat Rider · Customer · Amount table, rider list, assign a stop to a van route or a rider, change the rider.
-6. **Sales table with totals** (6.1, 6.2, 6.5): sales by product, date range, total row, with and without VAT.
-7. **Add/edit products** (2.8, decision 0.4): name, price, owner-set selling unit and contents, reorder level, par.
-8. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
-9. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
-10. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
+1. **Sale rule** (6.3, decision 0.6): count a sale when delivered or paid, not when placed. Updates "Sold today", the sales chart and the dashboard cards (2.3).
+2. **No selling stock that is still blast freezing** (4.4): reserve from freezer bins only and show "ready at" on fresh batches.
+3. **Phone bottom navigation** (1.3–1.4): Inventory · Production · Home · Delivery · Sales, with Counter, Orders and Clients under Sales/More.
+4. **Delivery table and riders** (5.1, 5.3, 5.7, 5.8): flat Rider · Customer · Amount table, rider list, assign a stop to a van route or a rider, change the rider.
+5. **Sales table with totals** (6.1, 6.2, 6.5): sales by product, date range, total row, with and without VAT.
+6. **Add/edit products** (2.8, decision 0.4): name, price, owner-set selling unit and contents, reorder level, par.
+7. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
+8. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
+9. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
