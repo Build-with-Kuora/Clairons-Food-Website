@@ -98,7 +98,7 @@ export default function Today() {
         bodyClass="divide-y divide-line"
       >
         {routes.map((r) => {
-          const stops = stopsToday.filter((d) => d.routeId === r.id);
+          const stops = stopsToday.filter((d) => d.routeId === r.id && !d.riderId);
           const run = runs[runKey(r.id, today)];
           const last = run?.temps.at(-1);
           return (

@@ -8,6 +8,8 @@ import type {
   Order,
   PayMethod,
   Product,
+  Rider,
+  Route,
   Run,
   Terms,
   Tier,
@@ -286,10 +288,34 @@ export function nextAction(d: Delivery): { to: DeliveryStatus; label: string } |
     case "SCHEDULED":
       return { to: "PICKING", label: "Start picking" };
     case "PICKING":
-      return { to: "LOADED", label: "Mark loaded" };
+      return { to: "LOADED", label: d.riderId ? "Mark packed" : "Mark loaded" };
+    case "LOADED":
+      // Vans leave together when the truck is dispatched; a rider takes each stop on its own.
+      return d.riderId ? { to: "EN_ROUTE", label: "Hand to rider" } : null;
     case "EN_ROUTE":
       return { to: "ARRIVED", label: "Mark arrived" };
     default:
       return null;
   }
+}
+
+/** A stop can change hands until it leaves the building. */
+export const ASSIGNABLE: DeliveryStatus[] = ["SCHEDULED", "PICKING", "LOADED"];
+
+/** The three steps riders and the phone table use, plus "problem". */
+export type SimpleStatus = "Pending" | "Out for delivery" | "Delivered" | "Problem";
+
+export function simpleStatus(s: DeliveryStatus): SimpleStatus {
+  if (s === "DELIVERED") return "Delivered";
+  if (s === "EXCEPTION") return "Problem";
+  if (s === "EN_ROUTE" || s === "ARRIVED") return "Out for delivery";
+  return "Pending";
+}
+
+/** Who carries a stop: the rider when one is assigned, otherwise the van on the client's route. */
+export function carrierOf(d: Delivery, routes: Map<string, Route>, riders: Map<string, Rider>) {
+  const rider = d.riderId ? riders.get(d.riderId) : undefined;
+  if (rider) return { kind: "RIDER" as const, person: rider.name, vehicle: rider.bike, label: `${rider.name}, motorbike` };
+  const r = routes.get(d.routeId);
+  return { kind: "VAN" as const, person: r?.driver ?? "", vehicle: r?.truck ?? "", label: `${r?.driver}, ${r?.truck}` };
 }

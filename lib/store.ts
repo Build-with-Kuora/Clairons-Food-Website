@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DAY, HOUR, dateKey, keyToTs, lotCode, uid } from "./format";
 import {
+  ASSIGNABLE,
   allocateFEFO,
   freeBlastBin,
   orderTotals,
@@ -23,6 +24,7 @@ import type {
   OrderLine,
   PayMethod,
   Pod,
+  Rider,
   Run,
 } from "./types";
 
@@ -44,6 +46,14 @@ export interface ProduceInput {
   note?: string;
 }
 
+export interface RiderInput {
+  id?: string;
+  name: string;
+  phone: string;
+  bike: string;
+  active: boolean;
+}
+
 interface Actions {
   reset(): void;
   tick(): void;
@@ -53,6 +63,9 @@ interface Actions {
   dispatchRoute(routeId: string, date: string, by: string): void;
   completeDelivery(deliveryId: string, pod: Omit<Pod, "at">, by: string): void;
   reportException(deliveryId: string, reason: string, note: string, by: string): void;
+  /** Give a stop to a rider, or back to the van on its route (riderId null). */
+  assignDelivery(deliveryId: string, riderId: string | null, by: string): { ok: true } | { ok: false; error: string };
+  saveRider(i: RiderInput): { ok: true; rider: Rider } | { ok: false; error: string };
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
@@ -69,6 +82,7 @@ const empty: Data = {
   orders: [],
   deliveries: [],
   routes: [],
+  riders: [],
   runs: {},
   zones: [],
   batches: [],
@@ -80,7 +94,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v4";
+export const STORAGE_KEY = "clairons-coldline-ph-v5";
 
 export const useStore = create<Store>()(
   persist(
@@ -252,7 +266,7 @@ export const useStore = create<Store>()(
             .slice()
             .sort((a, b) => a.seq - b.seq)
             .map((d) => {
-              if (d.routeId !== routeId || d.date !== date || d.status !== "LOADED") return d;
+              if (d.routeId !== routeId || d.riderId || d.date !== date || d.status !== "LOADED") return d;
               i++;
               return { ...d, status: "EN_ROUTE" as const, eta: now + i * 35 * 60_000, events: [...d.events, { status: "EN_ROUTE" as const, at: now, by }] };
             }),
@@ -310,6 +324,39 @@ export const useStore = create<Store>()(
               : x,
           ),
         });
+      },
+
+      assignDelivery: (deliveryId, riderId, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        if (!d) return { ok: false, error: "Stop not found." };
+        if ((d.riderId ?? null) === riderId) return { ok: true };
+        if (!ASSIGNABLE.includes(d.status)) return { ok: false, error: "This stop has already left. Reassign it before it goes out." };
+        const rider = riderId ? s.riders.find((r) => r.id === riderId) : undefined;
+        if (riderId && !rider?.active) return { ok: false, error: "Pick an active rider." };
+        const route = s.routes.find((r) => r.id === d.routeId);
+        if (!riderId && s.runs[runKey(d.routeId, d.date)]?.departedAt) return { ok: false, error: `${route?.truck} has already left. Keep this stop with a rider.` };
+        // Join the end of the new carrier's list for that day.
+        const seq =
+          Math.max(0, ...s.deliveries.filter((x) => x.date === d.date && x.id !== d.id && (riderId ? x.riderId === riderId : x.routeId === d.routeId && !x.riderId)).map((x) => x.seq)) + 1;
+        const note = rider ? `Assigned to rider ${rider.name}` : `Moved back to ${route?.truck}, ${route?.name}`;
+        set({
+          deliveries: s.deliveries.map((x) =>
+            x.id === deliveryId ? { ...x, riderId: riderId ?? undefined, seq, events: [...x.events, { status: x.status, at: Date.now(), by, note }] } : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      saveRider: (i) => {
+        const s = get();
+        const name = i.name.trim();
+        if (!name) return { ok: false, error: "Enter the rider's name." };
+        const twin = s.riders.find((r) => r.id !== i.id && r.name.toLowerCase() === name.toLowerCase());
+        if (twin) return { ok: false, error: `${twin.name} is already on the rider list.` };
+        const rider: Rider = { id: i.id ?? `rd-${uid()}`, name, phone: i.phone.trim(), bike: i.bike.trim(), active: i.active };
+        set({ riders: i.id ? s.riders.map((r) => (r.id === i.id ? rider : r)) : [...s.riders, rider] });
+        return { ok: true, rider };
       },
 
       produce: (i) => {

@@ -90,7 +90,7 @@ export default function Orders() {
                     <td className="whitespace-nowrap text-ink-2">{dateTime(o.createdAt)}</td>
                     <td className="font-semibold">{maps.client.get(o.clientId)?.name}</td>
                     <td className="text-ink-2">
-                      {o.fulfillment === "PICKUP" ? "Will-call" : d ? `${dayShort(keyToTs(d.date))}, ${maps.route.get(d.routeId)?.name}` : "Truck"}
+                      {o.fulfillment === "PICKUP" ? "Will-call" : d ? `${dayShort(keyToTs(d.date))}, ${d.riderId ? `rider ${maps.rider.get(d.riderId)?.name}` : maps.route.get(d.routeId)?.name}` : "Truck"}
                     </td>
                     <td>{o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : d ? <StatusPill status={d.status} /> : <Badge tone="good">Picked up</Badge>}</td>
                     <td>
@@ -161,11 +161,11 @@ function OrderBody({ order }: { order: Order }) {
           ) : d.eta ? (
             <span>ETA {dateTime(d.eta)}</span>
           ) : (
-            <span className="text-ink-3">Stop {d.seq} on {maps.route.get(d.routeId)?.name}</span>
+            <span className="text-ink-3">{d.riderId ? `Rider drop, ${maps.rider.get(d.riderId)?.name}` : `Stop ${d.seq} on ${maps.route.get(d.routeId)?.name}`}</span>
           )}
         </div>
       )}
-      <Invoice order={order} client={c} delivery={d} route={maps.route.get(c.routeId)} products={maps.product} />
+      <Invoice order={order} client={c} delivery={d} route={maps.route.get(c.routeId)} rider={d?.riderId ? maps.rider.get(d.riderId) : undefined} products={maps.product} />
     </div>
   );
 }

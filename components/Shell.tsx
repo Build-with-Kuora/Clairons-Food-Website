@@ -17,7 +17,7 @@ const NAV = [
   { href: "/counter", label: "Counter", icon: ScanBarcode },
   { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/production", label: "Production", icon: Factory },
-  { href: "/dispatch", label: "Dispatch", icon: Truck },
+  { href: "/dispatch", label: "Delivery", icon: Truck },
   { href: "/orders", label: "Orders", icon: ReceiptText },
   { href: "/clients", label: "Clients", icon: Building2 },
 ];

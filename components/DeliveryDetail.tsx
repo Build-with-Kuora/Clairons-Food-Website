@@ -4,10 +4,11 @@ import { Check, Phone } from "lucide-react";
 import { useState } from "react";
 import { MIN, clock, dateKey, dateTime, day, money, temp, tempBare } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { STATUS_FLOW, STATUS_LABEL, TRUCK_LIMIT_C, deliveryTrace, nextAction, runKey, statusAt } from "@/lib/logic";
+import { STATUS_FLOW, STATUS_LABEL, TRUCK_LIMIT_C, carrierOf, deliveryTrace, nextAction, runKey, statusAt } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Delivery } from "@/lib/types";
 import { TempTrace } from "./charts";
+import { AssignCarrier } from "./AssignCarrier";
 import { ExceptionForm, PodForm } from "./Pod";
 import { Badge, Modal, Signature, StatusPill, cx } from "./ui";
 
@@ -23,7 +24,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
   const c = maps.client.get(d.clientId)!;
   const o = maps.order.get(d.orderId)!;
   const route = maps.route.get(d.routeId)!;
-  const run = runs[runKey(d.routeId, d.date)];
+  const carrier = carrierOf(d, maps.route, maps.rider);
+  const van = carrier.kind === "VAN";
+  const run = van ? runs[runKey(d.routeId, d.date)] : undefined;
   const trace = deliveryTrace(d, run, now);
   const peak = trace.reduce((m, t) => Math.max(m, t.c), -Infinity);
   let minutesOver = 0;
@@ -53,7 +56,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             {c.address}, {c.city}
           </div>
           <div className="mt-0.5 text-[13.5px] text-ink-3">
-            Stop {d.seq} on {route.name}, window {c.window}
+            {van ? `Stop ${d.seq} on ${route.name}` : `Rider drop, ${carrier.person} (${carrier.vehicle})`}, window {c.window}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -78,6 +81,11 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[13.5px]">
+        <span className="text-ink-3">Delivered by</span>
+        <AssignCarrier delivery={d} className="font-semibold" />
       </div>
 
       <div className="mt-3 rounded-md bg-sunk px-3 py-2 text-[13.5px] text-ink-2">
@@ -115,7 +123,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
         </div>
       )}
 
-      <section className="mt-6">
+      {van && <section className="mt-6">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="display text-[20px] font-semibold">Cold chain</h3>
           <div className="text-[13px] text-ink-3">
@@ -129,7 +137,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
           </div>
         </div>
         <TempTrace temps={trace} limit={TRUCK_LIMIT_C} marks={marks} />
-      </section>
+      </section>}
 
       {d.pod && (
         <section className="mt-6">
@@ -229,7 +237,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
       </section>
 
       <Modal open={pod} onClose={() => setPod(false)} title={`Proof of delivery, ${c.name}`} width={600}>
-        <PodForm delivery={d} order={o} by={route.driver} onDone={() => setPod(false)} onCancel={() => setPod(false)} />
+        <PodForm delivery={d} order={o} by={carrier.person} onDone={() => setPod(false)} onCancel={() => setPod(false)} />
       </Modal>
       <Modal open={exc} onClose={() => setExc(false)} title="Report a delivery problem" width={480}>
         <ExceptionForm delivery={d} by={BY} onDone={() => setExc(false)} onCancel={() => setExc(false)} />

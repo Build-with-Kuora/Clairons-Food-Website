@@ -182,6 +182,8 @@ export interface Delivery {
   routeId: string;
   date: string; // yyyy-mm-dd
   seq: number;
+  /** Set when a motorbike rider takes this stop instead of the van on its route */
+  riderId?: string;
   status: DeliveryStatus;
   events: DeliveryEvent[];
   eta?: number;
@@ -200,6 +202,16 @@ export interface Route {
 export interface TempReading {
   at: number;
   c: number;
+}
+
+/** Motorbike rider for small drops. No reefer, so no temperature log. */
+export interface Rider {
+  id: string;
+  name: string;
+  phone: string;
+  /** Motorbike and plate, e.g. "Honda Click, NBC 4512" */
+  bike: string;
+  active: boolean;
 }
 
 /** One route on one day: the truck run and its reefer temperature log. */

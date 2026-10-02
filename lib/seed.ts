@@ -14,6 +14,7 @@ import type {
   OrderLine,
   Pod,
   Product,
+  Rider,
   Route,
   Run,
   TempReading,
@@ -92,6 +93,15 @@ export const ROUTES: Route[] = [
   { id: "QC", name: "Quezon City loop", truck: "Ref van 05", driver: "Jun Dela Cruz", setPointC: -20 },
   { id: "STH", name: "Makati, Pasig & south", truck: "Ref van 07", driver: "Arnel Reyes", setPointC: -20 },
 ];
+
+export const RIDERS: Rider[] = [
+  { id: "rd-1", name: "Jomar Bautista", phone: "0917 555 3021", bike: "Honda Click, NBC 4512", active: true },
+  { id: "rd-2", name: "Ella Santos", phone: "0918 555 7740", bike: "Yamaha Mio, DAE 2219", active: true },
+  { id: "rd-3", name: "Dodong Reyes", phone: "0927 555 1186", bike: "Honda TMX, ABK 903", active: false },
+];
+
+/** Small cash drops go by motorbike: Ella covers Manila, Jomar the rest. */
+const riderFor = (c: Client) => (c.terms !== "COD" ? undefined : c.routeId === "MNL" ? RIDERS[1] : RIDERS[0]);
 
 const CLIENTS: Client[] = [
   { id: "c-wahlee", name: "Wah Lee Dimsum House", type: "Restaurant", tier: "B", terms: "NET15", creditLimit: 150000, balance: 48250.5, pastDue: 0, address: "618 Ongpin St, Binondo", city: "Manila", contact: "Benson Uy", phone: "(02) 8244-3381", routeId: "MNL", window: "6–8 am", dockNote: "Back door on Salazar St. Walk-in freezer is past the steamers." },
@@ -182,6 +192,7 @@ export interface Data {
   orders: Order[];
   deliveries: Delivery[];
   routes: Route[];
+  riders: Rider[];
   runs: Record<string, Run>;
   zones: Zone[];
   batches: Batch[];
@@ -413,7 +424,9 @@ export function buildSeed(now = Date.now()): Data {
       if (used.has(c.id)) continue;
       used.add(c.id);
       const o = makeOrder(c, placed + int(8, 16) * HOUR + int(0, 59) * MIN, "DELIVERY", false);
-      const seq = (routeStops[c.routeId] = (routeStops[c.routeId] ?? 0) + 1);
+      const rider = riderFor(c);
+      const lane = rider?.id ?? c.routeId;
+      const seq = (routeStops[lane] = (routeStops[lane] ?? 0) + 1);
       const depart = deliverDay + 5.5 * HOUR + int(0, 40) * MIN;
       const at = depart + seq * 38 * MIN + int(0, 20) * MIN;
       o.status = "FULFILLED";
@@ -423,18 +436,19 @@ export function buildSeed(now = Date.now()): Data {
         { status: "PICKING", at: deliverDay + 2 * HOUR, by: "Night pick" },
         { status: "LOADED", at: depart - 30 * MIN, by: "Dock" },
         { status: "EN_ROUTE", at: depart, by: "Dispatch" },
-        { status: "ARRIVED", at: at - 12 * MIN, by: "Driver" },
-        { status: "DELIVERED", at, by: "Driver" },
+        { status: "ARRIVED", at: at - 12 * MIN, by: rider?.name ?? "Driver" },
+        { status: "DELIVERED", at, by: rider?.name ?? "Driver" },
       ];
-      makeDelivery(o, dk, seq, "DELIVERED", evs, { pod: pod(c, at, o.total, o.payMethod) });
+      makeDelivery(o, dk, seq, "DELIVERED", evs, { pod: pod(c, at, o.total, o.payMethod), riderId: rider?.id });
       shipMoves(o, depart - 30 * MIN);
+      if (rider) continue;
       const run = ensureRun(c.routeId, dk, depart);
       run.departedAt = depart;
     }
     for (const rt of ROUTES) {
       const run = runs[runKey(rt.id, dk)];
       if (!run || !run.departedAt) continue;
-      const stops = deliveries.filter((d) => d.date === dk && d.routeId === rt.id);
+      const stops = deliveries.filter((d) => d.date === dk && d.routeId === rt.id && !d.riderId);
       const lastAt = Math.max(...stops.map((d) => d.pod!.at));
       run.returnedAt = lastAt + 50 * MIN;
       run.temps = reeferLog(r, run.departedAt - 40 * MIN, run.returnedAt, rt.setPointC, stops.map((d) => d.pod!.at - 12 * MIN));
@@ -442,7 +456,7 @@ export function buildSeed(now = Date.now()): Data {
   }
 
   // Today: orders placed yesterday, on the trucks now.
-  type Plan = { client: string; status: DeliveryStatus; at?: number; eta?: number };
+  type Plan = { client: string; status: DeliveryStatus; at?: number; eta?: number; rider?: Rider };
   const yesterday = today - DAY;
   const plans: Record<string, { depart: number; departed: boolean; stops: Plan[] }> = {
     MNL: {
@@ -452,7 +466,7 @@ export function buildSeed(now = Date.now()): Data {
         { client: "c-nena", status: "DELIVERED", at: now - 160 * MIN },
         { client: "c-wahlee", status: "DELIVERED", at: now - 125 * MIN },
         { client: "c-lucky", status: "DELIVERED", at: now - 90 * MIN },
-        { client: "c-kuyajun", status: "DELIVERED", at: now - 50 * MIN },
+        { client: "c-kuyajun", status: "DELIVERED", at: now - 50 * MIN, rider: RIDERS[1] },
         { client: "c-dapitan", status: "ARRIVED", at: now - 8 * MIN },
         { client: "c-murallas", status: "EN_ROUTE", eta: now + 40 * MIN },
       ],
@@ -474,7 +488,7 @@ export function buildSeed(now = Date.now()): Data {
         { client: "c-kapitolyo", status: "LOADED" },
         { client: "c-lorenzo", status: "LOADED" },
         { client: "c-rizalmart", status: "PICKING" },
-        { client: "c-poblacion", status: "SCHEDULED" },
+        { client: "c-poblacion", status: "SCHEDULED", rider: RIDERS[0] },
       ],
     },
   };
@@ -484,8 +498,12 @@ export function buildSeed(now = Date.now()): Data {
     const run = ensureRun(rt.id, todayKey, plan.depart);
     if (plan.departed) run.departedAt = plan.depart;
     const doors: number[] = [];
-    plan.stops.forEach((s, i) => {
+    const lanes: Record<string, number> = {};
+    plan.stops.forEach((s) => {
       const c = clientById.get(s.client)!;
+      const by = s.rider?.name ?? rt.driver;
+      const lane = s.rider?.id ?? rt.id;
+      const seq = (lanes[lane] = (lanes[lane] ?? 0) + 1);
       const reserving = s.status === "SCHEDULED" || s.status === "PICKING";
       const o = makeOrder(c, yesterday + int(9, 17) * HOUR + int(0, 59) * MIN, "DELIVERY", reserving);
       const evs: DeliveryEvent[] = [{ status: "SCHEDULED", at: o.createdAt, by: o.by }];
@@ -495,14 +513,14 @@ export function buildSeed(now = Date.now()): Data {
         evs.push({ status: "LOADED", at: loadedAt, by: "Dock" });
         shipMoves(o, loadedAt);
       }
-      if (plan.departed) evs.push({ status: "EN_ROUTE", at: plan.depart, by: "Dispatch" });
+      if (plan.departed) evs.push({ status: "EN_ROUTE", at: s.rider && s.at ? s.at - 40 * MIN : plan.depart, by: "Dispatch" });
       const extra: Partial<Delivery> = {};
       if (s.at) {
-        evs.push({ status: "ARRIVED", at: s.status === "ARRIVED" ? s.at : s.at - 12 * MIN, by: rt.driver });
-        doors.push(s.status === "ARRIVED" ? s.at : s.at - 12 * MIN);
+        evs.push({ status: "ARRIVED", at: s.status === "ARRIVED" ? s.at : s.at - 12 * MIN, by });
+        if (!s.rider) doors.push(s.status === "ARRIVED" ? s.at : s.at - 12 * MIN);
       }
       if (s.status === "DELIVERED") {
-        evs.push({ status: "DELIVERED", at: s.at!, by: rt.driver });
+        evs.push({ status: "DELIVERED", at: s.at!, by });
         extra.pod = pod(c, s.at!, o.total, o.payMethod);
         o.status = "FULFILLED";
         if (o.payMethod === "COD") o.paid = true;
@@ -520,7 +538,8 @@ export function buildSeed(now = Date.now()): Data {
         movements.push({ id: mvId(), at: s.at!, sku: ic.sku, lotCode: ic.allocs[0].lotCode, type: "RETURN", qty: refused, ref: o.number, by: rt.driver, note: "Refused, soft on arrival" });
       }
       if (s.eta) extra.eta = s.eta;
-      makeDelivery(o, todayKey, i + 1, s.status, evs, extra);
+      if (s.rider) extra.riderId = s.rider.id;
+      makeDelivery(o, todayKey, seq, s.status, evs, extra);
     });
     const start = plan.departed ? plan.depart - 40 * MIN : now - 70 * MIN;
     const excursion = rt.id === "QC" ? { from: now - 125 * MIN, to: now - 78 * MIN, peak: -6 } : undefined;
@@ -583,6 +602,7 @@ export function buildSeed(now = Date.now()): Data {
     orders,
     deliveries,
     routes: ROUTES,
+    riders: RIDERS,
     runs,
     zones,
     batches,

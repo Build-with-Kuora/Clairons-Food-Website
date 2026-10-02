@@ -3,12 +3,16 @@
 import { Truck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DeliveryDetail } from "@/components/DeliveryDetail";
+import { DeliveryTable } from "@/components/DeliveryTable";
+import { RiderList } from "@/components/RiderList";
 import { RouteLine } from "@/components/RouteLine";
-import { Badge, Empty, PageHead, Panel, StatusPill, cx } from "@/components/ui";
+import { Badge, Empty, PageHead, Panel, StatusPill, Tabs, cx } from "@/components/ui";
 import { clock, dateKey, dayShort, keyToTs, tempBare } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
+
+type View = "routes" | "table" | "riders";
 
 export default function Dispatch() {
   const deliveries = useStore((s) => s.deliveries);
@@ -33,10 +37,12 @@ export default function Dispatch() {
     const first = all.filter((x) => x.routeId === route && x.date === day).sort((a, b) => a.seq - b.seq)[0];
     return { date: day, sel: first?.id };
   });
+  const [view, setView] = useState<View>(() => (queryParam("view") as View | null) ?? "routes");
   const [date, setDate] = useState(init.date);
   const [sel, setSel] = useState<string | undefined>(init.sel);
 
   const stops = deliveries.filter((d) => d.date === date);
+  const riderStops = stops.filter((d) => d.riderId);
   const selected = deliveries.find((d) => d.id === sel) ?? stops.find((d) => d.status === "EXCEPTION") ?? stops.find((d) => d.status === "ARRIVED") ?? stops[0];
   const counts = {
     done: stops.filter((d) => d.status === "DELIVERED").length,
@@ -48,7 +54,7 @@ export default function Dispatch() {
   return (
     <div className="mx-auto max-w-[1600px]">
       <PageHead
-        title="Dispatch"
+        title="Delivery"
         sub={
           <>
             {stops.length} stops: {counts.done} delivered, {counts.road} on the road, {counts.dock} still at the dock
@@ -75,10 +81,33 @@ export default function Dispatch() {
         }
       />
 
+      <div className="mb-4">
+        <Tabs<View>
+          value={view}
+          onChange={setView}
+          tabs={[
+            { id: "routes", label: "Routes" },
+            { id: "table", label: "Table", count: stops.length || undefined },
+            { id: "riders", label: "Riders" },
+          ]}
+        />
+      </div>
+
       <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_620px] xl:grid-cols-[minmax(0,1fr)_540px]">
         <div className="space-y-5">
-          {routes.map((r) => {
-            const rs = stops.filter((d) => d.routeId === r.id).sort((a, b) => a.seq - b.seq);
+          {view === "table" && (
+            <Panel title="Deliveries" bodyClass="p-0">
+              <DeliveryTable stops={stops} selectedId={selected?.id} onSelect={setSel} />
+            </Panel>
+          )}
+          {view === "riders" && <RiderList />}
+          {view === "routes" && riderStops.length > 0 && (
+            <Panel title="Rider drops" actions={<span className="text-[13px] text-ink-3">Motorbike, no temperature log</span>} bodyClass="p-0">
+              <DeliveryTable stops={riderStops} selectedId={selected?.id} onSelect={setSel} />
+            </Panel>
+          )}
+          {view === "routes" && routes.map((r) => {
+            const rs = stops.filter((d) => d.routeId === r.id && !d.riderId).sort((a, b) => a.seq - b.seq);
             const run = runs[runKey(r.id, date)];
             const last = run?.temps.at(-1);
             const loaded = rs.filter((d) => d.status === "LOADED").length;

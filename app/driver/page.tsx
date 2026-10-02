@@ -14,6 +14,7 @@ const KEY = "coldline-driver-route";
 
 export default function Driver() {
   const routes = useStore((s) => s.routes);
+  const riders = useStore((s) => s.riders);
   const deliveries = useStore((s) => s.deliveries);
   const runs = useStore((s) => s.runs);
   const advance = useStore((s) => s.advance);
@@ -40,15 +41,17 @@ export default function Driver() {
   }
 
   const route = routes.find((r) => r.id === routeId);
+  const rider = riders.find((r) => r.id === routeId);
 
-  if (!route) {
+  if (!route && !rider) {
     return (
       <Frame>
-        <h1 className="display mt-6 text-[30px] font-semibold">Which truck are you on?</h1>
-        <p className="mt-1 text-[15px] text-ink-2">Pick today&rsquo;s route to see your stops.</p>
-        <ul className="mt-5 space-y-3">
+        <h1 className="display mt-6 text-[30px] font-semibold">Who are you driving as?</h1>
+        <p className="mt-1 text-[15px] text-ink-2">Pick your van route or your name to see today&rsquo;s stops.</p>
+        <h2 className="mt-5 text-[14px] font-semibold text-ink-3">Ref vans</h2>
+        <ul className="mt-2 space-y-3">
           {routes.map((r) => {
-            const n = deliveries.filter((d) => d.routeId === r.id && d.date === today).length;
+            const n = deliveries.filter((d) => d.routeId === r.id && !d.riderId && d.date === today).length;
             return (
               <li key={r.id}>
                 <button onClick={() => chooseRoute(r.id)} className="w-full cursor-pointer rounded-xl border border-line bg-panel p-4 text-left hover:border-ink-3">
@@ -61,12 +64,33 @@ export default function Driver() {
             );
           })}
         </ul>
+        <h2 className="mt-6 text-[14px] font-semibold text-ink-3">Motorbike riders</h2>
+        <ul className="mt-2 mb-10 space-y-3">
+          {riders
+            .filter((r) => r.active)
+            .map((r) => {
+              const n = deliveries.filter((d) => d.riderId === r.id && d.date === today).length;
+              return (
+                <li key={r.id}>
+                  <button onClick={() => chooseRoute(r.id)} className="w-full cursor-pointer rounded-xl border border-line bg-panel p-4 text-left hover:border-ink-3">
+                    <div className="display text-[22px] font-semibold">{r.name}</div>
+                    <div className="text-[15px] text-ink-2">
+                      {r.bike}, {n} stops
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+        </ul>
       </Frame>
     );
   }
 
-  const run = runs[runKey(route.id, today)];
-  const stops = deliveries.filter((d) => d.routeId === route.id && d.date === today).sort((a, b) => a.seq - b.seq);
+  const me = route ? route.driver : rider!.name;
+  const run = route ? runs[runKey(route.id, today)] : undefined;
+  const stops = deliveries
+    .filter((d) => d.date === today && (route ? d.routeId === route.id && !d.riderId : d.riderId === rider!.id))
+    .sort((a, b) => a.seq - b.seq);
   const current = stops.find((d) => d.status === "ARRIVED") ?? stops.find((d) => d.status === "EN_ROUTE");
   const loaded = stops.filter((d) => d.status === "LOADED").length;
   const done = stops.filter((d) => d.status === "DELIVERED" || d.status === "EXCEPTION");
@@ -80,18 +104,33 @@ export default function Driver() {
         <button className="btn btn-quiet btn-sm -ml-2" onClick={() => chooseRoute(null)}>
           <ChevronLeft size={16} /> Routes
         </button>
-        {box && (
+        {route && box && (
           <span className={cx("flex items-center gap-1 text-[15px] font-semibold", box.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink")}>
             <Thermometer size={16} /> Box {tempBare(box.c)}C
           </span>
         )}
       </div>
-      <h1 className="display text-[28px] leading-tight font-semibold">{route.name}</h1>
+      <h1 className="display text-[28px] leading-tight font-semibold">{route ? route.name : rider!.name}</h1>
       <p className="text-[15px] text-ink-2">
-        {route.truck}. {done.length} of {stops.length} stops done.
+        {route ? route.truck : rider!.bike}. {done.length} of {stops.length} stops done.
       </p>
 
-      {!run?.departedAt && (
+      {rider && loaded > 0 && (
+        <div className="mt-4 rounded-xl border border-line bg-panel p-4">
+          <p className="text-[15px]">{loaded === 1 ? "1 stop is packed and waiting for you." : `${loaded} stops are packed and waiting for you.`}</p>
+          <button
+            className="btn btn-primary btn-lg mt-3 w-full"
+            onClick={() => {
+              for (const d of stops) if (d.status === "LOADED") advance(d.id, "EN_ROUTE", me);
+              toast("Picked up. Dispatch can see you.");
+            }}
+          >
+            Pick up and go
+          </button>
+        </div>
+      )}
+
+      {route && !run?.departedAt && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
           <p className="text-[15px]">
             {loaded} of {stops.length} stops are loaded. {stops.length - loaded > 0 && "The rest are still being picked."}
@@ -100,7 +139,7 @@ export default function Driver() {
             className="btn btn-primary btn-lg mt-3 w-full"
             disabled={loaded === 0}
             onClick={() => {
-              dispatchRoute(route.id, today, route.driver);
+              dispatchRoute(route.id, today, me);
               toast("Route started. Dispatch can see you.");
             }}
           >
@@ -133,7 +172,7 @@ export default function Driver() {
               </a>
             </div>
             {current.status === "EN_ROUTE" ? (
-              <button className="btn btn-primary btn-lg mt-2 w-full" onClick={() => advance(current.id, "ARRIVED", route.driver)}>
+              <button className="btn btn-primary btn-lg mt-2 w-full" onClick={() => advance(current.id, "ARRIVED", me)}>
                 I&rsquo;ve arrived
               </button>
             ) : (
@@ -151,21 +190,21 @@ export default function Driver() {
       {current && c && o && mode === "pod" && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
           <h2 className="display mb-3 text-[24px] font-semibold">{c.name}</h2>
-          <PodForm big delivery={current} order={o} by={route.driver} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
+          <PodForm big delivery={current} order={o} by={me} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
         </div>
       )}
 
       {current && c && mode === "problem" && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
           <h2 className="display mb-3 text-[24px] font-semibold">Problem at {c.name}</h2>
-          <ExceptionForm delivery={current} by={route.driver} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
+          <ExceptionForm delivery={current} by={me} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
         </div>
       )}
 
-      {!current && run?.departedAt && (
+      {!current && (run?.departedAt || (rider && stops.length > 0 && loaded === 0)) && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-5 text-center">
           <div className="display text-[24px] font-semibold">{done.length === stops.length ? "Route complete" : "No stop in progress"}</div>
-          <p className="mt-1 text-[15px] text-ink-2">{done.length === stops.length ? "Head back to the dock and plug in the ref van." : "Ask dispatch to release your next stop."}</p>
+          <p className="mt-1 text-[15px] text-ink-2">{done.length === stops.length ? route ? "Head back to the dock and plug in the ref van." : "Head back to the dock." : "Ask dispatch to release your next stop."}</p>
         </div>
       )}
 

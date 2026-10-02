@@ -2,7 +2,7 @@
 
 import { dateTime, dayShort, keyToTs, money } from "@/lib/format";
 import { PAY_LABEL, TERMS_LABEL } from "@/lib/logic";
-import type { Client, Delivery, Order, Product, Route } from "@/lib/types";
+import type { Client, Delivery, Order, Product, Rider, Route } from "@/lib/types";
 import { Logo } from "./Logo";
 
 /** Invoice / pick ticket. Doubles as the printed copy that rides with the load. */
@@ -11,12 +11,14 @@ export function Invoice({
   client,
   delivery,
   route,
+  rider,
   products,
 }: {
   order: Order;
   client: Client;
   delivery?: Delivery;
   route?: Route;
+  rider?: Rider;
   products: Map<string, Product>;
 }) {
   const cases = order.lines.reduce((s, l) => s + l.qty, 0);
@@ -51,10 +53,19 @@ export function Invoice({
           ) : (
             <>
               <div className="font-semibold">{delivery ? dayShort(keyToTs(delivery.date)) : ""}, {client.window}</div>
-              <div>
-                {route?.name}, stop {delivery?.seq}
-              </div>
-              <div className="text-ink-3">{route?.truck}</div>
+              {rider ? (
+                <>
+                  <div>Rider drop, {rider.name}</div>
+                  <div className="text-ink-3">{rider.bike}</div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    {route?.name}, stop {delivery?.seq}
+                  </div>
+                  <div className="text-ink-3">{route?.truck}</div>
+                </>
+              )}
             </>
           )}
         </div>

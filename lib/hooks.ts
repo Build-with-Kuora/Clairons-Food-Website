@@ -43,14 +43,16 @@ export function useMaps() {
   const products = useStore((s) => s.products);
   const orders = useStore((s) => s.orders);
   const routes = useStore((s) => s.routes);
+  const riders = useStore((s) => s.riders);
   return useMemo(
     () => ({
       client: new Map(clients.map((c) => [c.id, c])),
       product: new Map(products.map((p) => [p.sku, p])),
       order: new Map(orders.map((o) => [o.id, o])),
       route: new Map(routes.map((r) => [r.id, r])),
+      rider: new Map(riders.map((r) => [r.id, r])),
     }),
-    [clients, products, orders, routes],
+    [clients, products, orders, routes, riders],
   );
 }
 
