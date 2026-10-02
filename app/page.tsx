@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { DailyBars, Sparkline } from "@/components/charts";
+import { ProductGrid } from "@/components/ProductGrid";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, PageHead, Panel, cx } from "@/components/ui";
 import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, startOfDay, tempBare } from "@/lib/format";
@@ -77,6 +78,8 @@ export default function Today() {
           </>
         }
       />
+
+      <ProductGrid now={now} />
 
       <div className="mb-5 grid grid-cols-2 overflow-hidden rounded-[10px] border border-line bg-panel md:grid-cols-4">
         {figures.map((f, i) => (

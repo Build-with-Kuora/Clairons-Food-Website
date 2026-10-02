@@ -85,7 +85,7 @@ export function DailyBars({
               {d.value > 0 && (
                 <path
                   d={barPath(x, y(d.value), bw, h)}
-                  fill={last ? "var(--color-cyan)" : "var(--color-ink-2)"}
+                  fill={last ? "var(--color-brand)" : "var(--color-brand-soft)"}
                   opacity={hover === null || hover === i ? 1 : 0.55}
                 />
               )}

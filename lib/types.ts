@@ -57,11 +57,14 @@ export interface Lot {
   supplierId: string;
   receiveTempC: number;
   po?: string;
+  /** Production batch number, for lots made in-house */
+  batch?: string;
   status: LotStatus;
   holdReason?: string;
 }
 
 export type MoveType =
+  | "PRODUCE"
   | "RECEIVE"
   | "SHIP"
   | "PICKUP"
@@ -217,6 +220,18 @@ export interface Run {
   departedAt?: number;
   returnedAt?: number;
   temps: TempReading[];
+}
+
+/** One production run of one product. It becomes a stock lot that starts in the blast freezer. */
+export interface Batch {
+  id: string;
+  number: string;
+  sku: string;
+  qty: number; // cases
+  madeAt: number;
+  by: string;
+  lotId: string;
+  note?: string;
 }
 
 export interface PurchaseOrder {

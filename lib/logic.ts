@@ -1,5 +1,6 @@
 import type {
   Alloc,
+  Batch,
   Client,
   Delivery,
   DeliveryStatus,
@@ -122,6 +123,41 @@ export function allocateFEFO(
     left -= take;
   }
   return left > 0 ? null : out;
+}
+
+/** Cases sold per SKU on orders placed since `since` (cancelled orders excluded). */
+export function soldBySku(orders: Order[], since: number) {
+  const out = new Map<string, number>();
+  for (const o of orders) {
+    if (o.status === "CANCELLED" || o.createdAt < since) continue;
+    for (const l of o.lines) out.set(l.sku, (out.get(l.sku) ?? 0) + l.qty);
+  }
+  return out;
+}
+
+/** Cases produced per SKU in batches made since `since`. */
+export function producedBySku(batches: Batch[], since: number) {
+  const out = new Map<string, number>();
+  for (const b of batches) if (b.madeAt >= since) out.set(b.sku, (out.get(b.sku) ?? 0) + b.qty);
+  return out;
+}
+
+/** What to make next: products whose free stock is under the reorder point, topped back up to par. */
+export function toMake(rows: Iterable<StockRow>) {
+  return [...rows]
+    .filter((r) => r.available < r.product.reorderPoint)
+    .map((r) => ({ row: r, qty: r.product.par - r.available }))
+    .sort((a, b) => a.row.available / a.row.product.reorderPoint - b.row.available / b.row.product.reorderPoint);
+}
+
+/** Fresh product goes into the blast freezer first: the first blast bin not already holding stock. */
+export function freeBlastBin(lots: Lot[]) {
+  const used = new Set(lots.filter((l) => l.qty > 0 && zoneOfBin(l.bin) === "BLAST").map((l) => l.bin));
+  for (let i = 1; i <= 99; i++) {
+    const bin = `B-01-${String(i).padStart(2, "0")}`;
+    if (!used.has(bin)) return bin;
+  }
+  return "B-01-99";
 }
 
 export const DROP_MIN = 5000;

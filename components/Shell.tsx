@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
+import { Boxes, Building2, Factory, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -8,12 +8,14 @@ import { clock, dayLong, tempBare } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER } from "@/lib/logic";
 import { STORAGE_KEY, useStore, useUi } from "@/lib/store";
+import { Logo } from "./Logo";
 import { Toaster, cx } from "./ui";
 
 const NAV = [
   { href: "/", label: "Today", icon: Gauge },
   { href: "/counter", label: "Counter", icon: ScanBarcode },
   { href: "/inventory", label: "Inventory", icon: Boxes },
+  { href: "/production", label: "Production", icon: Factory },
   { href: "/dispatch", label: "Dispatch", icon: Truck },
   { href: "/orders", label: "Orders", icon: ReceiptText },
   { href: "/clients", label: "Clients", icon: Building2 },
@@ -40,22 +42,10 @@ function useBoot() {
   return ready;
 }
 
-export function Mark({ size = 30 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      <rect x="1" y="1" width="30" height="30" rx="7" fill="var(--color-ink)" />
-      <rect x="13" y="6" width="6" height="16" rx="3" fill="none" stroke="#fff" strokeWidth="1.8" />
-      <circle cx="16" cy="23.5" r="3.6" fill="var(--color-z-frz)" stroke="#fff" strokeWidth="1.8" />
-      <path d="M16 12v9" stroke="var(--color-z-frz)" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M21.5 9h3M21.5 13h2M21.5 17h3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" opacity=".7" />
-    </svg>
-  );
-}
-
 function ZoneStrip() {
   const zones = useStore((s) => s.zones);
   return (
-    <div className="flex items-stretch overflow-x-auto scroll-thin" aria-label="Freezer temperatures">
+    <div className="flex min-w-0 items-stretch overflow-x-auto scroll-thin" aria-label="Freezer temperatures">
       {ZONE_ORDER.map((id) => {
         const z = zones.find((x) => x.id === id);
         if (!z) return null;
@@ -102,13 +92,10 @@ export default function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside className="sticky top-0 hidden h-screen w-[212px] shrink-0 flex-col border-r border-line bg-panel lg:flex">
-        <div className="flex items-center gap-2.5 px-4 pt-4 pb-5">
-          <Mark />
-          <div className="leading-none">
-            <div className="display text-[21px] font-bold">Clairon&rsquo;s</div>
-            <div className="mt-0.5 text-[12.5px] text-ink-3">Coldline</div>
-          </div>
-        </div>
+        <Link href="/" className="block px-4 pt-5 pb-5" aria-label="Clairon's Food Coldline, go to Today">
+          <Logo height={56} />
+          <div className="mt-1.5 text-[12.5px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Coldline</div>
+        </Link>
         <nav className="flex flex-col gap-0.5 px-2">
           {NAV.map((n) => {
             const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
@@ -121,7 +108,7 @@ export default function Shell({ children }: { children: ReactNode }) {
                   active ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk hover:text-ink",
                 )}
               >
-                <n.icon size={18} strokeWidth={2} aria-hidden />
+                <n.icon size={18} strokeWidth={2} className={active ? "text-brand" : undefined} aria-hidden />
                 {n.label}
               </Link>
             );
@@ -151,10 +138,8 @@ export default function Shell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-30 border-b border-line bg-panel/95 backdrop-blur">
           <div className="flex items-center justify-between gap-4 pl-4 lg:pl-6">
-            <div className="flex min-w-0 items-center gap-3 py-2">
-              <span className="lg:hidden">
-                <Mark size={26} />
-              </span>
+            <div className="flex shrink-0 items-center gap-3 py-2">
+              <Logo height={30} className="lg:hidden" />
               <div className="leading-tight">
                 <div className="text-[14px] font-semibold whitespace-nowrap">{dayLong(now)}</div>
                 <div className="text-[13px] text-ink-3">{clock(now)}</div>

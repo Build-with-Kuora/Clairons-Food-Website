@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { DAY, HOUR, dateKey, keyToTs, lotCode, uid } from "./format";
 import {
   allocateFEFO,
+  freeBlastBin,
   orderTotals,
   priceLines,
   receiveLimitC,
@@ -15,6 +16,7 @@ import {
 } from "./logic";
 import { buildSeed, type Data } from "./seed";
 import type {
+  Batch,
   DeliveryStatus,
   Lot,
   Movement,
@@ -37,6 +39,13 @@ export interface PlaceOrderInput {
   by: string;
 }
 
+export interface ProduceInput {
+  sku: string;
+  qty: number;
+  by: string;
+  note?: string;
+}
+
 export interface ReceiveInput {
   sku: string;
   qty: number;
@@ -56,6 +65,7 @@ interface Actions {
   dispatchRoute(routeId: string, date: string, by: string): void;
   completeDelivery(deliveryId: string, pod: Omit<Pod, "at">, by: string): void;
   reportException(deliveryId: string, reason: string, note: string, by: string): void;
+  produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
   receive(i: ReceiveInput): Lot;
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
@@ -78,14 +88,16 @@ const empty: Data = {
   zones: [],
   suppliers: [],
   pos: [],
-  counters: { so: 0, po: 0 },
+  batches: [],
+  counters: { so: 0, po: 0, batch: 0 },
   seededAt: 0,
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
-export const STORAGE_KEY = "clairons-coldline-ph-v1";
+// Bump when the saved data shape changes, so browsers with old demo data reseed.
+export const STORAGE_KEY = "clairons-coldline-ph-v2";
 
 export const useStore = create<Store>()(
   persist(
@@ -315,6 +327,40 @@ export const useStore = create<Store>()(
               : x,
           ),
         });
+      },
+
+      produce: (i) => {
+        const s = get();
+        const p = s.products.find((x) => x.sku === i.sku);
+        if (!p) return { ok: false, error: "Pick a product." };
+        if (!Number.isInteger(i.qty) || i.qty <= 0) return { ok: false, error: "Enter how many cases were made." };
+        const now = Date.now();
+        const n = s.counters.batch + 1;
+        const number = `PB-${String(n).padStart(4, "0")}`;
+        const bin = freeBlastBin(s.lots);
+        const lot: Lot = {
+          id: uid(),
+          sku: p.sku,
+          code: lotCode(now, s.lots.filter((l) => l.receivedAt > now - DAY).length + 1),
+          receivedAt: now,
+          bestBy: now + p.shelfDays * DAY,
+          receivedQty: i.qty,
+          qty: i.qty,
+          bin,
+          supplierId: p.supplierId,
+          receiveTempC: -18,
+          batch: number,
+          status: "AVAILABLE",
+        };
+        const batch: Batch = { id: `pb-${n}`, number, sku: p.sku, qty: i.qty, madeAt: now, by: i.by, lotId: lot.id, note: i.note || undefined };
+        const move = mv({ sku: p.sku, lotCode: lot.code, type: "PRODUCE", qty: i.qty, ref: number, by: i.by, note: `Into blast freezer ${bin}` });
+        set({
+          lots: [...s.lots, lot],
+          batches: [batch, ...s.batches],
+          movements: [move, ...s.movements],
+          counters: { ...s.counters, batch: n },
+        });
+        return { ok: true, batch, lot };
       },
 
       receive: (i) => {

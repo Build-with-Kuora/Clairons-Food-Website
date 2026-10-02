@@ -233,7 +233,7 @@ export default function Counter() {
                     </div>
                   </div>
                   {qty > 0 && (
-                    <span className="absolute -top-2 -right-2 grid h-6 min-w-6 place-items-center rounded-full bg-ink px-1.5 text-[12.5px] font-bold text-white">{qty}</span>
+                    <span className="absolute -top-2 -right-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[12.5px] font-bold text-white">{qty}</span>
                   )}
                 </button>
               );

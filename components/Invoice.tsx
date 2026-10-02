@@ -3,7 +3,7 @@
 import { dateTime, dayShort, keyToTs, money } from "@/lib/format";
 import { PAY_LABEL, TERMS_LABEL } from "@/lib/logic";
 import type { Client, Delivery, Order, Product, Route } from "@/lib/types";
-import { Mark } from "./Shell";
+import { Logo } from "./Logo";
 
 /** Invoice / pick ticket. Doubles as the printed copy that rides with the load. */
 export function Invoice({
@@ -25,10 +25,9 @@ export function Invoice({
     <div className="print-area bg-white p-6 text-[13.5px] text-ink">
       <div className="flex items-start justify-between gap-6 border-b-2 border-ink pb-4">
         <div className="flex items-center gap-3">
-          <Mark size={36} />
+          <Logo height={40} />
           <div>
-            <div className="display text-[24px] leading-none font-bold">Clairon&rsquo;s Foods</div>
-            <div className="text-[12.5px] text-ink-3">Frozen dimsum, streetfood and meats. 88 Sto. Cristo St, Binondo, Manila</div>
+            <div className="max-w-[260px] text-[12.5px] text-ink-3">Frozen dimsum, streetfood and meats. 88 Sto. Cristo St, Binondo, Manila</div>
           </div>
         </div>
         <div className="text-right">
