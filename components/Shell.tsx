@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
+import { Boxes, Building2, Factory, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/", label: "Today", icon: Gauge },
   { href: "/counter", label: "Counter", icon: ScanBarcode },
   { href: "/inventory", label: "Inventory", icon: Boxes },
+  { href: "/production", label: "Production", icon: Factory },
   { href: "/dispatch", label: "Dispatch", icon: Truck },
   { href: "/orders", label: "Orders", icon: ReceiptText },
   { href: "/clients", label: "Clients", icon: Building2 },

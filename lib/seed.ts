@@ -2,6 +2,7 @@ import { DAY, HOUR, MIN, dateKey, lotCode, startOfDay } from "./format";
 import { ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey, zoneOfBin } from "./logic";
 import type {
   Alloc,
+  Batch,
   Category,
   Client,
   Delivery,
@@ -200,7 +201,8 @@ export interface Data {
   zones: Zone[];
   suppliers: Supplier[];
   pos: PurchaseOrder[];
-  counters: { so: number; po: number };
+  batches: Batch[];
+  counters: { so: number; po: number; batch: number };
   seededAt: number;
 }
 
@@ -611,7 +613,8 @@ export function buildSeed(now = Date.now()): Data {
     zones,
     suppliers: SUPPLIERS,
     pos,
-    counters: { so, po },
+    batches: [],
+    counters: { so, po, batch: 0 },
     seededAt: now,
   };
 }

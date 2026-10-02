@@ -14,6 +14,7 @@ import type { Category, Lot, MoveType, PurchaseOrder, ZoneId } from "@/lib/types
 type Tab = "stock" | "lots" | "moves" | "reorder" | "zones";
 
 const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"> = {
+  PRODUCE: "good",
   RECEIVE: "good",
   SHIP: "neutral",
   PICKUP: "neutral",
@@ -26,6 +27,7 @@ const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"
 };
 
 const MOVE_LABEL: Record<MoveType, string> = {
+  PRODUCE: "Produced",
   RECEIVE: "Received",
   SHIP: "Shipped",
   PICKUP: "Will-call",
