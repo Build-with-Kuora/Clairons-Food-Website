@@ -1,18 +1,19 @@
 "use client";
 
-import { ArrowRight, Factory, Search } from "lucide-react";
+import { ArrowRight, Factory, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Sparkline } from "@/components/charts";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
+import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
-import { count, dateTime, day, daysUntil, money, money0, temp, tempBare } from "@/lib/format";
+import { capitalize, count, dateTime, day, daysUntil, money, money0, temp, tempBare, unitPlural, units } from "@/lib/format";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
-import { ZONES, ZONE_ORDER, caseCost, coreLimitC, isFreezing, zoneOfBin, type StockRow } from "@/lib/logic";
+import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
 import { useStore } from "@/lib/store";
-import type { Category, Lot, MoveType, ZoneId } from "@/lib/types";
+import type { Category, Lot, MoveType, Product, ZoneId } from "@/lib/types";
 
-type Tab = "stock" | "lots" | "moves" | "zones";
+type Tab = "stock" | "lots" | "moves" | "zones" | "products";
 
 const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"> = {
   PRODUCE: "good",
@@ -43,6 +44,7 @@ export default function Inventory() {
   const [openSku, setOpenSku] = useState<string | null>(() => queryParam("sku"));
   const { rows } = useStock();
   const lots = useStore((s) => s.lots);
+  const products = useStore((s) => s.products);
   const now = useNow();
 
   const all = [...rows.values()];
@@ -56,7 +58,7 @@ export default function Inventory() {
     <div className="mx-auto max-w-[1500px]">
       <PageHead
         title="Inventory"
-        sub={`${all.length} SKUs, ${count(totalCases)} cases on hand, ${money0(value)} at cost.`}
+        sub={`${all.length} SKUs, ${units(totalCases, commonUnit(products))} on hand, ${money0(value)} at cost.`}
         actions={
           <Link href="/production" className="btn btn-primary">
             <Factory size={16} /> Record batch
@@ -74,6 +76,7 @@ export default function Inventory() {
               { id: "lots", label: "Lots and dating", count: shortDated.length + held.length || undefined },
               { id: "moves", label: "Movements" },
               { id: "zones", label: "Freezer zones" },
+              { id: "products", label: "Products" },
             ]}
           />
         </div>
@@ -88,6 +91,7 @@ export default function Inventory() {
         {tab === "lots" && <LotsTab onOpen={setOpenSku} />}
         {tab === "moves" && <MovesTab />}
         {tab === "zones" && <ZonesTab />}
+        {tab === "products" && <ProductsTab onOpen={setOpenSku} />}
       </div>
 
       {openSku && rows.get(openSku) && (
@@ -161,9 +165,11 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
                 <tr key={r.product.sku} className="clickable" onClick={() => onOpen(r.product.sku)}>
                   <td className="code text-ink-2">{r.product.sku}</td>
                   <td>
-                    <div className="font-semibold">{r.product.name}</div>
+                    <div className="font-semibold">
+                      {r.product.name} {!r.product.active && <Badge>Inactive</Badge>}
+                    </div>
                     <div className="text-[13px] text-ink-3">
-                      {r.product.pack}, {r.lots.length} {r.lots.length === 1 ? "lot" : "lots"}
+                      Per {r.product.unit}, {r.product.pack}, {r.lots.length} {r.lots.length === 1 ? "lot" : "lots"}
                     </div>
                   </td>
                   <td>
@@ -196,7 +202,7 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-px bg-ink-3" /> Par level
         </span>
-        <span>Reserved = on orders not yet loaded. Held = QA hold or past best-by.</span>
+        <span>Counts are in each product&rsquo;s selling unit. Reserved = on orders not yet loaded. Held = QA hold or past best-by.</span>
       </div>
     </Panel>
   );
@@ -210,8 +216,9 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
   const [adjusting, setAdjusting] = useState<Lot | null>(null);
   const [moving, setMoving] = useState<Lot | null>(null);
   const [holding, setHolding] = useState<Lot | null>(null);
+  const [editing, setEditing] = useState(false);
   const moves = movements.filter((m) => m.sku === p.sku).slice(0, 14);
-  const unit = p.catchWeight ? "kg" : "cs";
+  const unit = priceUnit(p);
 
   return (
     <Drawer
@@ -221,15 +228,23 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
       sub={
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="code">{p.sku}</span>
-          <span>{p.pack}</span>
+          <span>
+            Sold per {p.unit}, {p.pack}
+          </span>
           <ZoneTag zone={p.zone} />
+          {!p.active && <Badge>Inactive</Badge>}
         </span>
       }
       footer={
         <>
-          <Link href={`/production?sku=${p.sku}`} className="btn btn-primary">
-            <Factory size={16} /> Make a batch
-          </Link>
+          {p.active && (
+            <Link href={`/production?sku=${p.sku}`} className="btn btn-primary">
+              <Factory size={16} /> Make a batch
+            </Link>
+          )}
+          <button className="btn btn-ghost" onClick={() => setEditing(true)}>
+            <Pencil size={15} /> Edit product
+          </button>
           <span className="ml-auto text-[13px] text-ink-3">Home bin {p.bin}, shelf life {p.shelfDays} days</span>
         </>
       }
@@ -250,7 +265,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
       </div>
       <div className="mt-2 flex items-center gap-3 text-[13px] text-ink-3">
         <LevelBar value={row.available} reorder={p.reorderPoint} par={p.par} width={180} />
-        Reorder at {p.reorderPoint}, par {p.par}
+        In {unitPlural(p.unit)}. Reorder at {p.reorderPoint}, par {p.par}
       </div>
 
       <h3 className="display mt-6 mb-2 text-[19px] font-semibold">Lots, oldest best-by first</h3>
@@ -262,7 +277,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
               <th>Bin</th>
               <th>Made</th>
               <th>Best-by</th>
-              <th className="r">Cases</th>
+              <th className="r">{capitalize(unitPlural(p.unit))}</th>
               <th></th>
             </tr>
           </thead>
@@ -314,7 +329,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
           <tr>
             <th>Tier</th>
             <th className="r">Price /{unit}</th>
-            <th className="r">Case price</th>
+            <th className="r">Price per {p.unit}</th>
             <th className="r">Margin</th>
           </tr>
         </thead>
@@ -337,7 +352,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
           ))}
         </tbody>
       </table>
-      {p.catchWeight && <p className="mt-1.5 text-[12.5px] text-ink-3">Catch weight: invoiced at actual weight from the pick scale. Case price assumes {p.caseKg} kg.</p>}
+      {p.catchWeight && <p className="mt-1.5 text-[12.5px] text-ink-3">Catch weight: invoiced at actual weight from the pick scale. Price per {p.unit} assumes {p.caseKg} kg.</p>}
 
       <h3 className="display mt-6 mb-2 text-[19px] font-semibold">Recent movements</h3>
       <ul className="divide-y divide-line rounded-lg border border-line">
@@ -357,6 +372,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
       {adjusting && <AdjustModal key={adjusting.id} lot={adjusting} onClose={() => setAdjusting(null)} />}
       {moving && <MoveModal key={moving.id} lot={moving} onClose={() => setMoving(null)} />}
       {holding && <HoldModal key={holding.id} lot={holding} onClose={() => setHolding(null)} />}
+      {editing && <ProductForm product={p} onClose={() => setEditing(false)} />}
     </Drawer>
   );
 }
@@ -396,7 +412,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
               <th>Product</th>
               <th>Bin</th>
               <th>Made</th>
-              <th className="r">Cases</th>
+              <th className="r">Qty</th>
               <th className="r">Reserved</th>
               <th>Status</th>
             </tr>
@@ -423,7 +439,9 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                   <td className="text-ink-2">
                     {day(l.madeAt)} <span className="text-[12.5px] text-ink-3">core {tempBare(l.coreTempC)}C</span>
                   </td>
-                  <td className="r font-semibold">{l.qty}</td>
+                  <td className="r font-semibold whitespace-nowrap">
+                    {l.qty} <span className="text-[12.5px] font-normal text-ink-3">{p?.unit}</span>
+                  </td>
                   <td className="r text-ink-2">{reserved[l.id] || "–"}</td>
                   <td><LotBadge lot={l} now={now} /></td>
                 </tr>
@@ -467,7 +485,7 @@ function MovesTab() {
               <th>Type</th>
               <th>Product</th>
               <th>Lot</th>
-              <th className="r">Cases</th>
+              <th className="r">Qty</th>
               <th>Reference</th>
               <th>By</th>
               <th>Note</th>
@@ -508,6 +526,7 @@ function ZonesTab() {
         const cur = z.readings.at(-1) ?? z.setPointC;
         const inZone = lots.filter((l) => l.qty > 0 && zoneOfBin(l.bin) === z.id);
         const cases = inZone.reduce((s, l) => s + l.qty, 0);
+        const unit = commonUnit(inZone.map((l) => maps.product.get(l.sku)));
         const bySku = new Map<string, number>();
         for (const l of inZone) bySku.set(l.sku, (bySku.get(l.sku) ?? 0) + l.qty);
         const top = [...bySku.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -538,8 +557,8 @@ function ZonesTab() {
                 </div>
               </div>
               <div>
-                <div className="text-ink-3">Cases stored</div>
-                <div className="font-semibold">{count(cases)}</div>
+                <div className="text-ink-3">Stored</div>
+                <div className="font-semibold">{units(cases, unit)}</div>
               </div>
               <div>
                 <div className="text-ink-3">Lots</div>
@@ -551,7 +570,7 @@ function ZonesTab() {
                 {top.map(([sku, n]) => (
                   <li key={sku} className="flex justify-between border-t border-line/60 py-1">
                     <span className="truncate">{maps.product.get(sku)?.name}</span>
-                    <span className="ml-2 shrink-0 text-ink-2">{n} cs</span>
+                    <span className="ml-2 shrink-0 text-ink-2">{units(n, maps.product.get(sku)?.unit ?? "unit")}</span>
                   </li>
                 ))}
               </ul>
@@ -562,5 +581,79 @@ function ZonesTab() {
       })}
       <p className="text-[12.5px] text-ink-3 md:col-span-2">Readings arrive every 30 seconds from the zone probes. Pallet counts come from the last slotting scan.</p>
     </div>
+  );
+}
+
+function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
+  const products = useStore((s) => s.products);
+  const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const [showInactive, setShowInactive] = useState(true);
+  const list = products.filter((p) => showInactive || p.active).sort((a, b) => Number(b.active) - Number(a.active) || a.sku.localeCompare(b.sku));
+  const inactive = products.filter((p) => !p.active).length;
+  return (
+    <Panel bodyClass="">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+        <button className="btn btn-primary" onClick={() => setEditing("new")}>
+          <Plus size={16} /> Add product
+        </button>
+        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-3 text-[14px]">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-ink" />
+          Show inactive ({inactive})
+        </label>
+        <span className="ml-auto text-[13px] text-ink-3">Inactive products keep their stock and history but can&rsquo;t be ordered or produced.</span>
+      </div>
+      <div className="overflow-x-auto scroll-thin">
+        <table className="tbl min-w-[900px]">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Product</th>
+              <th>Selling unit</th>
+              <th className="r">List price</th>
+              <th className="r">Reorder at</th>
+              <th className="r">Par</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((p) => (
+              <tr key={p.sku} className={cx("clickable", !p.active && "text-ink-3")} onClick={() => onOpen(p.sku)}>
+                <td className="code text-ink-2">{p.sku}</td>
+                <td>
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="text-[13px] text-ink-3">{p.category}</div>
+                </td>
+                <td>
+                  <div className="font-semibold">{p.unit}</div>
+                  <div className="text-[13px] text-ink-3">
+                    {p.pack}, {p.caseKg} kg
+                  </div>
+                </td>
+                <td className="r whitespace-nowrap">
+                  <span className="font-semibold">{money(p.price.C)}</span>
+                  <span className="text-[12.5px] text-ink-3">/{priceUnit(p)}</span>
+                </td>
+                <td className="r">{p.reorderPoint}</td>
+                <td className="r">{p.par}</td>
+                <td>{p.active ? <Badge tone="good">Active</Badge> : <Badge>Inactive</Badge>}</td>
+                <td className="r">
+                  <button
+                    className="btn btn-quiet btn-sm px-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(p);
+                    }}
+                  >
+                    <Pencil size={14} /> Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {editing && <ProductForm key={editing === "new" ? "new" : editing.sku} product={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
+    </Panel>
   );
 }

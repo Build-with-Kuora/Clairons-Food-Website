@@ -8,7 +8,7 @@ import { DailyBars, Sparkline } from "@/components/charts";
 import { ProductGrid } from "@/components/ProductGrid";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, PageHead, Panel, cx } from "@/components/ui";
-import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, tempBare } from "@/lib/format";
+import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, tempBare, units } from "@/lib/format";
 import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, ZONES, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
@@ -54,7 +54,7 @@ export default function Today() {
   const avg = daily.slice(0, -1).filter((d) => d.value > 0);
   const avgSales = avg.length ? avg.reduce((s, d) => s + d.value, 0) / avg.length : 0;
 
-  const low = [...rows.values()].filter((r) => r.available < r.product.reorderPoint).sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
+  const low = [...rows.values()].filter((r) => r.product.active && r.available < r.product.reorderPoint).sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
   const expiring = lots.filter((l) => l.qty > 0 && daysUntil(l.bestBy, now) <= 30).sort((a, b) => a.bestBy - b.bestBy);
   const held = lots.filter((l) => l.qty > 0 && l.status === "HOLD");
   const overCredit = clients.filter((c) => c.pastDue > 0 || (c.creditLimit > 0 && c.balance > c.creditLimit * 0.9));
@@ -173,7 +173,7 @@ export default function Today() {
             key: r.product.sku,
             href: `/inventory?sku=${r.product.sku}`,
             main: r.product.name,
-            side: `${r.available} cs left, reorder at ${r.product.reorderPoint}`,
+            side: `${units(r.available, r.product.unit)} left, reorder at ${r.product.reorderPoint}`,
           }))}
         />
         <AttentionList
@@ -185,7 +185,7 @@ export default function Today() {
             key: l.id,
             href: `/inventory?tab=lots`,
             main: maps.product.get(l.sku)?.name ?? l.sku,
-            side: `${l.qty} cs, lot ${l.code}, ${daysUntil(l.bestBy, now)} days`,
+            side: `${units(l.qty, maps.product.get(l.sku)?.unit ?? "unit")}, lot ${l.code}, ${daysUntil(l.bestBy, now)} days`,
           }))}
         />
         <AttentionList

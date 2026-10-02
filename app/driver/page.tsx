@@ -5,9 +5,9 @@ import { useState } from "react";
 import { ExceptionForm, PodForm } from "@/components/Pod";
 import { Logo } from "@/components/Logo";
 import { StatusPill, cx } from "@/components/ui";
-import { clock, dateKey, tempBare } from "@/lib/format";
+import { clock, dateKey, tempBare, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
+import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
 const KEY = "coldline-driver-route";
@@ -160,7 +160,7 @@ export default function Driver() {
               <MapPin size={18} className="mt-0.5 shrink-0 text-ink-3" />
               {c.address}, {c.city}
             </div>
-            <div className="mt-1 text-[15px] text-ink-2">Window {c.window}. {o.lines.reduce((s, l) => s + l.qty, 0)} cases.</div>
+            <div className="mt-1 text-[15px] text-ink-2">Window {c.window}. {units(o.lines.reduce((s, l) => s + l.qty, 0), commonUnit(o.lines.map((l) => maps.product.get(l.sku))))}.</div>
             <p className="mt-3 rounded-lg bg-sunk p-3 text-[15px]">{c.dockNote}</p>
             {o.payMethod === "COD" && !o.paid && <p className="mt-2 rounded-lg bg-warn-bg p-3 text-[15px] font-semibold text-warn">Collect payment before unloading.</p>}
             <div className="mt-4 grid grid-cols-2 gap-2">

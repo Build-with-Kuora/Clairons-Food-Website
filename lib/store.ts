@@ -2,13 +2,15 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { DAY, HOUR, dateKey, keyToTs, lotCode, uid } from "./format";
+import { DAY, HOUR, dateKey, keyToTs, lotCode, uid, unitPlural } from "./format";
 import {
   ASSIGNABLE,
   allocateFEFO,
   freeBlastBin,
+  nextSku,
   orderTotals,
   priceLines,
+  productError,
   reservedByLot,
   round2,
   runKey,
@@ -24,6 +26,8 @@ import type {
   OrderLine,
   PayMethod,
   Pod,
+  Product,
+  ProductInput,
   Rider,
   Run,
 } from "./types";
@@ -66,6 +70,8 @@ interface Actions {
   /** Give a stop to a rider, or back to the van on its route (riderId null). */
   assignDelivery(deliveryId: string, riderId: string | null, by: string): { ok: true } | { ok: false; error: string };
   saveRider(i: RiderInput): { ok: true; rider: Rider } | { ok: false; error: string };
+  /** Add a product, or edit one (including deactivating it). */
+  saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
@@ -94,7 +100,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v5";
+export const STORAGE_KEY = "clairons-coldline-ph-v6";
 
 export const useStore = create<Store>()(
   persist(
@@ -131,10 +137,12 @@ export const useStore = create<Store>()(
         const client = s.clients.find((c) => c.id === i.clientId);
         if (!client) return { ok: false, error: "Pick a client first." };
         const qtyLines = i.lines.filter((l) => l.qty > 0);
-        if (!qtyLines.length) return { ok: false, error: "Add at least one case to the ticket." };
+        if (!qtyLines.length) return { ok: false, error: "Add at least one product to the ticket." };
 
         const reserved = reservedByLot(s.orders, s.deliveries);
         const lines: OrderLine[] = [];
+        const off = qtyLines.find((l) => s.products.find((p) => p.sku === l.sku)?.active === false);
+        if (off) return { ok: false, error: `${off.sku} is no longer sold. Take it off the ticket.` };
         for (const l of priceLines(s.products, client, qtyLines)) {
           const allocs = allocateFEFO(s.lots, l.sku, l.qty, reserved);
           if (!allocs) return { ok: false, error: `Not enough sellable stock for ${l.sku}. Lower the quantity, or check held lots and batches still in the blast freezer.` };
@@ -359,11 +367,29 @@ export const useStore = create<Store>()(
         return { ok: true, rider };
       },
 
+      saveProduct: (i) => {
+        const s = get();
+        if (i.sku && !s.products.some((p) => p.sku === i.sku)) return { ok: false, error: "Product not found." };
+        const error = productError(i, s.products);
+        if (error) return { ok: false, error };
+        const product: Product = {
+          ...i,
+          sku: i.sku ?? nextSku(s.products, i.category),
+          name: i.name.trim(),
+          unit: i.unit.trim().toLowerCase(),
+          pack: i.pack.trim(),
+          bin: i.bin.trim().toUpperCase(),
+        };
+        set({ products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product] });
+        return { ok: true, product };
+      },
+
       produce: (i) => {
         const s = get();
         const p = s.products.find((x) => x.sku === i.sku);
         if (!p) return { ok: false, error: "Pick a product." };
-        if (!Number.isInteger(i.qty) || i.qty <= 0) return { ok: false, error: "Enter how many cases were made." };
+        if (!p.active) return { ok: false, error: `${p.name} is inactive. Turn it back on under Inventory, Products, to make it.` };
+        if (!Number.isInteger(i.qty) || i.qty <= 0) return { ok: false, error: `Enter how many ${unitPlural(p.unit)} were made.` };
         const now = Date.now();
         const n = s.counters.batch + 1;
         const number = `PB-${String(n).padStart(4, "0")}`;

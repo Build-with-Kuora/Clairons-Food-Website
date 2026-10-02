@@ -4,9 +4,9 @@ import { AlertTriangle, History, Minus, Plus, Printer, Search, Trash2, X } from 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Invoice } from "@/components/Invoice";
 import { Badge, Field, Kbd, Modal, PageHead, cx } from "@/components/ui";
-import { DAY, dateKey, dayShort, keyToTs, money, money0, startOfDay } from "@/lib/format";
+import { DAY, dateKey, dayShort, keyToTs, money, money0, startOfDay, unitPlural, units } from "@/lib/format";
 import { useMaps, useStock } from "@/lib/hooks";
-import { DROP_MIN, PAY_LABEL, TERMS_LABEL, ZONES, allocateFEFO, casePrice, orderTotals, priceLines } from "@/lib/logic";
+import { DROP_MIN, PAY_LABEL, TERMS_LABEL, ZONES, allocateFEFO, casePrice, orderTotals, priceLines, priceUnit } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Order, PayMethod } from "@/lib/types";
 
@@ -23,7 +23,8 @@ function deliveryDays(now: number) {
 }
 
 export default function Counter() {
-  const products = useStore((s) => s.products);
+  const allProducts = useStore((s) => s.products);
+  const products = useMemo(() => allProducts.filter((p) => p.active), [allProducts]);
   const clients = useStore((s) => s.clients);
   const orders = useStore((s) => s.orders);
   const deliveries = useStore((s) => s.deliveries);
@@ -165,7 +166,7 @@ export default function Counter() {
               <input
                 ref={searchRef}
                 className="input h-11 pl-9 text-[15px]"
-                placeholder="Search name or SKU. Type “DM-1001 4” and Enter to add 4 cases."
+                placeholder="Search name or SKU. Type “DM-1001 4” and Enter to add 4."
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onSearchKey}
@@ -219,17 +220,17 @@ export default function Counter() {
                   <div className="flex-1 px-2.5 pt-1.5">
                     <div className="text-[14.5px] leading-snug font-semibold">{p.name}</div>
                     <div className="text-[13px] text-ink-3">
-                      {p.pack}
+                      Per {p.unit}, {p.pack}
                       {p.catchWeight && ", catch weight"}
                     </div>
                   </div>
                   <div className="flex items-end justify-between px-2.5 pt-1 pb-2">
                     <div className="display text-[20px] leading-none font-semibold">
                       {money(p.price[tier])}
-                      <span className="ml-0.5 text-[13px] font-medium text-ink-3">/{p.catchWeight ? "kg" : "cs"}</span>
+                      <span className="ml-0.5 text-[13px] font-medium text-ink-3">/{priceUnit(p)}</span>
                     </div>
                     <div className={cx("text-[12.5px] font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-3")}>
-                      {out ? "Out of stock" : `${avail} cs free`}
+                      {out ? "Out of stock" : `${units(avail, p.unit)} free`}
                     </div>
                   </div>
                   {qty > 0 && (
@@ -323,20 +324,20 @@ export default function Counter() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[14px] leading-snug font-semibold">{p.name}</div>
                           <div className="text-[12.5px] text-ink-3">
-                            <span className="code">{p.sku}</span> {p.pack}
+                            <span className="code">{p.sku}</span> {units(l.qty, p.unit)}, {p.pack}
                             {p.catchWeight && `, about ${p.caseKg * l.qty} kg`}
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-[14px] font-semibold">{money(pl?.lineTotal ?? casePrice(p, tier) * l.qty)}</div>
                           <div className="text-[12px] text-ink-3">
-                            {money(p.price[tier])}/{p.catchWeight ? "kg" : "cs"}
+                            {money(p.price[tier])}/{priceUnit(p)}
                           </div>
                         </div>
                       </div>
                       <div className="mt-1.5 flex items-center justify-between gap-2">
                         <div className="flex items-center rounded-md border border-line bg-white">
-                          <button className="grid h-8 w-8 cursor-pointer place-items-center text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, -1)} aria-label="One less case">
+                          <button className="grid h-8 w-8 cursor-pointer place-items-center text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, -1)} aria-label={`One less ${p.unit}`}>
                             <Minus size={14} />
                           </button>
                           <input
@@ -344,14 +345,14 @@ export default function Counter() {
                             value={l.qty}
                             inputMode="numeric"
                             onChange={(e) => setQty(l.sku, parseInt(e.target.value.replace(/\D/g, "") || "0", 10))}
-                            aria-label="Cases"
+                            aria-label={`Number of ${unitPlural(p.unit)}`}
                           />
-                          <button className="grid h-8 w-8 cursor-pointer place-items-center text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, 1)} aria-label="One more case">
+                          <button className="grid h-8 w-8 cursor-pointer place-items-center text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, 1)} aria-label={`One more ${p.unit}`}>
                             <Plus size={14} />
                           </button>
                         </div>
                         <div className="code min-w-0 flex-1 truncate text-right text-[11.5px] text-ink-3" title="Lots this line will pull, oldest best-by first">
-                          {short ? <span className="font-sans text-[12.5px] font-semibold text-bad">Only {avail} cs free</span> : allocs.map((a) => `${a.lotCode}×${a.qty}`).join("  ")}
+                          {short ? <span className="font-sans text-[12.5px] font-semibold text-bad">Only {units(avail, p.unit)} free</span> : allocs.map((a) => `${a.lotCode}×${a.qty}`).join("  ")}
                         </div>
                         <button className="btn btn-quiet btn-sm px-1.5" onClick={() => setQty(l.sku, 0)} aria-label={`Remove ${p.name}`}>
                           <Trash2 size={14} />

@@ -118,7 +118,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
       { receivedBy: receivedBy.trim(), signature: sig, productTempC: t, notes: notes || undefined, shorts, collected: isCod ? parseFloat(collected) || 0 : undefined },
       by,
     );
-    toast(shorts.length ? `Delivered with ${shorts.reduce((s, x) => s + x.qty, 0)} cs returned` : "Delivered and signed");
+    toast(shorts.length ? `Delivered with ${shorts.reduce((s, x) => s + x.qty, 0)} returned` : "Delivered and signed");
     onDone();
   }
 
@@ -126,7 +126,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
   return (
     <div className="space-y-4">
       <div>
-        <div className="field-label">Cases delivered</div>
+        <div className="field-label">Delivered</div>
         <ul className="divide-y divide-line rounded-md border border-line bg-white">
           {order.lines.map((l) => {
             const q = qty[l.sku] ?? l.qty;
@@ -161,7 +161,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
             );
           })}
         </ul>
-        {shorts.length > 0 && <p className="mt-1 text-[12.5px] text-warn">Returned cases go back on the truck and into stock at the dock. The account is credited.</p>}
+        {shorts.length > 0 && <p className="mt-1 text-[12.5px] text-warn">Returned stock goes back on the truck and into stock at the dock. The account is credited.</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

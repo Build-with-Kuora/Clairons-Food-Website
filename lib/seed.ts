@@ -72,9 +72,9 @@ const RAW: Raw[] = [
   ["SE-6001", "Daing na bangus, boneless marinated", "Seafood", "24 × 400 g", 10, false, "DEEP", "D-01-A1", 2400, 3100, 10, 30, 180],
   ["SE-6002", "Shrimp, vannamei 41/50", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-A2", 3300, 4200, 8, 24, 270],
   ["SE-6003", "Squid rings, breaded", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-B1", 1700, 2200, 10, 30, 270],
-  ["DE-7001", "Ice cream, ube", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A1", 1020, 1350, 20, 60, 270],
-  ["DE-7002", "Ice cream, keso (cheese)", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A2", 1020, 1350, 15, 45, 270],
-  ["DE-7003", "Ice cream, mango", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-B1", 1020, 1350, 10, 30, 270],
+  ["DE-7001", "Ice cream, ube", "Desserts", "3 gal", 8, false, "DEEP", "D-02-A1", 1020, 1350, 20, 60, 270],
+  ["DE-7002", "Ice cream, keso (cheese)", "Desserts", "3 gal", 8, false, "DEEP", "D-02-A2", 1020, 1350, 15, 45, 270],
+  ["DE-7003", "Ice cream, mango", "Desserts", "3 gal", 8, false, "DEEP", "D-02-B1", 1020, 1350, 10, 30, 270],
   ["DE-7010", "Leche flan, llanera", "Desserts", "12 × 1 pc", 5, false, "FRZ", "F-09-A1", 880, 1150, 8, 24, 90],
   ["DE-7020", "Buchi, sesame ball with mongo", "Desserts", "10 × 30 pcs", 9, false, "FRZ", "F-09-A2", 1000, 1300, 8, 24, 150],
   ["BK-8001", "Pandesal dough balls", "Bakery", "1 × 200 pcs", 8, false, "FRZ", "F-10-A1", 680, 900, 15, 45, 90],
@@ -87,6 +87,9 @@ const RAW: Raw[] = [
   ["CH-9003", "Ube halaya", "Chiller", "6 × 1 kg", 6, false, "COOL", "C-01-B1", 1350, 1750, 6, 18, 30],
   ["CH-9004", "Cheese, quick-melt", "Chiller", "6 × 2 kg", 12, false, "COOL", "C-01-B2", 2400, 3100, 8, 24, 180],
 ];
+
+/** Ice cream sells by the tub; everything else by the case. */
+const TUBS = new Set(["DE-7001", "DE-7002", "DE-7003"]);
 
 export const ROUTES: Route[] = [
   { id: "MNL", name: "Binondo & Manila", truck: "Ref van 02", driver: "Rommel Santos", setPointC: -20 },
@@ -214,6 +217,7 @@ export function buildSeed(now = Date.now()): Data {
     sku,
     name,
     category,
+    unit: TUBS.has(sku) ? "tub" : "case",
     pack,
     caseKg,
     catchWeight,
@@ -224,6 +228,7 @@ export function buildSeed(now = Date.now()): Data {
     reorderPoint,
     par,
     shelfDays,
+    active: true,
   }));
 
   // ---------- Lots ----------

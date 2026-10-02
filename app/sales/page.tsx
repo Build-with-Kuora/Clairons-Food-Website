@@ -4,9 +4,9 @@ import { Printer } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Empty, PageHead, Panel, cx } from "@/components/ui";
-import { DAY, HOUR, count, dateKey, day, keyToTs, money, plural, startOfDay } from "@/lib/format";
+import { DAY, HOUR, count, dateKey, day, keyToTs, money, plural, startOfDay, unitPlural, capitalize } from "@/lib/format";
 import { useMaps, useSales, useToday } from "@/lib/hooks";
-import { salesSummary, vatSplit } from "@/lib/logic";
+import { commonUnit, salesSummary, vatSplit } from "@/lib/logic";
 
 type Preset = "today" | "yesterday" | "week" | "month" | "thisMonth";
 
@@ -58,12 +58,13 @@ export default function Sales() {
   const total = vatSplit(sum.total);
   const products = vatSplit(sum.products);
   const fees = vatSplit(sum.fees);
+  const unit = commonUnit(sum.rows.map((r) => maps.product.get(r.sku)));
 
   const figures = [
     { label: "Total sales", value: money(sum.total), sub: `${plural(sum.count, "sale")}, VAT included` },
     { label: "VATable sales", value: money(total.net), sub: "Without VAT" },
     { label: "VAT 12%", value: money(total.vat), sub: "Output VAT in the total" },
-    { label: "Cases sold", value: count(sum.cases), sub: plural(sum.rows.length, "product") },
+    { label: `${capitalize(unitPlural(unit))} sold`, value: count(sum.cases), sub: plural(sum.rows.length, "product") },
   ];
 
   return (
@@ -127,7 +128,7 @@ export default function Sales() {
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th className="r">Cases sold</th>
+                  <th className="r">Sold</th>
                   <th className="r">VATable sales</th>
                   <th className="r">VAT 12%</th>
                   <th className="r">Amount</th>
@@ -147,7 +148,9 @@ export default function Sales() {
                           <span className="code">{r.sku}</span>, in {plural(r.orders, "sale")}
                         </div>
                       </td>
-                      <td className="r">{count(r.qty)}</td>
+                      <td className="r whitespace-nowrap">
+                        {count(r.qty)} <span className="text-[12.5px] text-ink-3">{r.qty === 1 ? p?.unit : unitPlural(p?.unit ?? "unit")}</span>
+                      </td>
                       <td className="r text-ink-2">{money(v.net)}</td>
                       <td className="r text-ink-2">{money(v.vat)}</td>
                       <td className="r font-semibold">{money(r.amount)}</td>

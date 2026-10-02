@@ -1,7 +1,7 @@
 "use client";
 
-import { dateTime, dayShort, keyToTs, money } from "@/lib/format";
-import { PAY_LABEL, TERMS_LABEL, vatSplit } from "@/lib/logic";
+import { dateTime, dayShort, keyToTs, money, units } from "@/lib/format";
+import { PAY_LABEL, TERMS_LABEL, commonUnit, vatSplit } from "@/lib/logic";
 import type { Client, Delivery, Order, Product, Rider, Route } from "@/lib/types";
 import { Logo } from "./Logo";
 
@@ -22,6 +22,7 @@ export function Invoice({
   products: Map<string, Product>;
 }) {
   const cases = order.lines.reduce((s, l) => s + l.qty, 0);
+  const unit = commonUnit(order.lines.map((l) => products.get(l.sku)));
   const kg = order.lines.reduce((s, l) => s + (l.estKg ?? (products.get(l.sku)?.caseKg ?? 0) * l.qty), 0);
   return (
     <div className="print-area bg-white p-6 text-[13.5px] text-ink">
@@ -82,7 +83,7 @@ export function Invoice({
           <tr className="border-b border-line text-left text-[12px] text-ink-3">
             <th className="py-1.5 pr-2 font-semibold">Item</th>
             <th className="py-1.5 pr-2 font-semibold">Lots (FEFO)</th>
-            <th className="py-1.5 pr-2 text-right font-semibold">Cases</th>
+            <th className="py-1.5 pr-2 text-right font-semibold">Qty</th>
             <th className="py-1.5 pr-2 text-right font-semibold">Price</th>
             <th className="py-1.5 text-right font-semibold">Amount</th>
           </tr>
@@ -93,7 +94,7 @@ export function Invoice({
               <td className="py-1.5 pr-2">
                 <div className="font-semibold">{l.name}</div>
                 <div className="text-ink-3">
-                  <span className="code">{l.sku}</span> {products.get(l.sku)?.pack}
+                  <span className="code">{l.sku}</span> per {products.get(l.sku)?.unit}, {products.get(l.sku)?.pack}
                   {l.catchWeight && `, est. ${l.estKg} kg, billed at actual weight`}
                 </div>
               </td>
@@ -101,7 +102,7 @@ export function Invoice({
               <td className="py-1.5 pr-2 text-right">{l.qty}</td>
               <td className="py-1.5 pr-2 text-right">
                 {money(l.unitPrice)}
-                <span className="text-ink-3">/{l.catchWeight ? "kg" : "cs"}</span>
+                <span className="text-ink-3">/{l.catchWeight ? "kg" : products.get(l.sku)?.unit}</span>
               </td>
               <td className="py-1.5 text-right font-semibold">{money(l.lineTotal)}</td>
             </tr>
@@ -111,7 +112,7 @@ export function Invoice({
 
       <div className="mt-3 flex items-start justify-between gap-6">
         <div className="text-[12.5px] text-ink-3">
-          {cases} cases, about {Math.round(kg)} kg. Keep frozen at −18°C or colder.
+          {units(cases, unit)}, about {Math.round(kg)} kg. Keep frozen at −18°C or colder.
           <br />
           Claims for shortage or temperature must be noted on the delivery receipt.
           {order.notes && (

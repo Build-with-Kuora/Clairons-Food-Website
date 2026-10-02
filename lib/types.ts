@@ -29,7 +29,11 @@ export interface Product {
   sku: string;
   name: string;
   category: Category;
+  /** Selling unit the owner sets, singular: "case", "pack", "tub". Stock, production and sales count in it. */
+  unit: string;
+  /** What is inside one unit, e.g. "10 × 50 pcs" */
   pack: string;
+  /** Weight of one unit in kg */
   caseKg: number;
   /** Catch-weight items are priced per kg; final weight is set at pick. */
   catchWeight: boolean;
@@ -40,7 +44,12 @@ export interface Product {
   reorderPoint: number;
   par: number;
   shelfDays: number;
+  /** Inactive products stay in stock and history but can't be ordered or produced. */
+  active: boolean;
 }
+
+/** Add a product (no sku) or edit one (its sku). */
+export type ProductInput = Omit<Product, "sku"> & { sku?: string };
 
 export type LotStatus = "AVAILABLE" | "HOLD";
 

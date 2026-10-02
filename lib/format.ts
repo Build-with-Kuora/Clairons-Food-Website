@@ -75,3 +75,11 @@ export function lotCode(ts: number, n: number) {
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${count(n)} ${n === 1 ? one : many}`;
+
+export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Plural of an owner-typed selling unit: case → cases, box → boxes. */
+export const unitPlural = (u: string) => (/(s|x|z|ch|sh)$/i.test(u) ? `${u}es` : `${u}s`);
+
+/** A quantity in its selling unit: "1 case", "12 tubs". */
+export const units = (n: number, unit: string) => plural(n, unit, unitPlural(unit));

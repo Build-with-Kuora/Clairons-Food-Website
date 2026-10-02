@@ -2,9 +2,9 @@
 
 import { Check, Phone } from "lucide-react";
 import { useState } from "react";
-import { MIN, clock, dateKey, dateTime, day, money, temp, tempBare } from "@/lib/format";
+import { MIN, clock, dateKey, dateTime, day, money, temp, tempBare, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { STATUS_FLOW, STATUS_LABEL, TRUCK_LIMIT_C, carrierOf, deliveryTrace, nextAction, runKey, statusAt } from "@/lib/logic";
+import { STATUS_FLOW, STATUS_LABEL, TRUCK_LIMIT_C, carrierOf, commonUnit, deliveryTrace, nextAction, runKey, statusAt } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Delivery } from "@/lib/types";
 import { TempTrace } from "./charts";
@@ -36,6 +36,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
   const canGo = d.status === "LOADED" && run?.departedAt;
   const final = d.status === "DELIVERED" || d.status === "EXCEPTION";
   const cases = o.lines.reduce((s, l) => s + l.qty, 0);
+  const unit = commonUnit(o.lines.map((l) => maps.product.get(l.sku)));
 
   const marks = [
     { at: statusAt(d, "LOADED"), label: "Loaded" },
@@ -157,9 +158,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
                 <dd className={cx("font-semibold", d.pod.productTempC > TRUCK_LIMIT_C && "text-bad")}>{temp(d.pod.productTempC)}</dd>
               </div>
               <div>
-                <dt className="text-[12.5px] text-ink-3">Cases</dt>
+                <dt className="text-[12.5px] text-ink-3">Delivered</dt>
                 <dd className="font-semibold">
-                  {cases - d.pod.shorts.reduce((s, x) => s + x.qty, 0)} of {cases}
+                  {cases - d.pod.shorts.reduce((s, x) => s + x.qty, 0)} of {units(cases, unit)}
                 </dd>
               </div>
               {d.pod.collected !== undefined && (
@@ -184,7 +185,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             <ul className="mt-2 space-y-1">
               {d.pod.shorts.map((s) => (
                 <li key={s.sku} className="flex items-center gap-2 text-[13.5px]">
-                  <Badge tone="warn">−{s.qty} cs</Badge>
+                  <Badge tone="warn">−{units(s.qty, maps.product.get(s.sku)?.unit ?? "unit")}</Badge>
                   {maps.product.get(s.sku)?.name}, <span className="text-ink-3">{s.reason}</span>
                 </li>
               ))}
@@ -194,13 +195,13 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
       )}
 
       <section className="mt-6">
-        <h3 className="display mb-2 text-[20px] font-semibold">On this stop, {cases} cases</h3>
+        <h3 className="display mb-2 text-[20px] font-semibold">On this stop, {units(cases, unit)}</h3>
         <table className="tbl rounded-lg border border-line">
           <thead>
             <tr>
               <th>Product</th>
               <th>Lots</th>
-              <th className="r">Cases</th>
+              <th className="r">Qty</th>
             </tr>
           </thead>
           <tbody>
@@ -211,7 +212,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
                   <div className="code text-ink-3">{l.sku}</div>
                 </td>
                 <td className="code text-ink-2">{l.allocs.map((a) => `${a.lotCode}×${a.qty}`).join(" ")}</td>
-                <td className="r font-semibold">{l.qty}</td>
+                <td className="r font-semibold whitespace-nowrap">
+                  {l.qty} <span className="text-[12.5px] font-normal text-ink-3">{maps.product.get(l.sku)?.unit}</span>
+                </td>
               </tr>
             ))}
           </tbody>

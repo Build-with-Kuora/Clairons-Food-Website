@@ -5,9 +5,11 @@ import type {
   Delivery,
   DeliveryStatus,
   Lot,
+  Category,
   Order,
   PayMethod,
   Product,
+  ProductInput,
   Rider,
   Route,
   Run,
@@ -45,6 +47,64 @@ export const FROZEN_LIMIT_C = -15;
 
 /** Ref vans run frozen loads; anything warmer than this in the box is an excursion. */
 export const TRUCK_LIMIT_C = FROZEN_LIMIT_C;
+
+/** Prices are per kg for catch-weight items, otherwise per selling unit. */
+export const priceUnit = (p: Product) => (p.catchWeight ? "kg" : p.unit);
+
+/** The unit a set of products share, or "unit" when they differ. For totals across products. */
+export function commonUnit(products: Iterable<Product | undefined>) {
+  const set = new Set<string>();
+  for (const p of products) if (p) set.add(p.unit);
+  return set.size === 1 ? [...set][0] : "unit";
+}
+
+export const SKU_PREFIX: Record<Category, string> = {
+  Dimsum: "DM",
+  Streetfood: "ST",
+  "Tocino & longganisa": "BR",
+  Pork: "PK",
+  Poultry: "PL",
+  Seafood: "SE",
+  Desserts: "DE",
+  Bakery: "BK",
+  Fries: "FR",
+  Chiller: "CH",
+};
+
+export const CATEGORIES = Object.keys(SKU_PREFIX) as Category[];
+
+/** Zones a product can call home. The blast freezer is only a stop on the way in. */
+export const HOME_ZONES: ZoneId[] = ["DEEP", "FRZ", "COOL"];
+
+/** Next free SKU in a category: one past the highest number already used with its prefix. */
+export function nextSku(products: Product[], category: Category) {
+  const prefix = SKU_PREFIX[category];
+  const nums = products.filter((p) => p.sku.startsWith(`${prefix}-`)).map((p) => Number(p.sku.slice(prefix.length + 1)) || 0);
+  const base = { DM: 1000, ST: 2000, BR: 3000, PK: 4000, PL: 5000, SE: 6000, DE: 7000, BK: 8000, FR: 8500, CH: 9000 }[prefix] ?? 0;
+  return `${prefix}-${Math.max(base, ...nums) + 1}`;
+}
+
+const isWhole = (n: number) => Number.isInteger(n) && n >= 0;
+
+/** What is wrong with a product before it is saved, or null when it is fine. */
+export function productError(i: ProductInput, products: Product[]): string | null {
+  const name = i.name.trim();
+  if (!name) return "Enter the product name.";
+  const twin = products.find((p) => p.sku !== i.sku && p.name.toLowerCase() === name.toLowerCase());
+  if (twin) return `${twin.sku} already uses that name.`;
+  if (!i.unit.trim()) return "Enter the selling unit, e.g. case, pack or tray.";
+  if (!/^[a-z][a-z -]*$/i.test(i.unit.trim()) || i.unit.trim().length > 16) return "Write the unit as a short word, e.g. case, pack or tray.";
+  if (!i.pack.trim()) return `Say what is inside one ${i.unit.trim()}, e.g. 10 × 50 pcs.`;
+  if (!(i.caseKg > 0)) return `Enter the weight of one ${i.unit.trim()} in kg.`;
+  for (const t of ["A", "B", "C"] as const) if (!(i.price[t] > 0)) return `Enter a tier ${t} price.`;
+  if (!(i.cost >= 0)) return "Production cost can't be negative.";
+  if (!isWhole(i.reorderPoint)) return "Reorder point must be a whole number.";
+  if (!isWhole(i.par) || i.par <= i.reorderPoint) return "Par level must be a whole number above the reorder point.";
+  if (!isWhole(i.shelfDays) || i.shelfDays < 1) return "Shelf life must be at least 1 day.";
+  if (!HOME_ZONES.includes(i.zone)) return "Pick where the product is stored.";
+  if (!i.bin.trim() || i.bin.trim().charAt(0).toUpperCase() !== ZONES[i.zone].prefix) return `Home bin must be in ${ZONES[i.zone].name.toLowerCase()}, starting with ${ZONES[i.zone].prefix}-.`;
+  return null;
+}
 
 export const caseCost = (p: Product) => (p.catchWeight ? p.cost * p.caseKg : p.cost);
 export const casePrice = (p: Product, tier: Tier) => (p.catchWeight ? p.price[tier] * p.caseKg : p.price[tier]);
@@ -177,7 +237,7 @@ export function salesOf(orders: Order[], deliveries: Delivery[]): Sale[] {
   return out;
 }
 
-/** Cases sold per SKU since `since`. */
+/** Units sold per SKU since `since`. */
 export function soldBySku(sales: Sale[], since: number) {
   const out = new Map<string, number>();
   for (const s of sales) {
@@ -225,17 +285,17 @@ export function salesSummary(sales: Sale[], from: number, to: number) {
   return { rows, count, cases: rows.reduce((t, r) => t + r.qty, 0), products, fees: round2(fees), total: round2(products + fees) };
 }
 
-/** Cases produced per SKU in batches made since `since`. */
+/** Units produced per SKU in batches made since `since`. */
 export function producedBySku(batches: Batch[], since: number) {
   const out = new Map<string, number>();
   for (const b of batches) if (b.madeAt >= since) out.set(b.sku, (out.get(b.sku) ?? 0) + b.qty);
   return out;
 }
 
-/** What to make next: products whose free stock is under the reorder point, topped back up to par. */
+/** What to make next: active products whose free stock is under the reorder point, topped back up to par. */
 export function toMake(rows: Iterable<StockRow>) {
   return [...rows]
-    .filter((r) => r.available < r.product.reorderPoint)
+    .filter((r) => r.product.active && r.available < r.product.reorderPoint)
     .map((r) => ({ row: r, qty: r.product.par - r.available }))
     .sort((a, b) => a.row.available / a.row.product.reorderPoint - b.row.available / b.row.product.reorderPoint);
 }

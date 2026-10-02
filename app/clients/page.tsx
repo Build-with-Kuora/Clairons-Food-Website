@@ -195,7 +195,7 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
                       </div>
                       <div className={cx("text-[12.5px]", d.pod.productTempC > TRUCK_LIMIT_C ? "font-semibold text-bad" : "text-ink-3")}>
                         Product at {temp(d.pod.productTempC)}
-                        {d.pod.shorts.length > 0 && `, ${d.pod.shorts.reduce((s, x) => s + x.qty, 0)} cs returned`}
+                        {d.pod.shorts.length > 0 && `, ${d.pod.shorts.reduce((s, x) => s + x.qty, 0)} returned`}
                       </div>
                     </>
                   ) : d.exception ? (

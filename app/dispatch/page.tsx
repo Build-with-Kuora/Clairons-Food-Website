@@ -7,9 +7,9 @@ import { DeliveryTable } from "@/components/DeliveryTable";
 import { RiderList } from "@/components/RiderList";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, Empty, PageHead, Panel, StatusPill, Tabs, cx } from "@/components/ui";
-import { clock, dateKey, dayShort, keyToTs, tempBare } from "@/lib/format";
+import { clock, dateKey, dayShort, keyToTs, tempBare, units } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
-import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
+import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
 type View = "routes" | "table" | "riders";
@@ -112,7 +112,9 @@ export default function Dispatch() {
             const last = run?.temps.at(-1);
             const loaded = rs.filter((d) => d.status === "LOADED").length;
             const notLoaded = rs.filter((d) => d.status === "SCHEDULED" || d.status === "PICKING").length;
-            const cases = rs.reduce((s, d) => s + (maps.order.get(d.orderId)?.lines.reduce((t, l) => t + l.qty, 0) ?? 0), 0);
+            const lines = rs.flatMap((d) => maps.order.get(d.orderId)?.lines ?? []);
+            const cases = lines.reduce((t, l) => t + l.qty, 0);
+            const unit = commonUnit(lines.map((l) => maps.product.get(l.sku)));
             return (
               <Panel
                 key={r.id}
@@ -163,7 +165,7 @@ export default function Dispatch() {
                             <th>Window</th>
                             <th>Status</th>
                             <th>Time</th>
-                            <th className="r">Cases</th>
+                            <th className="r">Qty</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -191,7 +193,7 @@ export default function Dispatch() {
                       </table>
                     </div>
                     <div className="border-t border-line px-4 py-2 text-[12.5px] text-ink-3">
-                      {cases} cases on this route.{" "}
+                      {units(cases, unit)} on this route.{" "}
                       {run && !run.departedAt && `Planned departure ${clock(run.plannedDepart)}.`}
                       {notLoaded > 0 && !run?.departedAt && ` ${notLoaded} stop${notLoaded > 1 ? "s" : ""} still being picked.`}
                     </div>
