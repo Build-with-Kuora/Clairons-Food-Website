@@ -98,10 +98,10 @@ These change what we build, so they come first.
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 7.1 | **[changed]** Invoice/receipt with the details BIR requires: seller name, TIN and address; serial number; date; buyer; items; VATable sales, 12% VAT, total | Partial | Printable invoice with VAT breakdown exists. It still needs TIN, registered name/address and BIR serial numbering. |
+| 7.1 | **[changed]** Invoice/receipt with the details BIR requires: seller name, TIN and address; serial number; date; buyer; items; VATable sales, 12% VAT, total | Done | Sales invoice shows registered name, VAT Reg. TIN, address, buyer and buyer TIN, VATable / VAT-exempt / zero-rated sales, 12% VAT, total, and the Permit to Use number and series. Every order gets the next serial (SI 000001…) when placed; cancelled invoices keep their number and print "Cancelled". **The seller details, TINs and permit number are made up** (`SELLER` in `lib/seed.ts`) and the invoice says so. Replace them with the registered ones from the client's accountant. |
 | 7.2 | **[changed]** "BIR-accredited" is a **registration the business does**, not a feature. The software has to meet BIR rules for a computerized POS/invoicing system. The owner (with their accountant) applies for the permit before going live. | Missing | Original listed "BIR-accredited receipt generation" as a feature. Plan time for this process and confirm current requirements with the client's accountant. |
 | 7.3 | Print a receipt for every sale | Done | Invoice view prints |
-| 7.4 | Send the receipt by SMS or email | Missing | |
+| 7.4 | Send the receipt by SMS or email | Done | "Send receipt" on Orders and after placing an order on the Counter. With no server, it opens the device's own messages or mail app with the receipt filled in (short text for SMS, full breakdown for e-mail) and logs each send on the order. A real SMS gateway and mail service come with the main app. Clients can have an e-mail and TIN on file. |
 
 ## 8. POS
 
@@ -145,13 +145,13 @@ Not built in the prototype. Do these once the client approves the prototype and 
 - **Offline delivery.** The rider/driver side must keep working with no signal: view stops, mark arrived/delivered, capture proof of delivery and COD collected. Store data on the phone in **IndexedDB** and queue each change. When the phone is back online, sync the queue to the database. Each queued change carries an id, so a retry doesn't apply it twice. Conflicts (e.g. dispatch reassigned a stop while the rider was offline) are flagged for dispatch to resolve rather than silently overwritten. The prototype's store actions (`advance`, `completeDelivery`, `reportException`) are the operations to queue.
 - **Shared database and API**, logins and roles (10.2, 10.3).
 - **E-commerce** (section 9) once its scope is decided (0.7).
-- **BIR registration** of the invoicing system (7.2).
+- **BIR registration** of the invoicing system (7.2), with the real registered name, TIN, address and Permit to Use replacing the sample `SELLER` details.
+- **Sending receipts** through an SMS gateway and mail service instead of the device's own apps (7.4).
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4).
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now).
 
-1. **Receipts** (7.1, 7.4): add TIN, registered name/address and serial numbering to the invoice; send by SMS/email.
-2. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
-3. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
-4. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
+1. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
+2. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
+3. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
