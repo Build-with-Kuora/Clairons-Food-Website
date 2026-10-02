@@ -13,11 +13,11 @@ Changes from the original checklist are marked **[changed]** with the reason. Ea
 
 These change what we build, so they come first.
 
-1. **Do they make the products, buy them, or both?** The sketches have a Production page, so they make at least some items themselves. The prototype assumes the opposite: everything is bought from suppliers (Ongpin Dimsum Commissary, Valenzuela Fishball Factory…) and received on purchase orders. We need to know which products are made in-house and which are bought in.
+1. **Decided: Clairon's is a manufacturer.** They make all their own products and sell them wholesale. The prototype still treats finished goods as bought from suppliers (Ongpin Dimsum Commissary, Valenzuela Fishball Factory…) and received on purchase orders. **Production batches replace that as the way finished goods come in.** The supplier, PO and reorder screens either go away or become purchasing for raw materials (see 0.2).
 2. **Does production use up raw materials?** "Finished goods" suggests there is raw-material stock too (flour, pork, wrappers). If they want that tracked, Production must deduct ingredients, which needs a recipe per product. If not, Production simply adds finished goods.
-3. **Dashboard upper-left box: price or quantity produced?** (open question from the sketches) Recommendation: **price**, because the Production page already shows quantity produced. If they want both, use a small "made today" line under the name.
+3. **Decided: the Dashboard upper-left box shows price.** Quantity produced belongs on the Production page.
 4. **What unit is stock counted in?** Pieces, packs or cases. The prototype counts cases (e.g. 10 × 50 pcs siomai). The sketches look like they count packs.
-5. **Who delivers?** The sketches say "riders" (Toto, Remias, Zaldy), which suggests motorbikes. The prototype models refrigerated vans on fixed routes. The answer decides whether we need truck temperature logging.
+5. **Decided: both riders and vans.** Refrigerated vans on routes for big accounts (keeping temperature logs), riders on motorbikes for small drops. A delivery is assigned to either a van route or a rider.
 6. **When does a sale count?** See 6.3.
 7. **E-commerce scope:** is this a public online store, or ordering for regular accounts only (restaurants, carts)? These are very different builds.
 
@@ -40,7 +40,7 @@ These change what we build, so they come first.
 | 2.1 | **[changed]** Grid of product cards: **2 per row on phones, 4 per row on tablet/desktop** | Missing | Original said 4 per row. On a phone that makes each card about 80 px wide holding 3 numbers, which is unreadable. The Counter page already has a product card grid we can reuse. |
 | 2.2 | Each card: product name, **products sold** (big number) | Missing | |
 | 2.3 | **[changed]** "Products sold" means **sold today**, with a date switch (today / this week / this month) | Missing | The original didn't say over what period. |
-| 2.4 | Upper-left box: price (pending decision 0.3) | Partial | Counter cards show price. |
+| 2.4 | Upper-left box: price (decision 0.3) | Partial | Counter cards show price. |
 | 2.5 | Lower-right box: stock left (*bilin nga stock*). Shows **free to sell** stock, i.e. on hand minus already reserved for orders | Partial | Counter cards show "cs free". **[changed]** Raw on-hand would overstate what can be sold. |
 | 2.6 | Low stock is highlighted on the card | Partial | Counter cards turn amber when low. |
 | 2.7 | **[changed]** With many products: search and category filter on the grid | Missing | The sketch shows 4 products; the catalogue has 48 SKUs. |
@@ -79,6 +79,7 @@ These change what we build, so they come first.
 | 5.5 | Proof of delivery: who received, signature, amount collected (COD) | Done | |
 | 5.6 | Rider's own phone view | Done | `/driver` |
 | 5.7 | Rider list (add / edit riders) | Missing | Drivers are fixed per route in the seed |
+| 5.8 | **[changed]** A delivery goes either on a van route or to a rider (decision 0.5). Van routes keep temperature logs; rider drops track status and proof of delivery only. | Missing | Only van routes exist today |
 
 ## 6. Orders and sales
 
@@ -127,9 +128,9 @@ These change what we build, so they come first.
 
 ## Suggested build order (prototype, no database)
 
-1. Get decisions 0.1–0.4 from the client.
+1. Get the open decisions (0.2, 0.4, 0.6, 0.7) from the client.
 2. Dashboard product grid (2.1–2.7), reusing the Counter card.
-3. Production page (4.1–4.3), recording batches as stock lots.
+3. Production page (4.1–4.3), recording batches as stock lots. Rework the seed so finished goods come from production runs instead of supplier POs (decision 0.1).
 4. Phone bottom navigation (1.3–1.4).
 5. Delivery table view and rider editing (5.1, 5.3, 5.7).
 6. Sales table with totals; count a sale on delivery (6.1–6.3).
