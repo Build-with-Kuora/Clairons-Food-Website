@@ -14,8 +14,10 @@ import type {
   OrderLine,
   Pod,
   Product,
+  Rider,
   Route,
   Run,
+  Seller,
   TempReading,
   Zone,
   ZoneId,
@@ -71,9 +73,9 @@ const RAW: Raw[] = [
   ["SE-6001", "Daing na bangus, boneless marinated", "Seafood", "24 × 400 g", 10, false, "DEEP", "D-01-A1", 2400, 3100, 10, 30, 180],
   ["SE-6002", "Shrimp, vannamei 41/50", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-A2", 3300, 4200, 8, 24, 270],
   ["SE-6003", "Squid rings, breaded", "Seafood", "10 × 1 kg", 10, false, "DEEP", "D-01-B1", 1700, 2200, 10, 30, 270],
-  ["DE-7001", "Ice cream, ube", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A1", 1020, 1350, 20, 60, 270],
-  ["DE-7002", "Ice cream, keso (cheese)", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-A2", 1020, 1350, 15, 45, 270],
-  ["DE-7003", "Ice cream, mango", "Desserts", "1 × 3 gal tub", 8, false, "DEEP", "D-02-B1", 1020, 1350, 10, 30, 270],
+  ["DE-7001", "Ice cream, ube", "Desserts", "3 gal", 8, false, "DEEP", "D-02-A1", 1020, 1350, 20, 60, 270],
+  ["DE-7002", "Ice cream, keso (cheese)", "Desserts", "3 gal", 8, false, "DEEP", "D-02-A2", 1020, 1350, 15, 45, 270],
+  ["DE-7003", "Ice cream, mango", "Desserts", "3 gal", 8, false, "DEEP", "D-02-B1", 1020, 1350, 10, 30, 270],
   ["DE-7010", "Leche flan, llanera", "Desserts", "12 × 1 pc", 5, false, "FRZ", "F-09-A1", 880, 1150, 8, 24, 90],
   ["DE-7020", "Buchi, sesame ball with mongo", "Desserts", "10 × 30 pcs", 9, false, "FRZ", "F-09-A2", 1000, 1300, 8, 24, 150],
   ["BK-8001", "Pandesal dough balls", "Bakery", "1 × 200 pcs", 8, false, "FRZ", "F-10-A1", 680, 900, 15, 45, 90],
@@ -87,11 +89,23 @@ const RAW: Raw[] = [
   ["CH-9004", "Cheese, quick-melt", "Chiller", "6 × 2 kg", 12, false, "COOL", "C-01-B2", 2400, 3100, 8, 24, 180],
 ];
 
+/** Ice cream sells by the tub; everything else by the case. */
+const TUBS = new Set(["DE-7001", "DE-7002", "DE-7003"]);
+
 export const ROUTES: Route[] = [
   { id: "MNL", name: "Binondo & Manila", truck: "Ref van 02", driver: "Rommel Santos", setPointC: -20 },
   { id: "QC", name: "Quezon City loop", truck: "Ref van 05", driver: "Jun Dela Cruz", setPointC: -20 },
   { id: "STH", name: "Makati, Pasig & south", truck: "Ref van 07", driver: "Arnel Reyes", setPointC: -20 },
 ];
+
+export const RIDERS: Rider[] = [
+  { id: "rd-1", name: "Jomar Bautista", phone: "0917 555 3021", bike: "Honda Click, NBC 4512", active: true },
+  { id: "rd-2", name: "Ella Santos", phone: "0918 555 7740", bike: "Yamaha Mio, DAE 2219", active: true },
+  { id: "rd-3", name: "Dodong Reyes", phone: "0927 555 1186", bike: "Honda TMX, ABK 903", active: false },
+];
+
+/** Small cash drops go by motorbike: Ella covers Manila, Jomar the rest. */
+const riderFor = (c: Client) => (c.terms !== "COD" ? undefined : c.routeId === "MNL" ? RIDERS[1] : RIDERS[0]);
 
 const CLIENTS: Client[] = [
   { id: "c-wahlee", name: "Wah Lee Dimsum House", type: "Restaurant", tier: "B", terms: "NET15", creditLimit: 150000, balance: 48250.5, pastDue: 0, address: "618 Ongpin St, Binondo", city: "Manila", contact: "Benson Uy", phone: "(02) 8244-3381", routeId: "MNL", window: "6–8 am", dockNote: "Back door on Salazar St. Walk-in freezer is past the steamers." },
@@ -174,7 +188,37 @@ function reeferLog(
   return out;
 }
 
+/** Made-up business details for the prototype. Replace with the registered ones before going live. */
+export const SELLER: Seller = {
+  registeredName: "Clairon's Food Trading Corp.",
+  tradeName: "Clairon's Food",
+  tin: "000-000-000-00000",
+  address: "88 Sto. Cristo St, Binondo, Manila 1006",
+  phone: "(02) 8000-0000",
+  email: "orders@example.com",
+  permitNo: "SAMPLE-PTU-0000-000000",
+  permitDate: "Jan 1, 2026",
+  seriesFrom: 1,
+  seriesTo: 999999,
+  sample: true,
+};
+
+/** Receipt e-mail and buyer TIN for the larger accounts. Fake: example.com addresses, 000- TINs. */
+const CLIENT_EXTRA: Record<string, Pick<Client, "email" | "tin">> = {
+  "c-wahlee": { email: "benson@wahlee.example.com", tin: "000-201-334-00000" },
+  "c-lucky": { email: "grace@luckydragon.example.com" },
+  "c-dapitan": { email: "canteen@dapitan.example.com", tin: "000-318-552-00000" },
+  "c-murallas": { email: "purchasing@casamurallas.example.com", tin: "000-402-117-00000" },
+  "c-titababy": { email: "commissary@titababy.example.com", tin: "000-415-906-00000" },
+  "c-sampaguita": { email: "receiving@sampaguita.example.com", tin: "000-509-221-00003" },
+  "c-stisidore": { email: "dietary@stisidore.example.com", tin: "000-611-480-00000" },
+  "c-kapitolyo": { email: "mika@kapitolyokitchen.example.com", tin: "000-704-385-00000" },
+  "c-lorenzo": { email: "canteen@sanlorenzo.example.com", tin: "000-812-670-00000" },
+  "c-rizalmart": { email: "warehouse@rizalmart.example.com", tin: "000-905-142-00002" },
+};
+
 export interface Data {
+  seller: Seller;
   products: Product[];
   lots: Lot[];
   movements: Movement[];
@@ -182,10 +226,11 @@ export interface Data {
   orders: Order[];
   deliveries: Delivery[];
   routes: Route[];
+  riders: Rider[];
   runs: Record<string, Run>;
   zones: Zone[];
   batches: Batch[];
-  counters: { so: number; batch: number };
+  counters: { so: number; batch: number; invoice: number };
   seededAt: number;
 }
 
@@ -203,6 +248,7 @@ export function buildSeed(now = Date.now()): Data {
     sku,
     name,
     category,
+    unit: TUBS.has(sku) ? "tub" : "case",
     pack,
     caseKg,
     catchWeight,
@@ -213,6 +259,7 @@ export function buildSeed(now = Date.now()): Data {
     reorderPoint,
     par,
     shelfDays,
+    active: true,
   }));
 
   // ---------- Lots ----------
@@ -305,7 +352,7 @@ export function buildSeed(now = Date.now()): Data {
       .sort((a, b) => a.bestBy - b.bestBy)[0];
 
   // ---------- Orders and deliveries ----------
-  const clients = CLIENTS.map((c) => ({ ...c }));
+  const clients = CLIENTS.map((c) => ({ ...c, ...CLIENT_EXTRA[c.id] }));
   const clientById = new Map(clients.map((c) => [c.id, c]));
   const orders: Order[] = [];
   const deliveries: Delivery[] = [];
@@ -352,6 +399,7 @@ export function buildSeed(now = Date.now()): Data {
     const o: Order = {
       id: `o-${++so}`,
       number: `SO-${so}`,
+      invoiceNo: 0, // numbered in date order once every order exists
       clientId: c.id,
       createdAt,
       by,
@@ -413,7 +461,9 @@ export function buildSeed(now = Date.now()): Data {
       if (used.has(c.id)) continue;
       used.add(c.id);
       const o = makeOrder(c, placed + int(8, 16) * HOUR + int(0, 59) * MIN, "DELIVERY", false);
-      const seq = (routeStops[c.routeId] = (routeStops[c.routeId] ?? 0) + 1);
+      const rider = riderFor(c);
+      const lane = rider?.id ?? c.routeId;
+      const seq = (routeStops[lane] = (routeStops[lane] ?? 0) + 1);
       const depart = deliverDay + 5.5 * HOUR + int(0, 40) * MIN;
       const at = depart + seq * 38 * MIN + int(0, 20) * MIN;
       o.status = "FULFILLED";
@@ -423,18 +473,19 @@ export function buildSeed(now = Date.now()): Data {
         { status: "PICKING", at: deliverDay + 2 * HOUR, by: "Night pick" },
         { status: "LOADED", at: depart - 30 * MIN, by: "Dock" },
         { status: "EN_ROUTE", at: depart, by: "Dispatch" },
-        { status: "ARRIVED", at: at - 12 * MIN, by: "Driver" },
-        { status: "DELIVERED", at, by: "Driver" },
+        { status: "ARRIVED", at: at - 12 * MIN, by: rider?.name ?? "Driver" },
+        { status: "DELIVERED", at, by: rider?.name ?? "Driver" },
       ];
-      makeDelivery(o, dk, seq, "DELIVERED", evs, { pod: pod(c, at, o.total, o.payMethod) });
+      makeDelivery(o, dk, seq, "DELIVERED", evs, { pod: pod(c, at, o.total, o.payMethod), riderId: rider?.id });
       shipMoves(o, depart - 30 * MIN);
+      if (rider) continue;
       const run = ensureRun(c.routeId, dk, depart);
       run.departedAt = depart;
     }
     for (const rt of ROUTES) {
       const run = runs[runKey(rt.id, dk)];
       if (!run || !run.departedAt) continue;
-      const stops = deliveries.filter((d) => d.date === dk && d.routeId === rt.id);
+      const stops = deliveries.filter((d) => d.date === dk && d.routeId === rt.id && !d.riderId);
       const lastAt = Math.max(...stops.map((d) => d.pod!.at));
       run.returnedAt = lastAt + 50 * MIN;
       run.temps = reeferLog(r, run.departedAt - 40 * MIN, run.returnedAt, rt.setPointC, stops.map((d) => d.pod!.at - 12 * MIN));
@@ -442,7 +493,7 @@ export function buildSeed(now = Date.now()): Data {
   }
 
   // Today: orders placed yesterday, on the trucks now.
-  type Plan = { client: string; status: DeliveryStatus; at?: number; eta?: number };
+  type Plan = { client: string; status: DeliveryStatus; at?: number; eta?: number; rider?: Rider };
   const yesterday = today - DAY;
   const plans: Record<string, { depart: number; departed: boolean; stops: Plan[] }> = {
     MNL: {
@@ -452,7 +503,7 @@ export function buildSeed(now = Date.now()): Data {
         { client: "c-nena", status: "DELIVERED", at: now - 160 * MIN },
         { client: "c-wahlee", status: "DELIVERED", at: now - 125 * MIN },
         { client: "c-lucky", status: "DELIVERED", at: now - 90 * MIN },
-        { client: "c-kuyajun", status: "DELIVERED", at: now - 50 * MIN },
+        { client: "c-kuyajun", status: "DELIVERED", at: now - 50 * MIN, rider: RIDERS[1] },
         { client: "c-dapitan", status: "ARRIVED", at: now - 8 * MIN },
         { client: "c-murallas", status: "EN_ROUTE", eta: now + 40 * MIN },
       ],
@@ -474,7 +525,7 @@ export function buildSeed(now = Date.now()): Data {
         { client: "c-kapitolyo", status: "LOADED" },
         { client: "c-lorenzo", status: "LOADED" },
         { client: "c-rizalmart", status: "PICKING" },
-        { client: "c-poblacion", status: "SCHEDULED" },
+        { client: "c-poblacion", status: "SCHEDULED", rider: RIDERS[0] },
       ],
     },
   };
@@ -484,8 +535,12 @@ export function buildSeed(now = Date.now()): Data {
     const run = ensureRun(rt.id, todayKey, plan.depart);
     if (plan.departed) run.departedAt = plan.depart;
     const doors: number[] = [];
-    plan.stops.forEach((s, i) => {
+    const lanes: Record<string, number> = {};
+    plan.stops.forEach((s) => {
       const c = clientById.get(s.client)!;
+      const by = s.rider?.name ?? rt.driver;
+      const lane = s.rider?.id ?? rt.id;
+      const seq = (lanes[lane] = (lanes[lane] ?? 0) + 1);
       const reserving = s.status === "SCHEDULED" || s.status === "PICKING";
       const o = makeOrder(c, yesterday + int(9, 17) * HOUR + int(0, 59) * MIN, "DELIVERY", reserving);
       const evs: DeliveryEvent[] = [{ status: "SCHEDULED", at: o.createdAt, by: o.by }];
@@ -495,14 +550,14 @@ export function buildSeed(now = Date.now()): Data {
         evs.push({ status: "LOADED", at: loadedAt, by: "Dock" });
         shipMoves(o, loadedAt);
       }
-      if (plan.departed) evs.push({ status: "EN_ROUTE", at: plan.depart, by: "Dispatch" });
+      if (plan.departed) evs.push({ status: "EN_ROUTE", at: s.rider && s.at ? s.at - 40 * MIN : plan.depart, by: "Dispatch" });
       const extra: Partial<Delivery> = {};
       if (s.at) {
-        evs.push({ status: "ARRIVED", at: s.status === "ARRIVED" ? s.at : s.at - 12 * MIN, by: rt.driver });
-        doors.push(s.status === "ARRIVED" ? s.at : s.at - 12 * MIN);
+        evs.push({ status: "ARRIVED", at: s.status === "ARRIVED" ? s.at : s.at - 12 * MIN, by });
+        if (!s.rider) doors.push(s.status === "ARRIVED" ? s.at : s.at - 12 * MIN);
       }
       if (s.status === "DELIVERED") {
-        evs.push({ status: "DELIVERED", at: s.at!, by: rt.driver });
+        evs.push({ status: "DELIVERED", at: s.at!, by });
         extra.pod = pod(c, s.at!, o.total, o.payMethod);
         o.status = "FULFILLED";
         if (o.payMethod === "COD") o.paid = true;
@@ -520,7 +575,8 @@ export function buildSeed(now = Date.now()): Data {
         movements.push({ id: mvId(), at: s.at!, sku: ic.sku, lotCode: ic.allocs[0].lotCode, type: "RETURN", qty: refused, ref: o.number, by: rt.driver, note: "Refused, soft on arrival" });
       }
       if (s.eta) extra.eta = s.eta;
-      makeDelivery(o, todayKey, i + 1, s.status, evs, extra);
+      if (s.rider) extra.riderId = s.rider.id;
+      makeDelivery(o, todayKey, seq, s.status, evs, extra);
     });
     const start = plan.departed ? plan.depart - 40 * MIN : now - 70 * MIN;
     const excursion = rt.id === "QC" ? { from: now - 125 * MIN, to: now - 78 * MIN, peak: -6 } : undefined;
@@ -575,7 +631,11 @@ export function buildSeed(now = Date.now()): Data {
   batches.sort((a, b) => b.madeAt - a.madeAt);
 
   movements.sort((a, b) => b.at - a.at);
+  // Invoices are issued in the order sales were placed.
+  let invoice = 1200;
+  for (const o of [...orders].sort((a, b) => a.createdAt - b.createdAt)) o.invoiceNo = ++invoice;
   return {
+    seller: SELLER,
     products,
     lots,
     movements,
@@ -583,10 +643,11 @@ export function buildSeed(now = Date.now()): Data {
     orders,
     deliveries,
     routes: ROUTES,
+    riders: RIDERS,
     runs,
     zones,
     batches,
-    counters: { so, batch: lots.length },
+    counters: { so, batch: lots.length, invoice },
     seededAt: now,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, Factory, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
+import { Boxes, Building2, ChartColumn, Factory, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -8,6 +8,7 @@ import { clock, dayLong, tempBare } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER } from "@/lib/logic";
 import { STORAGE_KEY, useStore, useUi } from "@/lib/store";
+import { BottomNav } from "./BottomNav";
 import { Logo } from "./Logo";
 import { Toaster, cx } from "./ui";
 
@@ -16,7 +17,8 @@ const NAV = [
   { href: "/counter", label: "Counter", icon: ScanBarcode },
   { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/production", label: "Production", icon: Factory },
-  { href: "/dispatch", label: "Dispatch", icon: Truck },
+  { href: "/dispatch", label: "Delivery", icon: Truck },
+  { href: "/sales", label: "Sales", icon: ChartColumn },
   { href: "/orders", label: "Orders", icon: ReceiptText },
   { href: "/clients", label: "Clients", icon: Building2 },
 ];
@@ -141,29 +143,21 @@ export default function Shell({ children }: { children: ReactNode }) {
             <div className="flex shrink-0 items-center gap-3 py-2">
               <Logo height={30} className="lg:hidden" />
               <div className="leading-tight">
-                <div className="text-[14px] font-semibold whitespace-nowrap">{dayLong(now)}</div>
-                <div className="text-[13px] text-ink-3">{clock(now)}</div>
+                <div className="text-[14px] font-semibold whitespace-nowrap" suppressHydrationWarning>
+                  {dayLong(now)}
+                </div>
+                <div className="text-[13px] text-ink-3" suppressHydrationWarning>
+                  {clock(now)}
+                </div>
               </div>
             </div>
             {ready && <ZoneStrip />}
           </div>
-          <nav className="flex gap-1 overflow-x-auto border-t border-line px-2 py-1 lg:hidden scroll-thin">
-            {NAV.map((n) => {
-              const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
-              return (
-                <Link key={n.href} href={n.href} className={cx("rounded px-3 py-1.5 text-[14px] font-semibold whitespace-nowrap", active ? "bg-ink text-white" : "text-ink-2")}>
-                  {n.label}
-                </Link>
-              );
-            })}
-            <Link href="/driver" className="rounded px-3 py-1.5 text-[14px] font-semibold whitespace-nowrap text-ink-2">
-              Driver
-            </Link>
-          </nav>
         </div>
-        <main className="min-w-0 flex-1 px-4 py-6 lg:px-6">{ready ? children : <Boot />}</main>
+        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-6 lg:pb-6">{ready ? children : <Boot />}</main>
       </div>
-      <Toaster />
+      <BottomNav />
+      <Toaster aboveNav />
     </div>
   );
 }

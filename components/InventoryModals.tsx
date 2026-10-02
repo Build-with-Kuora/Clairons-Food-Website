@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { capitalize, unitPlural, units } from "@/lib/format";
 import { ZONES, zoneOfBin } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Lot } from "@/lib/types";
@@ -10,6 +11,7 @@ const BY = "Inventory";
 
 export function AdjustModal({ lot, onClose }: { lot: Lot | null; onClose: () => void }) {
   const adjust = useStore((s) => s.adjust);
+  const unit = useStore((s) => s.products.find((p) => p.sku === lot?.sku)?.unit ?? "unit");
   const toast = useUi((s) => s.toast);
   const [mode, setMode] = useState<"COUNT" | "WASTE">("COUNT");
   const [val, setVal] = useState("");
@@ -21,7 +23,7 @@ export function AdjustModal({ lot, onClose }: { lot: Lot | null; onClose: () => 
   function save() {
     if (!lot || delta === 0) return;
     adjust(lot.id, delta, mode === "COUNT" ? "ADJUST" : "WASTE", note || (mode === "COUNT" ? "Cycle count" : "Damaged"), BY);
-    toast(`Lot ${lot.code} ${delta > 0 ? "+" : ""}${delta} cs`);
+    toast(`Lot ${lot.code} ${delta > 0 ? "+" : "−"}${units(Math.abs(delta), unit)}`);
     setVal("");
     setNote("");
     onClose();
@@ -50,11 +52,11 @@ export function AdjustModal({ lot, onClose }: { lot: Lot | null; onClose: () => 
         ))}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={mode === "COUNT" ? "Cases counted in bin" : "Cases to write off"} hint={`System shows ${lot.qty} cs in ${lot.bin}.`}>
+        <Field label={mode === "COUNT" ? `${capitalize(unitPlural(unit))} counted in bin` : `${capitalize(unitPlural(unit))} to write off`} hint={`System shows ${units(lot.qty, unit)} in ${lot.bin}.`}>
           <input className="input" inputMode="numeric" value={val} onChange={(e) => setVal(e.target.value.replace(/\D/g, ""))} autoFocus />
         </Field>
         <div className="pt-6 text-[14px]">
-          Change: <span className={`font-semibold ${delta < 0 ? "text-bad" : delta > 0 ? "text-good" : ""}`}>{delta > 0 ? "+" : ""}{delta} cs</span>
+          Change: <span className={`font-semibold ${delta < 0 ? "text-bad" : delta > 0 ? "text-good" : ""}`}>{delta > 0 ? "+" : ""}{delta} {Math.abs(delta) === 1 ? unit : unitPlural(unit)}</span>
         </div>
         <Field label="Reason" className="col-span-2">
           <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={mode === "COUNT" ? "Cycle count" : "Crushed case, freezer burn, thawed…"} />
@@ -66,6 +68,7 @@ export function AdjustModal({ lot, onClose }: { lot: Lot | null; onClose: () => 
 
 export function MoveModal({ lot, onClose }: { lot: Lot | null; onClose: () => void }) {
   const moveLot = useStore((s) => s.moveLot);
+  const unit = useStore((s) => s.products.find((p) => p.sku === lot?.sku)?.unit ?? "unit");
   const toast = useUi((s) => s.toast);
   const [bin, setBin] = useState("");
   if (!lot) return null;
@@ -89,7 +92,7 @@ export function MoveModal({ lot, onClose }: { lot: Lot | null; onClose: () => vo
               onClose();
             }}
           >
-            Move {lot.qty} cs
+            Move {units(lot.qty, unit)}
           </button>
         </>
       }
@@ -141,7 +144,7 @@ export function HoldModal({ lot, onClose }: { lot: Lot | null; onClose: () => vo
           rows={3}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder={releasing ? "Core temp −17°C on 3 cases, no ice crystals. OK to sell." : "Metal detector reject, damaged packaging…"}
+          placeholder={releasing ? "Core temp −17°C on 3 samples, no ice crystals. OK to sell." : "Metal detector reject, damaged packaging…"}
           autoFocus
         />
       </Field>

@@ -163,7 +163,14 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
         </div>
         <div>
           <dt className="text-[12.5px] text-ink-3">Contact</dt>
-          <dd>{c.contact}</dd>
+          <dd>
+            {c.contact}
+            {c.email && <div className="text-ink-2">{c.email}</div>}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[12.5px] text-ink-3">TIN</dt>
+          <dd>{c.tin ?? <span className="text-ink-3">None on file</span>}</dd>
         </div>
         <div>
           <dt className="text-[12.5px] text-ink-3">Deliveries signed</dt>
@@ -195,7 +202,7 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
                       </div>
                       <div className={cx("text-[12.5px]", d.pod.productTempC > TRUCK_LIMIT_C ? "font-semibold text-bad" : "text-ink-3")}>
                         Product at {temp(d.pod.productTempC)}
-                        {d.pod.shorts.length > 0 && `, ${d.pod.shorts.reduce((s, x) => s + x.qty, 0)} cs returned`}
+                        {d.pod.shorts.length > 0 && `, ${d.pod.shorts.reduce((s, x) => s + x.qty, 0)} returned`}
                       </div>
                     </>
                   ) : d.exception ? (

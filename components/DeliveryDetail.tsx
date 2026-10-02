@@ -2,12 +2,14 @@
 
 import { Check, Phone } from "lucide-react";
 import { useState } from "react";
-import { MIN, clock, dateKey, dateTime, day, money, temp, tempBare } from "@/lib/format";
+import { MIN, clock, dateKey, dateTime, day, money, temp, tempBare, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { STATUS_FLOW, STATUS_LABEL, TRUCK_LIMIT_C, deliveryTrace, nextAction, runKey, statusAt } from "@/lib/logic";
+import { STATUS_FLOW, STATUS_LABEL, TRUCK_LIMIT_C, carrierOf, commonUnit, deliveryTrace, nextAction, runKey, statusAt } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Delivery } from "@/lib/types";
 import { TempTrace } from "./charts";
+import { AssignCarrier } from "./AssignCarrier";
+import { StopPlan } from "./StopPlan";
 import { ExceptionForm, PodForm } from "./Pod";
 import { Badge, Modal, Signature, StatusPill, cx } from "./ui";
 
@@ -23,7 +25,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
   const c = maps.client.get(d.clientId)!;
   const o = maps.order.get(d.orderId)!;
   const route = maps.route.get(d.routeId)!;
-  const run = runs[runKey(d.routeId, d.date)];
+  const carrier = carrierOf(d, maps.route, maps.rider);
+  const van = carrier.kind === "VAN";
+  const run = van ? runs[runKey(d.routeId, d.date)] : undefined;
   const trace = deliveryTrace(d, run, now);
   const peak = trace.reduce((m, t) => Math.max(m, t.c), -Infinity);
   let minutesOver = 0;
@@ -33,6 +37,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
   const canGo = d.status === "LOADED" && run?.departedAt;
   const final = d.status === "DELIVERED" || d.status === "EXCEPTION";
   const cases = o.lines.reduce((s, l) => s + l.qty, 0);
+  const unit = commonUnit(o.lines.map((l) => maps.product.get(l.sku)));
 
   const marks = [
     { at: statusAt(d, "LOADED"), label: "Loaded" },
@@ -53,7 +58,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             {c.address}, {c.city}
           </div>
           <div className="mt-0.5 text-[13.5px] text-ink-3">
-            Stop {d.seq} on {route.name}, window {c.window}
+            {van ? `Stop ${d.seq} on ${route.name}` : `Rider drop, ${carrier.person} (${carrier.vehicle})`}, window {c.window}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -79,6 +84,13 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
           )}
         </div>
       </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[13.5px]">
+        <span className="text-ink-3">Delivered by</span>
+        <AssignCarrier delivery={d} className="font-semibold" />
+      </div>
+
+      <StopPlan key={`${d.id}|${d.note ?? ""}`} delivery={d} />
 
       <div className="mt-3 rounded-md bg-sunk px-3 py-2 text-[13.5px] text-ink-2">
         <span className="font-semibold text-ink">Dock note:</span> {c.dockNote}
@@ -115,7 +127,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
         </div>
       )}
 
-      <section className="mt-6">
+      {van && <section className="mt-6">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="display text-[20px] font-semibold">Cold chain</h3>
           <div className="text-[13px] text-ink-3">
@@ -129,7 +141,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
           </div>
         </div>
         <TempTrace temps={trace} limit={TRUCK_LIMIT_C} marks={marks} />
-      </section>
+      </section>}
 
       {d.pod && (
         <section className="mt-6">
@@ -149,9 +161,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
                 <dd className={cx("font-semibold", d.pod.productTempC > TRUCK_LIMIT_C && "text-bad")}>{temp(d.pod.productTempC)}</dd>
               </div>
               <div>
-                <dt className="text-[12.5px] text-ink-3">Cases</dt>
+                <dt className="text-[12.5px] text-ink-3">Delivered</dt>
                 <dd className="font-semibold">
-                  {cases - d.pod.shorts.reduce((s, x) => s + x.qty, 0)} of {cases}
+                  {cases - d.pod.shorts.reduce((s, x) => s + x.qty, 0)} of {units(cases, unit)}
                 </dd>
               </div>
               {d.pod.collected !== undefined && (
@@ -176,7 +188,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             <ul className="mt-2 space-y-1">
               {d.pod.shorts.map((s) => (
                 <li key={s.sku} className="flex items-center gap-2 text-[13.5px]">
-                  <Badge tone="warn">−{s.qty} cs</Badge>
+                  <Badge tone="warn">−{units(s.qty, maps.product.get(s.sku)?.unit ?? "unit")}</Badge>
                   {maps.product.get(s.sku)?.name}, <span className="text-ink-3">{s.reason}</span>
                 </li>
               ))}
@@ -186,13 +198,13 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
       )}
 
       <section className="mt-6">
-        <h3 className="display mb-2 text-[20px] font-semibold">On this stop, {cases} cases</h3>
+        <h3 className="display mb-2 text-[20px] font-semibold">On this stop, {units(cases, unit)}</h3>
         <table className="tbl rounded-lg border border-line">
           <thead>
             <tr>
               <th>Product</th>
               <th>Lots</th>
-              <th className="r">Cases</th>
+              <th className="r">Qty</th>
             </tr>
           </thead>
           <tbody>
@@ -203,7 +215,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
                   <div className="code text-ink-3">{l.sku}</div>
                 </td>
                 <td className="code text-ink-2">{l.allocs.map((a) => `${a.lotCode}×${a.qty}`).join(" ")}</td>
-                <td className="r font-semibold">{l.qty}</td>
+                <td className="r font-semibold whitespace-nowrap">
+                  {l.qty} <span className="text-[12.5px] font-normal text-ink-3">{maps.product.get(l.sku)?.unit}</span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -229,7 +243,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
       </section>
 
       <Modal open={pod} onClose={() => setPod(false)} title={`Proof of delivery, ${c.name}`} width={600}>
-        <PodForm delivery={d} order={o} by={route.driver} onDone={() => setPod(false)} onCancel={() => setPod(false)} />
+        <PodForm delivery={d} order={o} by={carrier.person} onDone={() => setPod(false)} onCancel={() => setPod(false)} />
       </Modal>
       <Modal open={exc} onClose={() => setExc(false)} title="Report a delivery problem" width={480}>
         <ExceptionForm delivery={d} by={BY} onDone={() => setExc(false)} onCancel={() => setExc(false)} />

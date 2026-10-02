@@ -3,10 +3,10 @@
 import { Factory } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Badge, Empty, Field, PageHead, Panel, cx } from "@/components/ui";
-import { DAY, clock, dateTime, plural, startOfDay } from "@/lib/format";
+import { Empty, Field, LotBadge, PageHead, Panel, cx } from "@/components/ui";
+import { DAY, capitalize, clock, dateTime, plural, startOfDay, unitPlural, units } from "@/lib/format";
 import { queryParam, useStock, useToday } from "@/lib/hooks";
-import { producedBySku, toMake, zoneOfBin } from "@/lib/logic";
+import { BLAST_HOURS, commonUnit, producedBySku, toMake } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
 const BY = "Production line";
@@ -39,7 +39,8 @@ export default function Production() {
     e.preventDefault();
     const r = produce({ sku, qty: Number(qty), by: BY, note });
     if (!r.ok) return setError(r.error);
-    toast(`${r.batch.number}: ${r.batch.qty} cs ${product.get(r.batch.sku)?.name.toLowerCase()} into the blast freezer`);
+    const p = product.get(r.batch.sku);
+    toast(`${r.batch.number}: ${units(r.batch.qty, p?.unit ?? "unit")} ${p?.name.toLowerCase()} into the blast freezer`);
     setQty("");
     setNote("");
     setError("");
@@ -54,7 +55,7 @@ export default function Production() {
 
   return (
     <div className="mx-auto max-w-[1400px]">
-      <PageHead title="Production" sub={`${plural(madeToday.length, "batch", "batches")} today, ${plural(casesToday, "case")} made. Finished batches go straight to the blast freezer and into stock.`} />
+      <PageHead title="Production" sub={`${plural(madeToday.length, "batch", "batches")} today, ${units(casesToday, commonUnit(madeToday.map((b) => product.get(b.sku))))} made. Finished batches go into the blast freezer and can be sold once frozen, ${BLAST_HOURS} hours later.`} />
 
       <div className="mb-5 grid items-start gap-5 xl:grid-cols-[380px_1fr]">
         <Panel title="Record a batch">
@@ -62,14 +63,17 @@ export default function Production() {
             <Field label="Product">
               <select className="input" value={sku} onChange={(e) => setSku(e.target.value)} required>
                 <option value="">Choose a product…</option>
-                {products.map((p) => (
+                {products.filter((p) => p.active || p.sku === sku).map((p) => (
                   <option key={p.sku} value={p.sku}>
                     {p.sku} {p.name}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Cases made" hint={sku ? `${product.get(sku)?.pack} per case. ${rows.get(sku)?.available ?? 0} cs free to sell now.` : undefined}>
+            <Field
+              label={sku ? `${capitalize(unitPlural(product.get(sku)?.unit ?? "unit"))} made` : "Quantity made"}
+              hint={sku ? `${product.get(sku)?.pack} per ${product.get(sku)?.unit}. ${units(rows.get(sku)?.available ?? 0, product.get(sku)?.unit ?? "unit")} free to sell now.` : undefined}
+            >
               <input id="batch-qty" className="input" type="number" inputMode="numeric" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} required />
             </Field>
             <Field label="Note (optional)">
@@ -107,7 +111,7 @@ export default function Production() {
                         <span className={cx("font-semibold", row.available <= 0 ? "text-bad" : "text-warn")}>{row.available}</span>
                         <span className="text-ink-3"> / {row.product.reorderPoint}</span>
                       </td>
-                      <td className="r display text-[18px] font-semibold whitespace-nowrap">{q} cs</td>
+                      <td className="r display text-[18px] font-semibold whitespace-nowrap">{units(q, row.product.unit)}</td>
                       <td className="r">
                         <button className="btn btn-ghost btn-sm" onClick={() => prefill(row.product.sku, q)}>
                           Use
@@ -134,7 +138,7 @@ export default function Production() {
                     <th>Made</th>
                     <th>Batch</th>
                     <th>Product</th>
-                    <th className="r">Cases</th>
+                    <th className="r">Qty</th>
                     <th>Lot</th>
                     <th>Status</th>
                   </tr>
@@ -142,7 +146,6 @@ export default function Production() {
                 <tbody>
                   {batches.map((b) => {
                     const lot = lotById.get(b.lotId);
-                    const blasting = lot && zoneOfBin(lot.bin) === "BLAST";
                     return (
                       <tr key={b.id}>
                         <td className="whitespace-nowrap">{b.madeAt >= dayStart ? clock(b.madeAt) : dateTime(b.madeAt)}</td>
@@ -153,9 +156,11 @@ export default function Production() {
                           </Link>
                           {b.note && <div className="text-[12.5px] text-ink-3">{b.note}</div>}
                         </td>
-                        <td className="r font-semibold">{b.qty}</td>
+                        <td className="r font-semibold whitespace-nowrap">
+                          {b.qty} <span className="text-[12.5px] font-normal text-ink-3">{product.get(b.sku)?.unit}</span>
+                        </td>
                         <td className="code text-ink-2">{lot?.code}</td>
-                        <td>{lot?.status === "HOLD" ? <Badge tone="bad">QA hold</Badge> : blasting ? <Badge tone="accent">Blast freezing</Badge> : <Badge>In stock</Badge>}</td>
+                        <td>{lot && <LotBadge lot={lot} now={now} sellable="In stock" />}</td>
                       </tr>
                     );
                   })}
@@ -165,7 +170,7 @@ export default function Production() {
           )}
         </Panel>
 
-        <Panel title="Produced by product" actions={<span className="text-[13px] text-ink-3">Cases</span>} bodyClass="p-0">
+        <Panel title="Produced by product" actions={<span className="text-[13px] text-ink-3">In each product&rsquo;s unit</span>} bodyClass="p-0">
           {summary.length === 0 ? (
             <Empty title="Nothing made in the last 7 days" />
           ) : (

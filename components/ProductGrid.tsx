@@ -3,9 +3,9 @@
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { DAY, money0, startOfDay } from "@/lib/format";
-import { useStock } from "@/lib/hooks";
-import { soldBySku } from "@/lib/logic";
+import { DAY, money0, startOfDay, unitPlural, units } from "@/lib/format";
+import { useSales, useStock } from "@/lib/hooks";
+import { priceUnit, soldBySku } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Category } from "@/lib/types";
 import { Panel, cx } from "./ui";
@@ -22,11 +22,12 @@ const TOP = 8;
 
 /**
  * Dashboard product cards from the client's sketch: price in the upper-left box,
- * cases sold as the big number, stock left in the lower-right box.
+ * units sold as the big number, stock left in the lower-right box.
  */
 export function ProductGrid({ now }: { now: number }) {
-  const products = useStore((s) => s.products);
-  const orders = useStore((s) => s.orders);
+  const allProducts = useStore((s) => s.products);
+  const products = useMemo(() => allProducts.filter((x) => x.active), [allProducts]);
+  const sales = useSales();
   const { rows } = useStock();
   const [period, setPeriod] = useState<PeriodId>("day");
   const [cat, setCat] = useState<Category | "All">("All");
@@ -36,7 +37,7 @@ export function ProductGrid({ now }: { now: number }) {
   const p = PERIODS.find((x) => x.id === period)!;
   const since = startOfDay(now) - (p.days - 1) * DAY;
 
-  const sold = useMemo(() => soldBySku(orders, since), [orders, since]);
+  const sold = useMemo(() => soldBySku(sales, since), [sales, since]);
 
   const cats = useMemo(() => ["All" as const, ...new Set(products.map((x) => x.category))], [products]);
   const needle = q.trim().toLowerCase();
@@ -98,18 +99,20 @@ export function ProductGrid({ now }: { now: number }) {
               key={x.sku}
               href={`/inventory?sku=${x.sku}`}
               className="flex min-w-0 flex-col rounded-md border border-line bg-panel p-2.5 transition-colors hover:border-ink-3"
-              aria-label={`${x.name}: ${money0(x.price.C)} per ${x.catchWeight ? "kg" : "case"}, ${n} ${p.sold}, ${left} cases left`}
+              aria-label={`${x.name}: ${money0(x.price.C)} per ${priceUnit(x)}, ${units(n, x.unit)} ${p.sold}, ${units(left, x.unit)} left`}
             >
               <span className="self-start rounded bg-ink px-1.5 py-0.5 text-[13px] leading-tight font-semibold text-white">
                 {money0(x.price.C)}
-                <span className="font-normal text-white/70">/{x.catchWeight ? "kg" : "cs"}</span>
+                <span className="font-normal text-white/70">/{priceUnit(x)}</span>
               </span>
               <span className="mt-2 line-clamp-2 min-h-[2.7em] text-[14px] leading-snug font-semibold">{x.name}</span>
               <span className="code text-ink-3">{x.sku}</span>
               <span className="mt-2 flex items-end justify-between gap-2">
                 <span className="min-w-0">
                   <span className={cx("display block text-[36px] leading-none font-semibold", n === 0 && "text-ink-3")}>{n}</span>
-                  <span className="block text-[12px] text-ink-3">cs {p.sold}</span>
+                  <span className="block text-[12px] text-ink-3">
+                    {n === 1 ? x.unit : unitPlural(x.unit)} {p.sold}
+                  </span>
                 </span>
                 <span
                   className={cx(
@@ -131,7 +134,7 @@ export function ProductGrid({ now }: { now: number }) {
           {showAll ? "Show top sellers only" : `Show all ${list.length} products`}
         </button>
       )}
-      <p className="mt-2 text-[12.5px] text-ink-3">List price per case (per kg for catch weight). &ldquo;Left&rdquo; is free to sell: on hand minus stock already reserved for orders.</p>
+      <p className="mt-2 text-[12.5px] text-ink-3">List price per selling unit (per kg for catch weight). &ldquo;Left&rdquo; is free to sell: on hand minus stock already reserved for orders.</p>
     </Panel>
   );
 }

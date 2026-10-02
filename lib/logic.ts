@@ -5,14 +5,21 @@ import type {
   Delivery,
   DeliveryStatus,
   Lot,
+  Category,
   Order,
   PayMethod,
   Product,
+  ProductInput,
+  ReceiptChannel,
+  Seller,
+  Rider,
+  Route,
   Run,
   Terms,
   Tier,
   ZoneId,
 } from "./types";
+import { DAY, HOUR, dateKey, dateTime, invoiceNumber, keyToTs, money, startOfDay } from "./format";
 
 export const ZONES: Record<ZoneId, { name: string; setPointC: number; maxC: number; color: string; prefix: string }> = {
   BLAST: { name: "Blast freezer", setPointC: -35, maxC: -28, color: "var(--color-z-blast)", prefix: "B" },
@@ -31,11 +38,75 @@ export function zoneOfBin(bin: string): ZoneId {
 /** Warmest core temperature a batch may have when put away, by storage zone. Warmer goes on QA hold. */
 export const coreLimitC = (zone: ZoneId) => (zone === "COOL" ? 5 : FROZEN_LIMIT_C);
 
+/** Hours a fresh batch spends in the blast freezer before it can be put away and sold. */
+export const BLAST_HOURS = 24;
+
+export const isFreezing = (l: Lot) => zoneOfBin(l.bin) === "BLAST";
+export const readyAt = (l: Lot) => l.madeAt + BLAST_HOURS * HOUR;
+
 /** Frozen product targets −18°C; it may drift briefly but never above −15°C. */
 export const FROZEN_LIMIT_C = -15;
 
 /** Ref vans run frozen loads; anything warmer than this in the box is an excursion. */
 export const TRUCK_LIMIT_C = FROZEN_LIMIT_C;
+
+/** Prices are per kg for catch-weight items, otherwise per selling unit. */
+export const priceUnit = (p: Product) => (p.catchWeight ? "kg" : p.unit);
+
+/** The unit a set of products share, or "unit" when they differ. For totals across products. */
+export function commonUnit(products: Iterable<Product | undefined>) {
+  const set = new Set<string>();
+  for (const p of products) if (p) set.add(p.unit);
+  return set.size === 1 ? [...set][0] : "unit";
+}
+
+export const SKU_PREFIX: Record<Category, string> = {
+  Dimsum: "DM",
+  Streetfood: "ST",
+  "Tocino & longganisa": "BR",
+  Pork: "PK",
+  Poultry: "PL",
+  Seafood: "SE",
+  Desserts: "DE",
+  Bakery: "BK",
+  Fries: "FR",
+  Chiller: "CH",
+};
+
+export const CATEGORIES = Object.keys(SKU_PREFIX) as Category[];
+
+/** Zones a product can call home. The blast freezer is only a stop on the way in. */
+export const HOME_ZONES: ZoneId[] = ["DEEP", "FRZ", "COOL"];
+
+/** Next free SKU in a category: one past the highest number already used with its prefix. */
+export function nextSku(products: Product[], category: Category) {
+  const prefix = SKU_PREFIX[category];
+  const nums = products.filter((p) => p.sku.startsWith(`${prefix}-`)).map((p) => Number(p.sku.slice(prefix.length + 1)) || 0);
+  const base = { DM: 1000, ST: 2000, BR: 3000, PK: 4000, PL: 5000, SE: 6000, DE: 7000, BK: 8000, FR: 8500, CH: 9000 }[prefix] ?? 0;
+  return `${prefix}-${Math.max(base, ...nums) + 1}`;
+}
+
+const isWhole = (n: number) => Number.isInteger(n) && n >= 0;
+
+/** What is wrong with a product before it is saved, or null when it is fine. */
+export function productError(i: ProductInput, products: Product[]): string | null {
+  const name = i.name.trim();
+  if (!name) return "Enter the product name.";
+  const twin = products.find((p) => p.sku !== i.sku && p.name.toLowerCase() === name.toLowerCase());
+  if (twin) return `${twin.sku} already uses that name.`;
+  if (!i.unit.trim()) return "Enter the selling unit, e.g. case, pack or tray.";
+  if (!/^[a-z][a-z -]*$/i.test(i.unit.trim()) || i.unit.trim().length > 16) return "Write the unit as a short word, e.g. case, pack or tray.";
+  if (!i.pack.trim()) return `Say what is inside one ${i.unit.trim()}, e.g. 10 × 50 pcs.`;
+  if (!(i.caseKg > 0)) return `Enter the weight of one ${i.unit.trim()} in kg.`;
+  for (const t of ["A", "B", "C"] as const) if (!(i.price[t] > 0)) return `Enter a tier ${t} price.`;
+  if (!(i.cost >= 0)) return "Production cost can't be negative.";
+  if (!isWhole(i.reorderPoint)) return "Reorder point must be a whole number.";
+  if (!isWhole(i.par) || i.par <= i.reorderPoint) return "Par level must be a whole number above the reorder point.";
+  if (!isWhole(i.shelfDays) || i.shelfDays < 1) return "Shelf life must be at least 1 day.";
+  if (!HOME_ZONES.includes(i.zone)) return "Pick where the product is stored.";
+  if (!i.bin.trim() || i.bin.trim().charAt(0).toUpperCase() !== ZONES[i.zone].prefix) return `Home bin must be in ${ZONES[i.zone].name.toLowerCase()}, starting with ${ZONES[i.zone].prefix}-.`;
+  return null;
+}
 
 export const caseCost = (p: Product) => (p.catchWeight ? p.cost * p.caseKg : p.cost);
 export const casePrice = (p: Product, tier: Tier) => (p.catchWeight ? p.price[tier] * p.caseKg : p.price[tier]);
@@ -60,6 +131,8 @@ export interface StockRow {
   onHand: number;
   reserved: number;
   held: number;
+  /** Still in the blast freezer, not sellable yet */
+  freezing: number;
   available: number;
   lots: Lot[];
   nextBestBy?: number;
@@ -79,12 +152,14 @@ export function stockRows(products: Product[], lots: Lot[], reserved: Record<str
     const ls = (bySku.get(p.sku) ?? []).sort((a, b) => a.bestBy - b.bestBy);
     let onHand = 0;
     let held = 0;
+    let freezing = 0;
     let res = 0;
     let nextBestBy: number | undefined;
     for (const l of ls) {
       onHand += l.qty;
       res += reserved[l.id] ?? 0;
       if (l.status === "HOLD" || l.bestBy <= now) held += l.qty;
+      else if (isFreezing(l)) freezing += l.qty;
       else if (nextBestBy === undefined) nextBestBy = l.bestBy;
     }
     rows.set(p.sku, {
@@ -92,7 +167,8 @@ export function stockRows(products: Product[], lots: Lot[], reserved: Record<str
       onHand,
       reserved: res,
       held,
-      available: Math.max(0, onHand - held - res),
+      freezing,
+      available: Math.max(0, onHand - held - freezing - res),
       lots: ls,
       nextBestBy,
       value: onHand * caseCost(p),
@@ -101,7 +177,7 @@ export function stockRows(products: Product[], lots: Lot[], reserved: Record<str
   return rows;
 }
 
-/** First-expired, first-out. Returns null when there is not enough sellable stock. */
+/** First-expired, first-out, from lots that are released, in date and out of the blast freezer. Returns null when there is not enough sellable stock. */
 export function allocateFEFO(
   lots: Lot[],
   sku: string,
@@ -110,7 +186,7 @@ export function allocateFEFO(
   now = Date.now(),
 ): Alloc[] | null {
   const candidates = lots
-    .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.bestBy > now && l.qty > 0)
+    .filter((l) => l.sku === sku && l.status === "AVAILABLE" && l.bestBy > now && l.qty > 0 && !isFreezing(l))
     .sort((a, b) => a.bestBy - b.bestBy);
   const out: Alloc[] = [];
   let left = qty;
@@ -125,27 +201,103 @@ export function allocateFEFO(
   return left > 0 ? null : out;
 }
 
-/** Cases sold per SKU on orders placed since `since` (cancelled orders excluded). */
-export function soldBySku(orders: Order[], since: number) {
-  const out = new Map<string, number>();
+/** Paid when the order is placed, so it counts as a sale right away. */
+const PAID_UPFRONT: PayMethod[] = ["CASH", "CARD", "CHECK", "GCASH"];
+
+export interface Sale {
+  orderId: string;
+  clientId: string;
+  at: number;
+  lines: { sku: string; qty: number; amount: number }[];
+  fees: number;
+  total: number;
+}
+
+/**
+ * Orders that count as sales (decision 0.6). Walk-ins and orders paid upfront count when placed;
+ * deliveries on account or COD count when delivered. Cases refused at the door are not sold.
+ */
+export function salesOf(orders: Order[], deliveries: Delivery[]): Sale[] {
+  const byId = new Map(deliveries.map((d) => [d.id, d]));
+  const out: Sale[] = [];
   for (const o of orders) {
-    if (o.status === "CANCELLED" || o.createdAt < since) continue;
-    for (const l of o.lines) out.set(l.sku, (out.get(l.sku) ?? 0) + l.qty);
+    if (o.status === "CANCELLED") continue;
+    const d = o.deliveryId ? byId.get(o.deliveryId) : undefined;
+    const at = o.fulfillment === "PICKUP" || PAID_UPFRONT.includes(o.payMethod) ? o.createdAt : d?.pod?.at;
+    if (at === undefined) continue;
+    const refused = new Map<string, number>();
+    for (const sh of d?.pod?.shorts ?? []) refused.set(sh.sku, (refused.get(sh.sku) ?? 0) + sh.qty);
+    const lines = o.lines
+      .map((l) => {
+        const qty = Math.max(0, l.qty - (refused.get(l.sku) ?? 0));
+        return { sku: l.sku, qty, amount: round2((l.lineTotal * qty) / l.qty) };
+      })
+      .filter((l) => l.qty > 0);
+    const fees = o.dropFee + o.fuel;
+    out.push({ orderId: o.id, clientId: o.clientId, at, lines, fees, total: round2(lines.reduce((t, l) => t + l.amount, 0) + fees) });
   }
   return out;
 }
 
-/** Cases produced per SKU in batches made since `since`. */
+/** Units sold per SKU since `since`. */
+export function soldBySku(sales: Sale[], since: number) {
+  const out = new Map<string, number>();
+  for (const s of sales) {
+    if (s.at < since) continue;
+    for (const l of s.lines) out.set(l.sku, (out.get(l.sku) ?? 0) + l.qty);
+  }
+  return out;
+}
+
+export const VAT_RATE = 0.12;
+
+/** Prices are VAT-inclusive: split a gross amount into VATable sales and the VAT inside it. */
+export function vatSplit(gross: number) {
+  const net = round2(gross / (1 + VAT_RATE));
+  return { net, vat: round2(gross - net) };
+}
+
+export interface ProductSales {
+  sku: string;
+  qty: number;
+  amount: number;
+  /** Sales this product appeared in */
+  orders: number;
+}
+
+/** Sales that counted between `from` (inclusive) and `to` (exclusive), per product, plus the delivery fees charged. */
+export function salesSummary(sales: Sale[], from: number, to: number) {
+  const bySku = new Map<string, ProductSales>();
+  let fees = 0;
+  let count = 0;
+  for (const s of sales) {
+    if (s.at < from || s.at >= to) continue;
+    count++;
+    fees += s.fees;
+    for (const l of s.lines) {
+      const r = bySku.get(l.sku) ?? { sku: l.sku, qty: 0, amount: 0, orders: 0 };
+      r.qty += l.qty;
+      r.amount = round2(r.amount + l.amount);
+      r.orders++;
+      bySku.set(l.sku, r);
+    }
+  }
+  const rows = [...bySku.values()].sort((a, b) => b.amount - a.amount || a.sku.localeCompare(b.sku));
+  const products = round2(rows.reduce((t, r) => t + r.amount, 0));
+  return { rows, count, cases: rows.reduce((t, r) => t + r.qty, 0), products, fees: round2(fees), total: round2(products + fees) };
+}
+
+/** Units produced per SKU in batches made since `since`. */
 export function producedBySku(batches: Batch[], since: number) {
   const out = new Map<string, number>();
   for (const b of batches) if (b.madeAt >= since) out.set(b.sku, (out.get(b.sku) ?? 0) + b.qty);
   return out;
 }
 
-/** What to make next: products whose free stock is under the reorder point, topped back up to par. */
+/** What to make next: active products whose free stock is under the reorder point, topped back up to par. */
 export function toMake(rows: Iterable<StockRow>) {
   return [...rows]
-    .filter((r) => r.available < r.product.reorderPoint)
+    .filter((r) => r.product.active && r.available < r.product.reorderPoint)
     .map((r) => ({ row: r, qty: r.product.par - r.available }))
     .sort((a, b) => a.row.available / a.row.product.reorderPoint - b.row.available / b.row.product.reorderPoint);
 }
@@ -216,6 +368,58 @@ export const PAY_LABEL: Record<PayMethod, string> = {
   COD: "Collect on delivery",
 };
 
+/** Why a receipt can't go to this address or number, or null when it can. */
+export function receiptToError(channel: ReceiptChannel, to: string): string | null {
+  const v = to.trim();
+  if (channel === "EMAIL") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : "Enter an e-mail address, e.g. name@example.com.";
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 13 ? null : "Enter a mobile number, e.g. 0917 555 1234.";
+}
+
+/** The receipt as plain text: one short line for SMS, the full breakdown for e-mail. */
+export function receiptMessage(o: Order, buyer: Client, seller: Seller, channel: ReceiptChannel) {
+  const no = invoiceNumber(o.invoiceNo);
+  const v = vatSplit(o.total);
+  const status = o.paid ? "Paid" : o.payMethod === "COD" ? "Pay on delivery" : "Charged to your account";
+  const subject = `${seller.tradeName} sales invoice ${no}`;
+  if (channel === "SMS") {
+    const items = o.lines.reduce((t, l) => t + l.qty, 0);
+    return { subject, body: `${seller.tradeName}: invoice ${no}, ${dateTime(o.createdAt)}. ${items} items, total ${money(o.total)} incl. VAT ${money(v.vat)}. ${status}. Thank you!` };
+  }
+  const lines = o.lines.map((l) => `${l.qty} × ${l.name} (${l.sku}) @ ${money(l.unitPrice)}${l.catchWeight ? "/kg" : ""} = ${money(l.lineTotal)}`);
+  const fees = [o.dropFee > 0 && `Small-drop fee ${money(o.dropFee)}`, o.fuel > 0 && `Fuel surcharge ${money(o.fuel)}`].filter(Boolean) as string[];
+  const body = [
+    `${seller.registeredName}`,
+    `VAT Reg. TIN ${seller.tin}`,
+    seller.address,
+    "",
+    `Sales invoice ${no}, order ${o.number}`,
+    `Date: ${dateTime(o.createdAt)}`,
+    `Sold to: ${buyer.name}${buyer.tin ? `, TIN ${buyer.tin}` : ""}`,
+    `${buyer.address}, ${buyer.city}`,
+    "",
+    ...lines,
+    ...fees,
+    "",
+    `VATable sales: ${money(v.net)}`,
+    "VAT-exempt sales: ₱0.00",
+    "Zero-rated sales: ₱0.00",
+    `VAT 12%: ${money(v.vat)}`,
+    `Total: ${money(o.total)}`,
+    `${PAY_LABEL[o.payMethod]}. ${status}.`,
+    ...(o.status === "CANCELLED" ? ["", "This invoice was cancelled."] : []),
+    "",
+    `Questions: ${seller.phone}, ${seller.email}`,
+  ].join("\n");
+  return { subject, body };
+}
+
+/** Opens the device's own SMS or mail app with the receipt filled in. */
+export function receiptHref(channel: ReceiptChannel, to: string, msg: { subject: string; body: string }) {
+  if (channel === "SMS") return `sms:${to.replace(/[^\d+]/g, "")}?body=${encodeURIComponent(msg.body)}`;
+  return `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(msg.subject)}&body=${encodeURIComponent(msg.body)}`;
+}
+
 export const runKey = (routeId: string, date: string) => `${routeId}|${date}`;
 
 /** Reefer readings that cover this delivery: from load until hand-off (or now). */
@@ -236,10 +440,72 @@ export function nextAction(d: Delivery): { to: DeliveryStatus; label: string } |
     case "SCHEDULED":
       return { to: "PICKING", label: "Start picking" };
     case "PICKING":
-      return { to: "LOADED", label: "Mark loaded" };
+      return { to: "LOADED", label: d.riderId ? "Mark packed" : "Mark loaded" };
+    case "LOADED":
+      // Vans leave together when the truck is dispatched; a rider takes each stop on its own.
+      return d.riderId ? { to: "EN_ROUTE", label: "Hand to rider" } : null;
     case "EN_ROUTE":
       return { to: "ARRIVED", label: "Mark arrived" };
     default:
       return null;
   }
+}
+
+/** A stop can change hands until it leaves the building. */
+export const ASSIGNABLE: DeliveryStatus[] = ["SCHEDULED", "PICKING", "LOADED"];
+
+/** A stop can move to another day until its stock is loaded, since loading takes it off the shelf. */
+export const RESCHEDULABLE: DeliveryStatus[] = ["SCHEDULED", "PICKING"];
+
+/** Vans and riders run Monday to Saturday. */
+export const isDeliveryDay = (key: string) => new Date(keyToTs(key)).getDay() !== 0;
+
+/** The next `n` delivery days as yyyy-mm-dd, starting today or tomorrow. Noon keeps daylight saving off the boundary. */
+export function deliveryDays(now: number, n: number, fromToday = false) {
+  const out: string[] = [];
+  let t = startOfDay(now) + (fromToday ? 0 : DAY) + 12 * HOUR;
+  while (out.length < n) {
+    const k = dateKey(t);
+    if (isDeliveryDay(k)) out.push(k);
+    t += DAY;
+  }
+  return out;
+}
+
+/** Why a stop can't move to `date`, or null when it can. `vanLeft` is whether the van on its route has left that day. */
+export function rescheduleError(d: Delivery, date: string, opts: { today: string; vanLeft: boolean; lots: Lot[]; order?: Order }) {
+  if (!RESCHEDULABLE.includes(d.status)) return "This stop is already loaded or on its way. Move it before it is loaded.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "Pick a date.";
+  if (date < opts.today) return "Pick today or a later day.";
+  if (!isDeliveryDay(date)) return "No deliveries on Sundays. Pick another day.";
+  if (!d.riderId && opts.vanLeft) return "The van has already left that day. Pick another day or give the stop to a rider.";
+  const byId = new Map(opts.lots.map((l) => [l.id, l]));
+  const end = keyToTs(date) + DAY;
+  for (const line of opts.order?.lines ?? []) {
+    for (const a of line.allocs) {
+      const lot = byId.get(a.lotId);
+      if (lot && lot.bestBy < end) return `Lot ${lot.code} of ${line.name} is past its best-by by then. Pick an earlier day.`;
+    }
+  }
+  return null;
+}
+
+export const NOTE_MAX = 300;
+
+/** The three steps riders and the phone table use, plus "problem". */
+export type SimpleStatus = "Pending" | "Out for delivery" | "Delivered" | "Problem";
+
+export function simpleStatus(s: DeliveryStatus): SimpleStatus {
+  if (s === "DELIVERED") return "Delivered";
+  if (s === "EXCEPTION") return "Problem";
+  if (s === "EN_ROUTE" || s === "ARRIVED") return "Out for delivery";
+  return "Pending";
+}
+
+/** Who carries a stop: the rider when one is assigned, otherwise the van on the client's route. */
+export function carrierOf(d: Delivery, routes: Map<string, Route>, riders: Map<string, Rider>) {
+  const rider = d.riderId ? riders.get(d.riderId) : undefined;
+  if (rider) return { kind: "RIDER" as const, person: rider.name, vehicle: rider.bike, label: `${rider.name}, motorbike` };
+  const r = routes.get(d.routeId);
+  return { kind: "VAN" as const, person: r?.driver ?? "", vehicle: r?.truck ?? "", label: `${r?.driver}, ${r?.truck}` };
 }

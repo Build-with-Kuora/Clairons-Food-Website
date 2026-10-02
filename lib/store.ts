@@ -2,18 +2,24 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { DAY, HOUR, dateKey, keyToTs, lotCode, uid } from "./format";
+import { DAY, HOUR, dateKey, keyToTs, lotCode, uid, unitPlural } from "./format";
 import {
+  ASSIGNABLE,
+  NOTE_MAX,
   allocateFEFO,
   freeBlastBin,
+  nextSku,
   orderTotals,
   priceLines,
+  productError,
+  receiptToError,
+  rescheduleError,
   reservedByLot,
   round2,
   runKey,
   zoneOfBin,
 } from "./logic";
-import { buildSeed, type Data } from "./seed";
+import { SELLER, buildSeed, type Data } from "./seed";
 import type {
   Batch,
   DeliveryStatus,
@@ -23,6 +29,10 @@ import type {
   OrderLine,
   PayMethod,
   Pod,
+  Product,
+  ProductInput,
+  ReceiptChannel,
+  Rider,
   Run,
 } from "./types";
 
@@ -44,6 +54,14 @@ export interface ProduceInput {
   note?: string;
 }
 
+export interface RiderInput {
+  id?: string;
+  name: string;
+  phone: string;
+  bike: string;
+  active: boolean;
+}
+
 interface Actions {
   reset(): void;
   tick(): void;
@@ -53,6 +71,17 @@ interface Actions {
   dispatchRoute(routeId: string, date: string, by: string): void;
   completeDelivery(deliveryId: string, pod: Omit<Pod, "at">, by: string): void;
   reportException(deliveryId: string, reason: string, note: string, by: string): void;
+  /** Give a stop to a rider, or back to the van on its route (riderId null). */
+  assignDelivery(deliveryId: string, riderId: string | null, by: string): { ok: true } | { ok: false; error: string };
+  saveRider(i: RiderInput): { ok: true; rider: Rider } | { ok: false; error: string };
+  /** Move a stop to another day before it is loaded. */
+  rescheduleDelivery(deliveryId: string, date: string, by: string): { ok: true } | { ok: false; error: string };
+  /** Set or clear dispatch's note on a stop. */
+  setDeliveryNote(deliveryId: string, note: string, by: string): { ok: true } | { ok: false; error: string };
+  /** Add a product, or edit one (including deactivating it). */
+  saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
+  /** Record that a copy of the receipt went to the buyer. */
+  logReceipt(orderId: string, channel: ReceiptChannel, to: string, by: string): { ok: true } | { ok: false; error: string };
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
@@ -62,6 +91,7 @@ interface Actions {
 export type Store = Data & Actions;
 
 const empty: Data = {
+  seller: SELLER,
   products: [],
   lots: [],
   movements: [],
@@ -69,10 +99,11 @@ const empty: Data = {
   orders: [],
   deliveries: [],
   routes: [],
+  riders: [],
   runs: {},
   zones: [],
   batches: [],
-  counters: { so: 0, batch: 0 },
+  counters: { so: 0, batch: 0, invoice: 0 },
   seededAt: 0,
 };
 
@@ -80,7 +111,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v3";
+export const STORAGE_KEY = "clairons-coldline-ph-v7";
 
 export const useStore = create<Store>()(
   persist(
@@ -117,13 +148,15 @@ export const useStore = create<Store>()(
         const client = s.clients.find((c) => c.id === i.clientId);
         if (!client) return { ok: false, error: "Pick a client first." };
         const qtyLines = i.lines.filter((l) => l.qty > 0);
-        if (!qtyLines.length) return { ok: false, error: "Add at least one case to the ticket." };
+        if (!qtyLines.length) return { ok: false, error: "Add at least one product to the ticket." };
 
         const reserved = reservedByLot(s.orders, s.deliveries);
         const lines: OrderLine[] = [];
+        const off = qtyLines.find((l) => s.products.find((p) => p.sku === l.sku)?.active === false);
+        if (off) return { ok: false, error: `${off.sku} is no longer sold. Take it off the ticket.` };
         for (const l of priceLines(s.products, client, qtyLines)) {
           const allocs = allocateFEFO(s.lots, l.sku, l.qty, reserved);
-          if (!allocs) return { ok: false, error: `Not enough sellable stock for ${l.sku}. Lower the quantity or check held lots.` };
+          if (!allocs) return { ok: false, error: `Not enough sellable stock for ${l.sku}. Lower the quantity, or check held lots and batches still in the blast freezer.` };
           for (const a of allocs) reserved[a.lotId] = (reserved[a.lotId] ?? 0) + a.qty;
           lines.push({ ...l, allocs });
         }
@@ -132,9 +165,11 @@ export const useStore = create<Store>()(
         const subtotal = round2(lines.reduce((t, l) => t + l.lineTotal, 0));
         const totals = orderTotals(subtotal, i.fulfillment);
         const n = s.counters.so + 1;
+        const invoiceNo = s.counters.invoice + 1;
         const order: Order = {
           id: `o-${n}`,
           number: `SO-${n}`,
+          invoiceNo,
           clientId: client.id,
           createdAt: now,
           by: i.by,
@@ -189,7 +224,7 @@ export const useStore = create<Store>()(
             ? s.clients.map((c) => (c.id === client.id ? { ...c, balance: round2(c.balance + order.total) } : c))
             : s.clients;
 
-        set({ orders: [...s.orders, order], lots, movements, deliveries, runs, clients, counters: { ...s.counters, so: n } });
+        set({ orders: [...s.orders, order], lots, movements, deliveries, runs, clients, counters: { ...s.counters, so: n, invoice: invoiceNo } });
         return { ok: true, order };
       },
 
@@ -252,7 +287,7 @@ export const useStore = create<Store>()(
             .slice()
             .sort((a, b) => a.seq - b.seq)
             .map((d) => {
-              if (d.routeId !== routeId || d.date !== date || d.status !== "LOADED") return d;
+              if (d.routeId !== routeId || d.riderId || d.date !== date || d.status !== "LOADED") return d;
               i++;
               return { ...d, status: "EN_ROUTE" as const, eta: now + i * 35 * 60_000, events: [...d.events, { status: "EN_ROUTE" as const, at: now, by }] };
             }),
@@ -312,11 +347,115 @@ export const useStore = create<Store>()(
         });
       },
 
+      assignDelivery: (deliveryId, riderId, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        if (!d) return { ok: false, error: "Stop not found." };
+        if ((d.riderId ?? null) === riderId) return { ok: true };
+        if (!ASSIGNABLE.includes(d.status)) return { ok: false, error: "This stop has already left. Reassign it before it goes out." };
+        const rider = riderId ? s.riders.find((r) => r.id === riderId) : undefined;
+        if (riderId && !rider?.active) return { ok: false, error: "Pick an active rider." };
+        const route = s.routes.find((r) => r.id === d.routeId);
+        if (!riderId && s.runs[runKey(d.routeId, d.date)]?.departedAt) return { ok: false, error: `${route?.truck} has already left. Keep this stop with a rider.` };
+        // Join the end of the new carrier's list for that day.
+        const seq =
+          Math.max(0, ...s.deliveries.filter((x) => x.date === d.date && x.id !== d.id && (riderId ? x.riderId === riderId : x.routeId === d.routeId && !x.riderId)).map((x) => x.seq)) + 1;
+        const note = rider ? `Assigned to rider ${rider.name}` : `Moved back to ${route?.truck}, ${route?.name}`;
+        set({
+          deliveries: s.deliveries.map((x) =>
+            x.id === deliveryId ? { ...x, riderId: riderId ?? undefined, seq, events: [...x.events, { status: x.status, at: Date.now(), by, note }] } : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      rescheduleDelivery: (deliveryId, date, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        if (!d) return { ok: false, error: "Stop not found." };
+        if (d.date === date) return { ok: true };
+        const k = runKey(d.routeId, date);
+        const error = rescheduleError(d, date, {
+          today: dateKey(Date.now()),
+          vanLeft: !!s.runs[k]?.departedAt,
+          lots: s.lots,
+          order: s.orders.find((o) => o.id === d.orderId),
+        });
+        if (error) return { ok: false, error };
+        // Join the end of the same carrier's list on the new day. Picking starts over on the day it goes.
+        const seq =
+          Math.max(0, ...s.deliveries.filter((x) => x.date === date && x.id !== d.id && (d.riderId ? x.riderId === d.riderId : x.routeId === d.routeId && !x.riderId)).map((x) => x.seq)) + 1;
+        const runs = d.riderId || s.runs[k] ? s.runs : { ...s.runs, [k]: { routeId: d.routeId, date, plannedDepart: keyToTs(date) + 5.5 * HOUR, temps: [] } };
+        const note = `Moved from ${d.date} to ${date}`;
+        set({
+          runs,
+          deliveries: s.deliveries.map((x) =>
+            x.id === deliveryId ? { ...x, date, seq, status: "SCHEDULED", eta: undefined, events: [...x.events, { status: "SCHEDULED", at: Date.now(), by, note }] } : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      setDeliveryNote: (deliveryId, note, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        if (!d) return { ok: false, error: "Stop not found." };
+        if (d.status === "DELIVERED" || d.status === "EXCEPTION") return { ok: false, error: "This stop is closed. Its note can't change now." };
+        const text = note.trim();
+        if (text.length > NOTE_MAX) return { ok: false, error: `Keep the note under ${NOTE_MAX} characters.` };
+        if (text === (d.note ?? "")) return { ok: true };
+        set({
+          deliveries: s.deliveries.map((x) =>
+            x.id === deliveryId ? { ...x, note: text || undefined, events: [...x.events, { status: x.status, at: Date.now(), by, note: text ? `Note: ${text}` : "Note removed" }] } : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      saveRider: (i) => {
+        const s = get();
+        const name = i.name.trim();
+        if (!name) return { ok: false, error: "Enter the rider's name." };
+        const twin = s.riders.find((r) => r.id !== i.id && r.name.toLowerCase() === name.toLowerCase());
+        if (twin) return { ok: false, error: `${twin.name} is already on the rider list.` };
+        const rider: Rider = { id: i.id ?? `rd-${uid()}`, name, phone: i.phone.trim(), bike: i.bike.trim(), active: i.active };
+        set({ riders: i.id ? s.riders.map((r) => (r.id === i.id ? rider : r)) : [...s.riders, rider] });
+        return { ok: true, rider };
+      },
+
+      saveProduct: (i) => {
+        const s = get();
+        if (i.sku && !s.products.some((p) => p.sku === i.sku)) return { ok: false, error: "Product not found." };
+        const error = productError(i, s.products);
+        if (error) return { ok: false, error };
+        const product: Product = {
+          ...i,
+          sku: i.sku ?? nextSku(s.products, i.category),
+          name: i.name.trim(),
+          unit: i.unit.trim().toLowerCase(),
+          pack: i.pack.trim(),
+          bin: i.bin.trim().toUpperCase(),
+        };
+        set({ products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product] });
+        return { ok: true, product };
+      },
+
+      logReceipt: (orderId, channel, to, by) => {
+        const s = get();
+        if (!s.orders.some((o) => o.id === orderId)) return { ok: false, error: "Order not found." };
+        const error = receiptToError(channel, to);
+        if (error) return { ok: false, error };
+        const send = { at: Date.now(), channel, to: to.trim(), by };
+        set({ orders: s.orders.map((o) => (o.id === orderId ? { ...o, receipts: [...(o.receipts ?? []), send] } : o)) });
+        return { ok: true };
+      },
+
       produce: (i) => {
         const s = get();
         const p = s.products.find((x) => x.sku === i.sku);
         if (!p) return { ok: false, error: "Pick a product." };
-        if (!Number.isInteger(i.qty) || i.qty <= 0) return { ok: false, error: "Enter how many cases were made." };
+        if (!p.active) return { ok: false, error: `${p.name} is inactive. Turn it back on under Inventory, Products, to make it.` };
+        if (!Number.isInteger(i.qty) || i.qty <= 0) return { ok: false, error: `Enter how many ${unitPlural(p.unit)} were made.` };
         const now = Date.now();
         const n = s.counters.batch + 1;
         const number = `PB-${String(n).padStart(4, "0")}`;

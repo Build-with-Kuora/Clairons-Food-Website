@@ -72,6 +72,17 @@ export function lotCode(ts: number, n: number) {
   return `${String(d.getFullYear()).slice(2)}${String(doy).padStart(3, "0")}-${String(n).padStart(2, "0")}`;
 }
 
+/** BIR-style sales invoice serial: SI 001234 */
+export const invoiceNumber = (n: number) => `SI ${String(n).padStart(6, "0")}`;
+
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${count(n)} ${n === 1 ? one : many}`;
+
+export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Plural of an owner-typed selling unit: case → cases, box → boxes. */
+export const unitPlural = (u: string) => (/(s|x|z|ch|sh)$/i.test(u) ? `${u}es` : `${u}s`);
+
+/** A quantity in its selling unit: "1 case", "12 tubs". */
+export const units = (n: number, unit: string) => plural(n, unit, unitPlural(unit));

@@ -8,15 +8,14 @@ import { DailyBars, Sparkline } from "@/components/charts";
 import { ProductGrid } from "@/components/ProductGrid";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, PageHead, Panel, cx } from "@/components/ui";
-import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, startOfDay, tempBare } from "@/lib/format";
-import { useMaps, useStock, useToday } from "@/lib/hooks";
+import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, tempBare, units } from "@/lib/format";
+import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, ZONES, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 
 export default function Today() {
   const { now, today } = useToday();
   const router = useRouter();
-  const orders = useStore((s) => s.orders);
   const deliveries = useStore((s) => s.deliveries);
   const runs = useStore((s) => s.runs);
   const routes = useStore((s) => s.routes);
@@ -27,8 +26,9 @@ export default function Today() {
   const { rows } = useStock();
 
   const dayStart = startOfDay(now);
-  const todays = orders.filter((o) => o.createdAt >= dayStart && o.status !== "CANCELLED");
-  const sales = todays.reduce((s, o) => s + o.total, 0);
+  const sales = useSales();
+  const todays = sales.filter((s) => s.at >= dayStart);
+  const soldToday = todays.reduce((t, s) => t + s.total, 0);
   const stopsToday = deliveries.filter((d) => d.date === today);
   const done = stopsToday.filter((d) => d.status === "DELIVERED").length;
   const exceptions = stopsToday.filter((d) => d.status === "EXCEPTION");
@@ -40,27 +40,27 @@ export default function Today() {
     for (let i = 13; i >= 0; i--) {
       const s = startOfDay(dayStart - i * DAY + 2 * 3_600_000);
       const e = s + DAY;
-      const os = orders.filter((o) => o.createdAt >= s && o.createdAt < e && o.status !== "CANCELLED");
+      const os = sales.filter((x) => x.at >= s && x.at < e);
       out.push({
         label: i === 0 ? "Today" : String(new Date(s).getDate()),
         sub: new Date(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
         value: os.reduce((t, o) => t + o.total, 0),
-        note: `${os.length} orders`,
+        note: `${plural(os.length, "sale")}`,
       });
     }
     return out;
-  }, [orders, dayStart]);
+  }, [sales, dayStart]);
 
   const avg = daily.slice(0, -1).filter((d) => d.value > 0);
   const avgSales = avg.length ? avg.reduce((s, d) => s + d.value, 0) / avg.length : 0;
 
-  const low = [...rows.values()].filter((r) => r.available < r.product.reorderPoint).sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
+  const low = [...rows.values()].filter((r) => r.product.active && r.available < r.product.reorderPoint).sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
   const expiring = lots.filter((l) => l.qty > 0 && daysUntil(l.bestBy, now) <= 30).sort((a, b) => a.bestBy - b.bestBy);
   const held = lots.filter((l) => l.qty > 0 && l.status === "HOLD");
   const overCredit = clients.filter((c) => c.pastDue > 0 || (c.creditLimit > 0 && c.balance > c.creditLimit * 0.9));
 
   const figures = [
-    { label: "Sold today", value: money0(sales), sub: `${todays.length} orders, 14-day avg ${money0(avgSales)}` },
+    { label: "Sold today", value: money0(soldToday), sub: `${plural(todays.length, "sale")} delivered or paid, 14-day avg ${money0(avgSales)}` },
     { label: "Stops delivered", value: `${done} of ${stopsToday.length}`, sub: exceptions.length ? `${exceptions.length} with an exception` : "No exceptions" , alert: exceptions.length > 0 },
     { label: "Trucks out", value: `${trucksOut} of ${routes.length}`, sub: "Ref vans on the road now" },
     { label: "Orders to pick", value: count(toPick), sub: "Scheduled or picking" },
@@ -98,7 +98,7 @@ export default function Today() {
         bodyClass="divide-y divide-line"
       >
         {routes.map((r) => {
-          const stops = stopsToday.filter((d) => d.routeId === r.id);
+          const stops = stopsToday.filter((d) => d.routeId === r.id && !d.riderId);
           const run = runs[runKey(r.id, today)];
           const last = run?.temps.at(-1);
           return (
@@ -173,7 +173,7 @@ export default function Today() {
             key: r.product.sku,
             href: `/inventory?sku=${r.product.sku}`,
             main: r.product.name,
-            side: `${r.available} cs left, reorder at ${r.product.reorderPoint}`,
+            side: `${units(r.available, r.product.unit)} left, reorder at ${r.product.reorderPoint}`,
           }))}
         />
         <AttentionList
@@ -185,7 +185,7 @@ export default function Today() {
             key: l.id,
             href: `/inventory?tab=lots`,
             main: maps.product.get(l.sku)?.name ?? l.sku,
-            side: `${l.qty} cs, lot ${l.code}, ${daysUntil(l.bestBy, now)} days`,
+            side: `${units(l.qty, maps.product.get(l.sku)?.unit ?? "unit")}, lot ${l.code}, ${daysUntil(l.bestBy, now)} days`,
           }))}
         />
         <AttentionList
