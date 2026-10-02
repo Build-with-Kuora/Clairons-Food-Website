@@ -76,7 +76,7 @@ These change what we build, so they come first.
 |---|---|---|---|
 | 5.1 | Delivery table: Rider · Customer · Amount | Done | Delivery → Table: one row per stop for the chosen day (rider or van driver, customer, order amount, simple status) with a total. Routes view keeps the stop lines per van. |
 | 5.2 | One rider can have several deliveries | Done | Several stops per van route or rider |
-| 5.3 | **[changed]** Deliveries are **created from an order**, not typed in freely. Editable on a delivery: rider, delivery date, status, notes. **Amount comes from the order** and can't be edited on the delivery. | Partial | Original said "add / edit delivery entries". A free-typed amount can't be tied to sales and inventory, which breaks 6.4. Deliveries are created from Counter orders. The rider (or van) can be changed until the stop leaves, from the table or the stop detail, and the change is logged. Changing the delivery date and adding delivery notes are not built yet. |
+| 5.3 | **[changed]** Deliveries are **created from an order**, not typed in freely. Editable on a delivery: rider, delivery date, status, notes. **Amount comes from the order** and can't be edited on the delivery. | Done | Original said "add / edit delivery entries". A free-typed amount can't be tied to sales and inventory, which breaks 6.4. Deliveries are created from Counter orders. On the stop detail: the rider (or van) can change until the stop leaves; the day can change until it is loaded (not to a Sunday, a past day, a van that already left, or past a lot's best-by), and it goes back to Scheduled at the end of that day's list; dispatch can leave a note for the driver until the stop is closed. The note shows on the Delivery table and the driver handheld. Every change is logged on the stop. Rules are `rescheduleError` in `lib/logic.ts`; store actions `rescheduleDelivery` and `setDeliveryNote`. |
 | 5.4 | Status per delivery: pending → out for delivery → delivered (plus "problem") | Done | Prototype has finer steps: Scheduled, Picking, Loaded, En route, Arrived, Delivered, Exception. The Delivery table shows the simple three plus Problem. |
 | 5.5 | Proof of delivery: who received, signature, amount collected (COD) | Done | |
 | 5.6 | Rider's own phone view | Done | `/driver`, for van drivers and riders |
@@ -150,8 +150,8 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now).
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3).
 
-1. **Delivery date and notes** (rest of 5.3): move a stop to another day and add a note on it, before it leaves.
-2. **Open decision** (0.7): get the e-commerce scope from the client before planning section 9.
-3. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
+Left out of the prototype for now: **e-commerce** (section 9). Its scope (0.7) is still open with the client.
+
+1. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
