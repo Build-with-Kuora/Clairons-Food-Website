@@ -37,15 +37,15 @@ These change what we build, so they come first.
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 2.1 | **[changed]** Grid of product cards: **2 per row on phones, 4 per row on tablet/desktop** | Missing | Original said 4 per row. On a phone that makes each card about 80 px wide holding 3 numbers, which is unreadable. The Counter page already has a product card grid we can reuse. |
-| 2.2 | Each card: product name, **products sold** (big number) | Missing | |
-| 2.3 | **[changed]** "Products sold" means **sold today**, with a date switch (today / this week / this month) | Missing | The original didn't say over what period. |
-| 2.4 | Upper-left box: price (decision 0.3) | Partial | Counter cards show price. |
-| 2.5 | Lower-right box: stock left (*bilin nga stock*). Shows **free to sell** stock, i.e. on hand minus already reserved for orders | Partial | Counter cards show "cs free". **[changed]** Raw on-hand would overstate what can be sold. |
-| 2.6 | Low stock is highlighted on the card | Partial | Counter cards turn amber when low. |
-| 2.7 | **[changed]** With many products: search and category filter on the grid | Missing | The sketch shows 4 products; the catalogue has 48 SKUs. |
+| 2.1 | **[changed]** Grid of product cards: **2 per row on phones, 4 per row on tablet/desktop** | Done | Original said 4 per row. On a phone that makes each card about 80 px wide holding 3 numbers, which is unreadable. `components/ProductGrid.tsx`. Shows the top 8 sellers, with "Show all". Each card opens the product in Inventory. |
+| 2.2 | Each card: product name, **products sold** (big number) | Done | Cases sold |
+| 2.3 | **[changed]** "Products sold" means **sold today**, with a date switch (today / 7 days / 30 days) | Done | The original didn't say over what period. Counts orders placed for now; switches to delivered/paid with 6.3. |
+| 2.4 | Upper-left box: price (decision 0.3) | Done | List price per case, or per kg for catch weight |
+| 2.5 | Lower-right box: stock left (*bilin nga stock*). Shows **free to sell** stock, i.e. on hand minus already reserved for orders | Done | **[changed]** Raw on-hand would overstate what can be sold. |
+| 2.6 | Low stock is highlighted on the card | Done | Amber below reorder point, red when out |
+| 2.7 | **[changed]** With many products: search and category filter on the grid | Done | The sketch shows 4 products; the catalogue has 48 SKUs. |
 | 2.8 | Owner can add / edit / deactivate products (name, price, unit, reorder level) | Missing | Products come from the seed only. |
-| 2.9 | Current dashboard content (routes, freezer temps, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. |
+| 2.9 | Current dashboard content (headline figures, routes, freezer temps, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. |
 
 ## 3. Inventory (finished goods)
 
@@ -126,10 +126,20 @@ These change what we build, so they come first.
 
 ---
 
+## Keeping the prototype ready for a real API
+
+The prototype has no backend yet, but every feature follows three rules. When the database lands, only `lib/store.ts` changes; the screens stay the same.
+
+1. **Rules live in `lib/logic.ts`** as pure functions: pricing, fees, first-expiry-first-out allocation, stock rollups, sold-per-product. The server reuses the same functions, so prototype and production behave identically.
+2. **Writes go through a store action** (`placeOrder`, `advance`, `receive`, …). Each action becomes one API endpoint, so components never change data directly.
+3. **Shapes live in `lib/types.ts`**, and the API returns exactly those types. The seed (`lib/seed.ts`) is the test fixture for the database.
+
+New features (Production, riders, products admin) add a type, a logic function where there is a rule, and a store action. They don't put logic inside a page.
+
 ## Suggested build order (prototype, no database)
 
 1. Get the open decisions (0.2, 0.4, 0.6, 0.7) from the client.
-2. Dashboard product grid (2.1–2.7), reusing the Counter card.
+2. ~~Dashboard product grid (2.1–2.7)~~ Done.
 3. Production page (4.1–4.3), recording batches as stock lots. Rework the seed so finished goods come from production runs instead of supplier POs (decision 0.1).
 4. Phone bottom navigation (1.3–1.4).
 5. Delivery table view and rider editing (5.1, 5.3, 5.7).
