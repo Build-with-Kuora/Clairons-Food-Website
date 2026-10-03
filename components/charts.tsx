@@ -107,35 +107,6 @@ export function DailyBars({
   );
 }
 
-export function Sparkline({
-  values,
-  setPoint,
-  alarm,
-  width = 132,
-  height = 34,
-}: {
-  values: number[];
-  setPoint: number;
-  alarm: number;
-  width?: number;
-  height?: number;
-}) {
-  if (!values.length) return null;
-  const lo = Math.min(...values, setPoint) - 1;
-  const hi = Math.max(...values, setPoint) + 1;
-  const x = (i: number) => (i / Math.max(1, values.length - 1)) * (width - 6) + 2;
-  const y = (v: number) => 3 + (1 - (v - lo) / (hi - lo)) * (height - 6);
-  const d = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join("");
-  const last = values.at(-1)!;
-  return (
-    <svg width={width} height={height} aria-hidden className="overflow-visible">
-      <line x1={0} x2={width} y1={y(setPoint)} y2={y(setPoint)} stroke="var(--color-line-2)" strokeDasharray="2 3" />
-      <path d={d} fill="none" stroke="var(--color-ink-2)" strokeWidth={1.75} strokeLinejoin="round" />
-      <circle cx={x(values.length - 1)} cy={y(last)} r={3} fill={last > alarm ? "var(--color-bad)" : "var(--color-ink)"} stroke="var(--color-panel)" strokeWidth={2} />
-    </svg>
-  );
-}
-
 /**
  * Ref van temperature against the frozen limit. The trace turns red only where it crosses the limit,
  * so an excursion reads at a glance without a legend.

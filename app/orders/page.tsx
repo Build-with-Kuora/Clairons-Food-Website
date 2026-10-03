@@ -95,7 +95,14 @@ export default function Orders() {
                     <td className="code font-medium">{o.number}</td>
                     <td className="code text-ink-2">{invoiceNumber(o.invoiceNo)}</td>
                     <td className="whitespace-nowrap text-ink-2">{dateTime(o.createdAt)}</td>
-                    <td className="font-semibold">{maps.client.get(o.clientId)?.name}</td>
+                    <td className="font-semibold">
+                      {maps.client.get(o.clientId)?.name}
+                      {o.channel === "ONLINE" && (
+                        <Badge tone="accent" className="ml-1.5 align-middle">
+                          Online
+                        </Badge>
+                      )}
+                    </td>
                     <td className="text-ink-2">
                       {o.fulfillment === "PICKUP" ? "Will-call" : d ? `${dayShort(keyToTs(d.date))}, ${d.riderId ? `rider ${maps.rider.get(d.riderId)?.name}` : maps.route.get(d.routeId)?.name}` : "Truck"}
                     </td>

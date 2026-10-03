@@ -3,17 +3,17 @@
 import { ArrowRight, Factory, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Sparkline } from "@/components/charts";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { capitalize, count, dateTime, day, daysUntil, money, money0, temp, tempBare, unitPlural, units } from "@/lib/format";
+import { useIsAdmin } from "@/lib/auth";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Category, Lot, MoveType, Product, ZoneId } from "@/lib/types";
 
-type Tab = "stock" | "lots" | "moves" | "zones" | "products";
+type Tab = "stock" | "lots" | "moves" | "products";
 
 const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"> = {
   PRODUCE: "good",
@@ -46,6 +46,8 @@ export default function Inventory() {
   const lots = useStore((s) => s.lots);
   const products = useStore((s) => s.products);
   const now = useNow();
+  const admin = useIsAdmin();
+  const [adding, setAdding] = useState(false);
 
   const all = [...rows.values()];
   const totalCases = all.reduce((s, r) => s + r.onHand, 0);
@@ -60,11 +62,19 @@ export default function Inventory() {
         title="Inventory"
         sub={`${all.length} SKUs, ${units(totalCases, commonUnit(products))} on hand, ${money0(value)} at cost.`}
         actions={
-          <Link href="/production" className="btn btn-primary">
-            <Factory size={16} /> Record batch
-          </Link>
+          <>
+            {admin && (
+              <button className="btn btn-ghost" onClick={() => setAdding(true)}>
+                <Plus size={16} /> Add product
+              </button>
+            )}
+            <Link href="/production" className="btn btn-primary">
+              <Factory size={16} /> Record batch
+            </Link>
+          </>
         }
       />
+      {adding && <ProductForm onClose={() => setAdding(false)} />}
 
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">
@@ -75,7 +85,6 @@ export default function Inventory() {
               { id: "stock", label: "Stock", count: all.length },
               { id: "lots", label: "Lots and dating", count: shortDated.length + held.length || undefined },
               { id: "moves", label: "Movements" },
-              { id: "zones", label: "Freezer zones" },
               { id: "products", label: "Products" },
             ]}
           />
@@ -90,7 +99,6 @@ export default function Inventory() {
         {tab === "stock" && <StockTab rows={all} onOpen={setOpenSku} />}
         {tab === "lots" && <LotsTab onOpen={setOpenSku} />}
         {tab === "moves" && <MovesTab />}
-        {tab === "zones" && <ZonesTab />}
         {tab === "products" && <ProductsTab onOpen={setOpenSku} />}
       </div>
 
@@ -217,6 +225,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
   const [moving, setMoving] = useState<Lot | null>(null);
   const [holding, setHolding] = useState<Lot | null>(null);
   const [editing, setEditing] = useState(false);
+  const admin = useIsAdmin();
   const moves = movements.filter((m) => m.sku === p.sku).slice(0, 14);
   const unit = priceUnit(p);
 
@@ -242,9 +251,11 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
               <Factory size={16} /> Make a batch
             </Link>
           )}
-          <button className="btn btn-ghost" onClick={() => setEditing(true)}>
-            <Pencil size={15} /> Edit product
-          </button>
+          {admin && (
+            <button className="btn btn-ghost" onClick={() => setEditing(true)}>
+              <Pencil size={15} /> Edit product
+            </button>
+          )}
           <span className="ml-auto text-[13px] text-ink-3">Home bin {p.bin}, shelf life {p.shelfDays} days</span>
         </>
       }
@@ -516,91 +527,28 @@ function MovesTab() {
   );
 }
 
-function ZonesTab() {
-  const zones = useStore((s) => s.zones);
-  const lots = useStore((s) => s.lots);
-  const maps = useMaps();
-  return (
-    <div className="grid gap-5 md:grid-cols-2">
-      {zones.map((z) => {
-        const cur = z.readings.at(-1) ?? z.setPointC;
-        const inZone = lots.filter((l) => l.qty > 0 && zoneOfBin(l.bin) === z.id);
-        const cases = inZone.reduce((s, l) => s + l.qty, 0);
-        const unit = commonUnit(inZone.map((l) => maps.product.get(l.sku)));
-        const bySku = new Map<string, number>();
-        for (const l of inZone) bySku.set(l.sku, (bySku.get(l.sku) ?? 0) + l.qty);
-        const top = [...bySku.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-        const hi = Math.max(...z.readings);
-        const lo = Math.min(...z.readings);
-        return (
-          <Panel key={z.id} edge={ZONES[z.id].color} title={z.name} actions={<span className="text-[13px] text-ink-3">Set {tempBare(z.setPointC, 0)}C, alarm above {tempBare(z.maxC, 0)}C</span>}>
-            <div className="flex flex-wrap items-end gap-6">
-              <div>
-                <div className="text-[13px] text-ink-3">Now</div>
-                <div className={cx("display text-[56px] leading-none font-semibold", cur > z.maxC && "text-bad")}>
-                  {tempBare(cur)}
-                  <span className="text-[22px] text-ink-3">C</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="mb-1 text-[13px] text-ink-3">
-                  Last {z.readings.length} readings, low {tempBare(lo)}, high {tempBare(hi)}
-                </div>
-                <Sparkline values={z.readings} setPoint={z.setPointC} alarm={z.maxC} width={300} height={56} />
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-3 text-[13.5px]">
-              <div>
-                <div className="text-ink-3">Pallet positions</div>
-                <div className="font-semibold">
-                  {z.used} of {z.capacity} ({Math.round((z.used / z.capacity) * 100)}%)
-                </div>
-              </div>
-              <div>
-                <div className="text-ink-3">Stored</div>
-                <div className="font-semibold">{units(cases, unit)}</div>
-              </div>
-              <div>
-                <div className="text-ink-3">Lots</div>
-                <div className="font-semibold">{inZone.length}</div>
-              </div>
-            </div>
-            {top.length > 0 && (
-              <ul className="mt-3 text-[13.5px]">
-                {top.map(([sku, n]) => (
-                  <li key={sku} className="flex justify-between border-t border-line/60 py-1">
-                    <span className="truncate">{maps.product.get(sku)?.name}</span>
-                    <span className="ml-2 shrink-0 text-ink-2">{units(n, maps.product.get(sku)?.unit ?? "unit")}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {z.id === "BLAST" && <p className="mt-2 text-[12.5px] text-ink-3">Product sits here 24 to 48 hours to reach core temperature before put-away.</p>}
-          </Panel>
-        );
-      })}
-      <p className="text-[12.5px] text-ink-3 md:col-span-2">Readings arrive every 30 seconds from the zone probes. Pallet counts come from the last slotting scan.</p>
-    </div>
-  );
-}
-
 function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
   const products = useStore((s) => s.products);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [showInactive, setShowInactive] = useState(true);
+  const admin = useIsAdmin();
   const list = products.filter((p) => showInactive || p.active).sort((a, b) => Number(b.active) - Number(a.active) || a.sku.localeCompare(b.sku));
   const inactive = products.filter((p) => !p.active).length;
   return (
     <Panel bodyClass="">
       <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
-        <button className="btn btn-primary" onClick={() => setEditing("new")}>
-          <Plus size={16} /> Add product
-        </button>
+        {admin && (
+          <button className="btn btn-primary" onClick={() => setEditing("new")}>
+            <Plus size={16} /> Add product
+          </button>
+        )}
         <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-3 text-[14px]">
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-ink" />
           Show inactive ({inactive})
         </label>
-        <span className="ml-auto text-[13px] text-ink-3">Inactive products keep their stock and history but can&rsquo;t be ordered or produced.</span>
+        <span className="ml-auto text-[13px] text-ink-3">
+          {admin ? "Inactive products keep their stock and history but can’t be ordered or produced." : "Only the owner can add or edit products and prices."}
+        </span>
       </div>
       <div className="overflow-x-auto scroll-thin">
         <table className="tbl min-w-[900px]">
@@ -638,15 +586,17 @@ function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                 <td className="r">{p.par}</td>
                 <td>{p.active ? <Badge tone="good">Active</Badge> : <Badge>Inactive</Badge>}</td>
                 <td className="r">
-                  <button
-                    className="btn btn-quiet btn-sm px-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(p);
-                    }}
-                  >
-                    <Pencil size={14} /> Edit
-                  </button>
+                  {admin && (
+                    <button
+                      className="btn btn-quiet btn-sm px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(p);
+                      }}
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

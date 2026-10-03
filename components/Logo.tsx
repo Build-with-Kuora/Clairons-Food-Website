@@ -1,31 +1,25 @@
 import Image from "next/image";
 
 /**
- * Client logo, provisional. The source file is a square with the wordmark in the middle,
- * so we crop to the wordmark's box. When the final logo arrives, replace the file and update SRC/CROP.
+ * Client logo, provisional. A transparent PNG cropped to the wordmark, made from the client's
+ * square JPEG (clairons-logo.jpg) by removing the white. When the final logo arrives,
+ * replace the file and update SRC/W/H.
  */
-const SRC = "/brand/clairons-logo.jpg";
-const SIZE = 1600; // source image is SIZE × SIZE
-const CROP = { x: 50, y: 540, w: 1510, h: 585 }; // wordmark box in source pixels
+const SRC = "/brand/clairons-logo.png";
+const W = 1478; // source image size in pixels
+const H = 596;
 
 export function Logo({ height = 40, className }: { height?: number; className?: string }) {
-  const scale = height / CROP.h;
   return (
-    <span
-      role="img"
-      aria-label="Clairon's Food"
-      className={`relative block shrink-0 overflow-hidden ${className ?? ""}`}
-      style={{ width: Math.round(CROP.w * scale), height }}
-    >
-      <Image
-        src={SRC}
-        alt=""
-        width={SIZE}
-        height={SIZE}
-        priority
-        unoptimized
-        style={{ position: "absolute", maxWidth: "none", width: SIZE * scale, height: SIZE * scale, left: -CROP.x * scale, top: -CROP.y * scale }}
-      />
-    </span>
+    <Image
+      src={SRC}
+      alt="Clairon's Food"
+      width={W}
+      height={H}
+      priority
+      unoptimized
+      className={`block shrink-0 ${className ?? ""}`}
+      style={{ width: Math.round((W * height) / H), height }}
+    />
   );
 }

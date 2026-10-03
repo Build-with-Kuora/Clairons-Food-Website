@@ -1,25 +1,31 @@
 "use client";
 
-import { AlertTriangle, ArrowUpRight, CalendarClock, PauseCircle, TrendingDown } from "lucide-react";
+import { AlertTriangle, CalendarClock, PauseCircle, TrendingDown } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { DailyBars, Sparkline } from "@/components/charts";
+import { AttentionList } from "@/components/AttentionList";
+import { DailyBars } from "@/components/charts";
 import { ProductGrid } from "@/components/ProductGrid";
-import { RouteLine } from "@/components/RouteLine";
-import { Badge, PageHead, Panel, cx } from "@/components/ui";
-import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, tempBare, units } from "@/lib/format";
+import { RoutesPanel } from "@/components/RoutesPanel";
+import { StaffToday } from "@/components/StaffToday";
+import { PageHead, Panel, cx } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
+import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, units } from "@/lib/format";
 import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
-import { TRUCK_LIMIT_C, ZONES, runKey } from "@/lib/logic";
+import { runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 
-export default function Today() {
+/** Home is different per role: the owner gets sales and money, staff get today's work. Riders never land here. */
+export default function Home() {
+  const role = useAuth((s) => s.user?.role);
+  return role === "admin" ? <OwnerToday /> : <StaffToday />;
+}
+
+function OwnerToday() {
   const { now, today } = useToday();
-  const router = useRouter();
   const deliveries = useStore((s) => s.deliveries);
   const runs = useStore((s) => s.runs);
   const routes = useStore((s) => s.routes);
-  const zones = useStore((s) => s.zones);
   const lots = useStore((s) => s.lots);
   const clients = useStore((s) => s.clients);
   const maps = useMaps();
@@ -91,64 +97,11 @@ export default function Today() {
         ))}
       </div>
 
-      <Panel
-        title="Routes"
-        className="mb-5"
-        actions={<Link href="/dispatch" className="btn btn-quiet btn-sm">Dispatch board <ArrowUpRight size={14} /></Link>}
-        bodyClass="divide-y divide-line"
-      >
-        {routes.map((r) => {
-          const stops = stopsToday.filter((d) => d.routeId === r.id && !d.riderId);
-          const run = runs[runKey(r.id, today)];
-          const last = run?.temps.at(-1);
-          return (
-            <div key={r.id} className="grid gap-3 px-4 py-3 md:grid-cols-[200px_1fr]">
-              <div>
-                <div className="display text-[19px] leading-tight font-semibold">{r.name}</div>
-                <div className="text-[13px] text-ink-3">
-                  {r.truck}, {r.driver}
-                </div>
-                {last && (
-                  <div className={cx("mt-1 text-[13px] font-semibold", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
-                    Box {tempBare(last.c)}C <span className="font-normal text-ink-3">at {clock(last.at)}</span>
-                  </div>
-                )}
-              </div>
-              <RouteLine stops={stops} run={run} clients={maps.client} onSelect={(id) => router.push(`/dispatch?stop=${id}`)} />
-            </div>
-          );
-        })}
+      <RoutesPanel today={today} />
+
+      <Panel title="Sales, last 14 days" actions={<span className="text-[13px] text-ink-3">Order value incl. fees</span>}>
+        <DailyBars data={daily} format={pesoK} />
       </Panel>
-
-      <div className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
-        <Panel title="Sales, last 14 days" actions={<span className="text-[13px] text-ink-3">Order value incl. fees</span>}>
-          <DailyBars data={daily} format={pesoK} />
-        </Panel>
-
-        <Panel title="Freezers" bodyClass="divide-y divide-line" actions={<Link href="/inventory?tab=zones" className="btn btn-quiet btn-sm">Zones <ArrowUpRight size={14} /></Link>}>
-          {zones.map((z) => {
-            const cur = z.readings.at(-1) ?? z.setPointC;
-            return (
-              <div key={z.id} className="flex items-center gap-4 px-4 py-2.5" style={{ boxShadow: `inset 4px 0 0 ${ZONES[z.id].color}` }}>
-                <div className="w-28">
-                  <div className="text-[14px] font-semibold">{z.name}</div>
-                  <div className="text-[12.5px] text-ink-3">Set {tempBare(z.setPointC, 0)}, alarm {tempBare(z.maxC, 0)}</div>
-                </div>
-                <div className="flex-1">
-                  <Sparkline values={z.readings.slice(-36)} setPoint={z.setPointC} alarm={z.maxC} />
-                </div>
-                <div className={cx("display w-20 text-right text-[26px] font-semibold", cur > z.maxC && "text-bad")}>{tempBare(cur)}</div>
-                <div className="hidden w-24 text-right text-[12.5px] text-ink-3 sm:block">
-                  {z.used}/{z.capacity} pallets
-                  <div className="mt-1 h-1.5 rounded-full bg-sunk">
-                    <div className="h-full rounded-full bg-ink-2" style={{ width: `${(z.used / z.capacity) * 100}%` }} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </Panel>
-      </div>
 
       <h2 className="display mt-7 mb-3 text-[22px] font-semibold">Needs attention</h2>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -209,44 +162,3 @@ export default function Today() {
   );
 }
 
-function AttentionList({
-  icon,
-  tone,
-  title,
-  items,
-  empty,
-}: {
-  icon: React.ReactNode;
-  tone: "bad" | "warn" | "neutral";
-  title: string;
-  items: { key: string; href: string; main: string; side: string }[];
-  empty: string;
-}) {
-  return (
-    <Panel
-      title={
-        <span className="flex items-center gap-2">
-          <span className={cx(tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-ink-3")}>{icon}</span>
-          {title}
-        </span>
-      }
-      actions={items.length ? <Badge tone={tone === "neutral" ? "neutral" : tone}>{items.length}</Badge> : undefined}
-      bodyClass="max-h-[260px] overflow-y-auto scroll-thin"
-    >
-      {items.length === 0 ? (
-        <p className="px-4 py-4 text-[14px] text-ink-3">{empty}</p>
-      ) : (
-        <ul className="divide-y divide-line/70">
-          {items.map((it) => (
-            <li key={it.key}>
-              <Link href={it.href} className="block px-4 py-2 hover:bg-sunk">
-                <div className="truncate text-[14px] font-semibold">{it.main}</div>
-                <div className="truncate text-[13px] text-ink-3">{it.side}</div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}

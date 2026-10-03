@@ -1,12 +1,12 @@
 "use client";
 
-import { Printer } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Empty, PageHead, Panel, cx } from "@/components/ui";
 import { DAY, HOUR, count, dateKey, day, keyToTs, money, plural, startOfDay, unitPlural, capitalize } from "@/lib/format";
 import { useMaps, useSales, useToday } from "@/lib/hooks";
-import { commonUnit, salesSummary, vatSplit } from "@/lib/logic";
+import { commonUnit, salesCsv, salesSummary, vatSplit } from "@/lib/logic";
 
 type Preset = "today" | "yesterday" | "week" | "month" | "thisMonth";
 
@@ -38,6 +38,13 @@ const PRESETS: { id: Preset; label: string }[] = [
   { id: "thisMonth", label: "This month" },
 ];
 
+/** The periods the owner downloads most: today, the last 7 days and the last 30. */
+const CSV_PRESETS: { id: Preset; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "7 days" },
+  { id: "month", label: "30 days" },
+];
+
 export default function Sales() {
   const { now } = useToday();
   const sales = useSales();
@@ -55,6 +62,19 @@ export default function Sales() {
   })?.id;
 
   const label = fromKey === toKey ? day(from) : `${day(from)} to ${day(keyToTs(toKey))}`;
+
+  /** Save one period's sales by product as a CSV file, whatever range is on screen. */
+  const downloadCsv = (p: Preset) => {
+    const r = presetRange(p, now);
+    const s = salesSummary(sales, keyToTs(r.from), startOfDay(keyToTs(r.to) + DAY + 12 * HOUR));
+    const period = r.from === r.to ? day(keyToTs(r.from)) : `${day(keyToTs(r.from))} to ${day(keyToTs(r.to))}`;
+    const blob = new Blob([salesCsv(s, maps.product, period)], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = r.from === r.to ? `clairons-sales-${r.from}.csv` : `clairons-sales-${r.from}-to-${r.to}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   const total = vatSplit(sum.total);
   const products = vatSplit(sum.products);
   const fees = vatSplit(sum.fees);
@@ -73,9 +93,21 @@ export default function Sales() {
         title="Sales"
         sub="Counted when delivered, or when paid at the counter. Refused cases are left out."
         actions={
-          <button className="btn btn-ghost" onClick={() => window.print()} disabled={!sum.count}>
-            <Printer size={16} /> Print
-          </button>
+          <>
+            <div className="flex items-center gap-1.5" role="group" aria-label="Download CSV">
+              <span className="flex items-center gap-1 text-[13.5px] font-semibold text-ink-2">
+                <Download size={15} aria-hidden /> CSV
+              </span>
+              {CSV_PRESETS.map((p) => (
+                <button key={p.id} className="btn btn-ghost btn-sm" onClick={() => downloadCsv(p.id)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-ghost" onClick={() => window.print()} disabled={!sum.count}>
+              <Printer size={16} /> Print
+            </button>
+          </>
         }
       />
 

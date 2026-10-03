@@ -2,6 +2,7 @@ import type {
   Alloc,
   Batch,
   Client,
+  CustomerInput,
   Delivery,
   DeliveryStatus,
   Lot,
@@ -287,6 +288,31 @@ export function salesSummary(sales: Sale[], from: number, to: number) {
   return { rows, count, cases: rows.reduce((t, r) => t + r.qty, 0), products, fees: round2(fees), total: round2(products + fees) };
 }
 
+/**
+ * The sales-by-product table as CSV for a spreadsheet or the accountant: one row per product,
+ * then products, delivery fees and total rows. Amounts are plain numbers in pesos, VAT-inclusive.
+ */
+export function salesCsv(sum: ReturnType<typeof salesSummary>, products: Map<string, Product>, period: string) {
+  const cell = (v: string | number) => (typeof v === "number" ? v.toFixed(2).replace(/\.00$/, "") : /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const row = (...v: (string | number)[]) => v.map(cell).join(",");
+  const money = (gross: number) => {
+    const v = vatSplit(gross);
+    return [v.net.toFixed(2), v.vat.toFixed(2), gross.toFixed(2)];
+  };
+  const lines = [
+    row("Clairon's Food, sales by product", period),
+    row("SKU", "Product", "Unit", "Sold", "Sales", "VATable sales", "VAT 12%", "Amount"),
+    ...sum.rows.map((r) => {
+      const p = products.get(r.sku);
+      return row(r.sku, p?.name ?? r.sku, p?.unit ?? "", r.qty, r.orders, ...money(r.amount));
+    }),
+    row("", "Products", "", sum.cases, "", ...money(sum.products)),
+    row("", "Delivery fees (small drop, fuel)", "", "", "", ...money(sum.fees)),
+    row("", "Total", "", sum.cases, sum.count, ...money(sum.total)),
+  ];
+  return lines.join("\r\n") + "\r\n";
+}
+
 /** Units produced per SKU in batches made since `since`. */
 export function producedBySku(batches: Batch[], since: number) {
   const out = new Map<string, number>();
@@ -310,6 +336,48 @@ export function freeBlastBin(lots: Lot[]) {
     if (!used.has(bin)) return bin;
   }
   return "B-01-99";
+}
+
+/** Cities the online store delivers to, and the van route that covers each. Dispatch can still hand a stop to a rider. */
+export const SERVICE_AREAS: Record<string, string> = {
+  Manila: "MNL",
+  Caloocan: "MNL",
+  "Quezon City": "QC",
+  "San Juan": "QC",
+  Marikina: "QC",
+  Mandaluyong: "STH",
+  Makati: "STH",
+  Pasig: "STH",
+  Taguig: "STH",
+  Pasay: "STH",
+  "Parañaque": "STH",
+  "Las Piñas": "STH",
+};
+
+/** Online shoppers buy at list price (tier C), the same as walk-in COD accounts. */
+export const ONLINE_TIER = "C" as const;
+
+/** What is wrong with a customer's delivery details, or null when they are fine. */
+export function customerError(i: CustomerInput): string | null {
+  if (!i.name.trim()) return "Enter the name to deliver to.";
+  if (i.phone.replace(/\D/g, "").length < 10) return "Enter a mobile number the rider can call, like 0917 555 1234.";
+  if (!i.address.trim()) return "Enter the street address, barangay and landmark.";
+  if (!SERVICE_AREAS[i.city]) return "Pick a city we deliver to.";
+  return null;
+}
+
+/**
+ * The online cart priced at the online tier, with the delivery fees the order will carry.
+ * Matches what `placeOrder` charges: catch-weight items are estimated at their nominal weight.
+ */
+export function cartQuote(products: Product[], lines: { sku: string; qty: number }[]) {
+  const bySku = new Map(products.map((p) => [p.sku, p]));
+  const items = lines.flatMap((l) => {
+    const p = bySku.get(l.sku);
+    return p && p.active && l.qty > 0 ? [{ product: p, qty: l.qty, total: round2(casePrice(p, ONLINE_TIER) * l.qty) }] : [];
+  });
+  const subtotal = round2(items.reduce((t, i) => t + i.total, 0));
+  return { items, subtotal, ...orderTotals(subtotal, "DELIVERY") };
 }
 
 export const DROP_MIN = 5000;

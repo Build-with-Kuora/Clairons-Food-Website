@@ -1,9 +1,10 @@
 "use client";
 
-import { Boxes, Building2, ChartColumn, Factory, Gauge, ReceiptText, ScanBarcode, Smartphone, Truck, Wallet, X } from "lucide-react";
+import { Boxes, Building2, ChartColumn, Factory, Gauge, LogOut, ReceiptText, ScanBarcode, Truck, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { canOpen, useAuth } from "@/lib/auth";
 import { cx } from "./ui";
 
 const SIDE = [
@@ -25,11 +26,16 @@ const isActive = (path: string, href: string) => (href === "/" ? path === "/" : 
 /** Phone navigation: Inventory · Production · Home · Delivery · Sales. Hidden once the sidebar shows. */
 export function BottomNav() {
   const path = usePathname();
+  const user = useAuth((s) => s.user);
+  const logOut = useAuth((s) => s.logOut);
   // The menu belongs to the page it was opened on, so navigating closes it.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === path;
   const setOpen = (v: boolean) => setOpenOn(v ? path : null);
-  const salesActive = SALES.some((s) => isActive(path, s.href));
+  // Staff do not see the sales report, so the menu is just "More" for them.
+  const menu = SALES.filter((s) => user && canOpen(user.role, s.href));
+  const menuLabel = menu.some((s) => s.href === "/sales") ? "Sales" : "More";
+  const salesActive = menu.some((s) => isActive(path, s.href));
 
   useEffect(() => {
     if (!open) return;
@@ -45,16 +51,16 @@ export function BottomNav() {
           <div className="fixed inset-0 z-40 bg-ink/30" onClick={() => setOpen(false)} aria-hidden />
           <div
             role="dialog"
-            aria-label="Sales"
+            aria-label={menuLabel}
             className="rise fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 mx-2 mb-2 rounded-xl border border-line bg-panel p-2 shadow-lg"
           >
             <div className="flex items-center justify-between px-2 pt-1 pb-2">
-              <span className="text-[13px] font-semibold tracking-[0.06em] text-ink-3 uppercase">Sales</span>
+              <span className="text-[13px] font-semibold tracking-[0.06em] text-ink-3 uppercase">{menuLabel}</span>
               <button className="btn btn-quiet btn-sm px-2" onClick={() => setOpen(false)} aria-label="Close">
                 <X size={16} />
               </button>
             </div>
-            {SALES.map((s) => (
+            {menu.map((s) => (
               <Link
                 key={s.href}
                 href={s.href}
@@ -68,13 +74,13 @@ export function BottomNav() {
               </Link>
             ))}
             <div className="my-1 border-t border-line" />
-            <Link href="/driver" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-sunk">
-              <Smartphone size={20} aria-hidden />
+            <button onClick={logOut} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-sunk">
+              <LogOut size={20} aria-hidden />
               <span className="leading-tight">
-                <span className="block text-[15px] font-semibold">Driver handheld</span>
-                <span className="block text-[13px] text-ink-3">Stops, proof of delivery</span>
+                <span className="block text-[15px] font-semibold">Log out</span>
+                <span className="block truncate text-[13px] text-ink-3">{user?.email}</span>
               </span>
-            </Link>
+            </button>
           </div>
         </>
       )}
@@ -102,7 +108,7 @@ export function BottomNav() {
           className={cx("flex h-16 cursor-pointer flex-col items-center justify-center gap-1", salesActive || open ? "text-ink" : "text-ink-3")}
         >
           <Wallet size={20} aria-hidden className={salesActive ? "text-brand" : undefined} />
-          <span className="text-[12px] font-semibold">Sales</span>
+          <span className="text-[12px] font-semibold">{menuLabel}</span>
         </button>
       </nav>
     </div>

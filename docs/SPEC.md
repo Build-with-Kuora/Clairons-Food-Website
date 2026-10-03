@@ -19,7 +19,7 @@ These change what we build, so they come first.
 4. **Decided: the owner sets the unit per product.** Each product has a selling unit (e.g. "case", "pack", "tray") and what is inside it (e.g. "10 × 50 pcs"). Stock, production and sales are counted in that unit. Built with add/edit products (2.8). The demo sells ice cream by the tub and everything else by the case.
 5. **Decided: both riders and vans.** Refrigerated vans on routes for big accounts (keeping temperature logs), riders on motorbikes for small drops. A delivery is assigned to either a van route or a rider.
 6. **Decided: a sale counts when the order is delivered or paid** (see 6.3).
-7. **E-commerce scope:** is this a public online store, or ordering for regular accounts only (restaurants, carts)? These are very different builds.
+7. **Decided: a public online store** (2026-10-03). Anyone can browse; customers sign up to check out, pay by GCash, card or cash on delivery, and track their orders. Built as `/shop` (section 9).
 8. **Confirm the catalogue is all made in-house.** Some demo products look bought-in rather than made: imported fries, vannamei shrimp, ice cream tubs, quick-melt cheese. The prototype treats all 48 as produced (decision 0.1). If some are resold, either drop them or bring back a small receiving step for those items only.
 
 ---
@@ -31,8 +31,8 @@ These change what we build, so they come first.
 | 1.1 | Header with page title on every screen | Done | |
 | 1.2 | **[changed]** Works on phones *and* on desktop/tablet. Phones get a bottom navigation bar; wider screens keep the sidebar. | Done | Original said "mobile app layout". POS and the inventory tables are used at the counter on a bigger screen, so the app must work there as well. `components/BottomNav.tsx` below desktop width, sidebar above it. |
 | 1.3 | Bottom nav on phones: Inventory · Production · **Home** (center) · Delivery · Sales | Done | Delivery opens the Delivery page (`/dispatch`). |
-| 1.4 | **[changed]** Screens with no bottom-nav slot (POS counter, Orders, Customers, Driver view) sit under **Sales** or a "More" menu | Done | The original five tabs leave out the POS counter, orders and customers. Sales opens a menu with the sales table first, then Counter, Orders, Clients and the driver handheld. |
-| 1.5 | Home/Dashboard is the default landing screen | Done | `/` Today |
+| 1.4 | **[changed]** Screens with no bottom-nav slot (POS counter, Orders, Customers, Driver view) sit under **Sales** or a "More" menu | Done | The original five tabs leave out the POS counter, orders and customers. Sales opens a menu with the sales table first, then Counter, Orders, Clients and Log out. The driver handheld is reached by logging in as a rider. |
+| 1.5 | Home/Dashboard is the default landing screen | Done | **[changed]** The app opens on `/login` first (10.3). After logging in, `/` is Home: the owner's Today for admin, Today's work for staff. Riders land on `/driver`. |
 
 ## 2. Dashboard / Home
 
@@ -46,7 +46,7 @@ These change what we build, so they come first.
 | 2.6 | Low stock is highlighted on the card | Done | Amber below reorder point, red when out |
 | 2.7 | **[changed]** With many products: search and category filter on the grid | Done | The sketch shows 4 products; the catalogue has 48 SKUs. |
 | 2.8 | Owner can add / edit / deactivate products: name, price, **selling unit and its contents** (decision 0.4), reorder level, par level | Done | Inventory → Products: add, edit, deactivate. Also tier prices, weight per unit, catch weight, storage zone, home bin and shelf life, which a new product needs to be stocked and sold. New SKUs are numbered by category. Inactive products keep their stock and history but drop off the Counter, the Dashboard grid, "To make" and the batch picker. Rules are `productError` and `nextSku` in `lib/logic.ts`; the store action is `saveProduct`. Price changes are not logged yet. |
-| 2.9 | Current dashboard content (headline figures, routes, freezer temps, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. |
+| 2.9 | Current dashboard content (headline figures, routes, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. **[changed]** Freezer temperatures are removed from the dashboard, the header and Inventory (2026-10-03): live readings need sensors in the freezers, an embedded system outside this build. |
 
 ## 3. Inventory (finished goods)
 
@@ -89,7 +89,7 @@ These change what we build, so they come first.
 |---|---|---|---|
 | 6.1 | Sales table: Products sold · Amount | Done | `/sales`: one row per product with cases sold and amount, highest amount first. Uses the sale rule (6.3), so refused cases are left out. `salesSummary` in `lib/logic.ts`. |
 | 6.2 | Total sales at the bottom, computed automatically | Done | Footer rows for products, delivery fees (small drop and fuel) and the total. Headline figures above the table. |
-| 6.3 | **[changed]** Sales rules: **order placed → stock reserved**; **loaded / handed over → stock deducted**; **delivered (or paid at the counter) → counted as a sale**. Cancelled orders release the stock. Refused cases come back to stock and are credited. | Partial | Original said "a delivered order counts toward sales and deducts from inventory". Deducting only on delivery lets the counter sell stock that is already on a truck. Walk-ins and orders paid upfront (cash, card, GCash, check) count when placed; on-account and COD deliveries count at proof of delivery. Refused cases are not counted. Rule is `salesOf` in `lib/logic.ts`. |
+| 6.3 | **[changed]** Sales rules: **order placed → stock reserved**; **loaded / handed over → stock deducted**; **delivered (or paid at the counter) → counted as a sale**. Cancelled orders release the stock. Refused cases come back to stock and are credited. | Partial | Original said "a delivered order counts toward sales and deducts from inventory". Deducting only on delivery lets the counter sell stock that is already on a truck. Walk-ins and orders paid upfront (cash, card, GCash, check) count when placed; on-account and COD deliveries count at proof of delivery. Refused cases are not counted. Rule is `salesOf` in `lib/logic.ts`. Left: refused cases are credited to the account only on on-account orders (`completeDelivery`); an order paid upfront records no refund for them yet. |
 | 6.4 | Orders, delivery and sales are linked | Done | One order → one delivery, with shared status |
 | 6.5 | **[changed]** Sales table can be filtered by date range and shows sales with and without VAT | Done | Needed for BIR reporting. Today, yesterday, 7 days, 30 days, this month, or any from/to dates. Every row shows VATable sales, 12% VAT and the VAT-inclusive amount (`vatSplit`, also used by the invoice). Prints as a report. |
 | 6.6 | Customers list with terms, credit limit and balance | Done | `/clients` |
@@ -99,7 +99,7 @@ These change what we build, so they come first.
 | # | Requirement | Status | Notes |
 |---|---|---|---|
 | 7.1 | **[changed]** Invoice/receipt with the details BIR requires: seller name, TIN and address; serial number; date; buyer; items; VATable sales, 12% VAT, total | Done | Sales invoice shows registered name, VAT Reg. TIN, address, buyer and buyer TIN, VATable / VAT-exempt / zero-rated sales, 12% VAT, total, and the Permit to Use number and series. Every order gets the next serial (SI 000001…) when placed; cancelled invoices keep their number and print "Cancelled". **The seller details, TINs and permit number are made up** (`SELLER` in `lib/seed.ts`) and the invoice says so. Replace them with the registered ones from the client's accountant. |
-| 7.2 | **[changed]** "BIR-accredited" is a **registration the business does**, not a feature. The software has to meet BIR rules for a computerized POS/invoicing system. The owner (with their accountant) applies for the permit before going live. | Missing | Original listed "BIR-accredited receipt generation" as a feature. Plan time for this process and confirm current requirements with the client's accountant. |
+| 7.2 | **[changed]** "BIR-accredited" is a **registration the business does**, not a feature. The software has to meet BIR rules for a computerized POS/invoicing system. The owner (with their accountant) applies for the permit before going live. | Left out for now | Original listed "BIR-accredited receipt generation" as a feature. Left out of the prototype for now (decided 2026-10-03). Plan time for this process later and confirm current requirements with the client's accountant. |
 | 7.3 | Print a receipt for every sale | Done | Invoice view prints |
 | 7.4 | Send the receipt by SMS or email | Done | "Send receipt" on Orders and after placing an order on the Counter. With no server, it opens the device's own messages or mail app with the receipt filled in (short text for SMS, full breakdown for e-mail) and logs each send on the order. A real SMS gateway and mail service come with the main app. Clients can have an e-mail and TIN on file. |
 
@@ -114,17 +114,17 @@ These change what we build, so they come first.
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 9.1 | Online ordering for customers | Missing | Scope depends on decision 0.7 |
-| 9.2 | Online orders go into the same orders, sales and inventory | Missing | Online orders should go through the same order step the counter uses (`placeOrder`), so reservations and sales rules match |
-| 9.3 | **[changed]** Online payment (GCash / card) or cash on delivery | Missing | Not in the original list but needed for online orders |
+| 9.1 | Online ordering for customers | Done | Public store (decision 0.7). `/shop`: catalogue by category with search, list price (tier C), in-stock count from free-to-sell stock, cart with the same delivery fees as the counter (`cartQuote`). Browsing needs no login; checkout and My orders need a customer account (sign up, or `customer@clairon.com`). `/shop/orders` tracks each order in four steps. |
+| 9.2 | Online orders go into the same orders, sales and inventory | Done | Checkout saves the customer as a client ("Online customer", COD terms, route from their city via `SERVICE_AREAS`; `saveCustomer`), then calls `placeOrder` with `channel: "ONLINE"`. The order reserves stock first-expiry-first-out, gets the next invoice number, lands on Delivery and counts as a sale by rule 6.3. Orders tags it "Online". |
+| 9.3 | **[changed]** Online payment (GCash / card) or cash on delivery | Partial | GCash and card are simulated: the order is marked paid and nothing is charged; the checkout says so. Cash on delivery is collected at proof of delivery. Left: a real payment gateway (e.g. PayMongo) with the main app. |
 
 ## 10. Centralized system
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 10.1 | One system for POS, inventory, production, delivery, sales, e-commerce | Partial | Everything except e-commerce is in one app |
+| 10.1 | One system for POS, inventory, production, delivery, sales, e-commerce | Done | All in one app, sharing one store. |
 | 10.2 | Single shared database so every device stays in sync | Missing (deferred) | Prototype data lives in each browser's local storage, so two phones don't share data. A real database is deferred until the client signs off on the prototype. |
-| 10.3 | **[changed]** Logins and roles: owner, counter, production, rider | Missing | Needed once data is shared, so riders can't edit prices and so on. |
+| 10.3 | **[changed]** Logins and roles: owner, counter, production, rider | Partial | Prototype logins, checked in the browser with no database (`lib/auth.ts`): `admin@clairon.com`, `staff@clairon.com`, `rider@clairon.com`. **Admin** (owner) sees everything: the sales Today, the sales report, add/edit products and prices, approving orders past a credit hold, and resetting the demo. **Staff** (counter, warehouse, production, dispatch) get a work-queue home (to pick and load, move out of blast freezer, to make, delivery problems, sell first, QA hold) and every screen except the sales report; they can't edit products or approve credit holds. **Riders** only get the driver handheld. **Customers** (`customer@clairon.com`) only get the online store. Sign up makes a customer account in that browser only. Forgot password shows a confirmation but sends nothing. Left for the main app: real accounts and passwords on the server, separate counter and production roles, and a reset e-mail. The demo passwords are readable in the page source, so they are for the presentation only. |
 
 ---
 
@@ -144,14 +144,15 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 - **Offline delivery.** The rider/driver side must keep working with no signal: view stops, mark arrived/delivered, capture proof of delivery and COD collected. Store data on the phone in **IndexedDB** and queue each change. When the phone is back online, sync the queue to the database. Each queued change carries an id, so a retry doesn't apply it twice. Conflicts (e.g. dispatch reassigned a stop while the rider was offline) are flagged for dispatch to resolve rather than silently overwritten. The prototype's store actions (`advance`, `completeDelivery`, `reportException`) are the operations to queue.
 - **Shared database and API**, logins and roles (10.2, 10.3).
-- **E-commerce** (section 9) once its scope is decided (0.7).
+- **Online payments** through a real gateway for the store (9.3).
+- **Freezer and ref van telemetry** from sensors, if the client wants live temperatures (an embedded system).
 - **BIR registration** of the invoicing system (7.2), with the real registered name, TIN, address and Permit to Use replacing the sample `SELLER` details.
 - **Sending receipts** through an SMS gateway and mail service instead of the device's own apps (7.4).
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3).
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3), prototype logins with an admin, staff, rider and customer view (10.3), public online store (9.1, 9.2; simulated payments for 9.3), sales CSV download for today, 7 days and 30 days.
 
-Left out of the prototype for now: **e-commerce** (section 9). Its scope (0.7) is still open with the client.
+Left out of the prototype for now: **BIR accreditation** (7.2) and **freezer temperature monitoring** (needs sensors).
 
-1. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
+1. **Main app** (see Future notes): database and API, logins and roles, offline delivery, online payment gateway, BIR registration.
