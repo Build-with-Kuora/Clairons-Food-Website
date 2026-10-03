@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Field, Kbd, Modal, PageHead, cx } from "@/components/ui";
+import { useIsAdmin } from "@/lib/auth";
 import { dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
 import { useMaps, useStock } from "@/lib/hooks";
 import { DROP_MIN, PAY_LABEL, TERMS_LABEL, ZONES, allocateFEFO, deliveryDays, casePrice, orderTotals, priceLines, priceUnit } from "@/lib/logic";
@@ -37,6 +38,7 @@ export default function Counter() {
   const [clientPo, setClientPo] = useState("");
   const [notes, setNotes] = useState("");
   const [override, setOverride] = useState(false);
+  const admin = useIsAdmin();
   const [extras, setExtras] = useState(false);
   const [done, setDone] = useState<Order | null>(null);
   const [sending, setSending] = useState(false);
@@ -440,10 +442,14 @@ export default function Counter() {
                 <div className="flex gap-2 font-semibold">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0" /> Credit hold: {creditProblem}
                 </div>
-                <label className="mt-1.5 ml-6 flex cursor-pointer items-center gap-2 text-ink">
-                  <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="accent-ink" />
-                  Manager approved this order
-                </label>
+                {admin ? (
+                  <label className="mt-1.5 ml-6 flex cursor-pointer items-center gap-2 text-ink">
+                    <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="accent-ink" />
+                    Manager approved this order
+                  </label>
+                ) : (
+                  <p className="mt-1 ml-6 text-ink-2">Only the owner can approve an order past a credit hold.</p>
+                )}
               </div>
             )}
 

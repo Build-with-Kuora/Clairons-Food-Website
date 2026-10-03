@@ -7,6 +7,7 @@ import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals"
 import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { capitalize, count, dateTime, day, daysUntil, money, money0, temp, tempBare, unitPlural, units } from "@/lib/format";
+import { useIsAdmin } from "@/lib/auth";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
 import { useStore } from "@/lib/store";
@@ -45,6 +46,8 @@ export default function Inventory() {
   const lots = useStore((s) => s.lots);
   const products = useStore((s) => s.products);
   const now = useNow();
+  const admin = useIsAdmin();
+  const [adding, setAdding] = useState(false);
 
   const all = [...rows.values()];
   const totalCases = all.reduce((s, r) => s + r.onHand, 0);
@@ -59,11 +62,19 @@ export default function Inventory() {
         title="Inventory"
         sub={`${all.length} SKUs, ${units(totalCases, commonUnit(products))} on hand, ${money0(value)} at cost.`}
         actions={
-          <Link href="/production" className="btn btn-primary">
-            <Factory size={16} /> Record batch
-          </Link>
+          <>
+            {admin && (
+              <button className="btn btn-ghost" onClick={() => setAdding(true)}>
+                <Plus size={16} /> Add product
+              </button>
+            )}
+            <Link href="/production" className="btn btn-primary">
+              <Factory size={16} /> Record batch
+            </Link>
+          </>
         }
       />
+      {adding && <ProductForm onClose={() => setAdding(false)} />}
 
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">
@@ -214,6 +225,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
   const [moving, setMoving] = useState<Lot | null>(null);
   const [holding, setHolding] = useState<Lot | null>(null);
   const [editing, setEditing] = useState(false);
+  const admin = useIsAdmin();
   const moves = movements.filter((m) => m.sku === p.sku).slice(0, 14);
   const unit = priceUnit(p);
 
@@ -239,9 +251,11 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
               <Factory size={16} /> Make a batch
             </Link>
           )}
-          <button className="btn btn-ghost" onClick={() => setEditing(true)}>
-            <Pencil size={15} /> Edit product
-          </button>
+          {admin && (
+            <button className="btn btn-ghost" onClick={() => setEditing(true)}>
+              <Pencil size={15} /> Edit product
+            </button>
+          )}
           <span className="ml-auto text-[13px] text-ink-3">Home bin {p.bin}, shelf life {p.shelfDays} days</span>
         </>
       }
@@ -517,19 +531,24 @@ function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
   const products = useStore((s) => s.products);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [showInactive, setShowInactive] = useState(true);
+  const admin = useIsAdmin();
   const list = products.filter((p) => showInactive || p.active).sort((a, b) => Number(b.active) - Number(a.active) || a.sku.localeCompare(b.sku));
   const inactive = products.filter((p) => !p.active).length;
   return (
     <Panel bodyClass="">
       <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
-        <button className="btn btn-primary" onClick={() => setEditing("new")}>
-          <Plus size={16} /> Add product
-        </button>
+        {admin && (
+          <button className="btn btn-primary" onClick={() => setEditing("new")}>
+            <Plus size={16} /> Add product
+          </button>
+        )}
         <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-3 text-[14px]">
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-ink" />
           Show inactive ({inactive})
         </label>
-        <span className="ml-auto text-[13px] text-ink-3">Inactive products keep their stock and history but can&rsquo;t be ordered or produced.</span>
+        <span className="ml-auto text-[13px] text-ink-3">
+          {admin ? "Inactive products keep their stock and history but can’t be ordered or produced." : "Only the owner can add or edit products and prices."}
+        </span>
       </div>
       <div className="overflow-x-auto scroll-thin">
         <table className="tbl min-w-[900px]">
@@ -567,15 +586,17 @@ function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                 <td className="r">{p.par}</td>
                 <td>{p.active ? <Badge tone="good">Active</Badge> : <Badge>Inactive</Badge>}</td>
                 <td className="r">
-                  <button
-                    className="btn btn-quiet btn-sm px-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(p);
-                    }}
-                  >
-                    <Pencil size={14} /> Edit
-                  </button>
+                  {admin && (
+                    <button
+                      className="btn btn-quiet btn-sm px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(p);
+                      }}
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -9,13 +9,26 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-Everything runs in the browser. Data is seeded relative to the current time and saved in `localStorage`, so the demo always looks like a live morning. Use **Reset demo data** in the sidebar to start over.
+Everything runs in the browser. Data is seeded relative to the current time and saved in `localStorage`, so the demo always looks like a live morning. Use **Reset demo data** in the sidebar (admin only) to start over.
+
+## Logins
+
+The app opens on `/login`. There is no database yet, so the demo accounts live in `lib/auth.ts` and are checked in the browser. Every demo account uses the password `12345678`. Anyone can read these in the page source, so use them for the demo only.
+
+| Account | Role | Lands on | Sees |
+| --- | --- | --- | --- |
+| `admin@clairon.com` | Admin (owner) | `/` Today | Everything: sales figures, the sales report, add/edit products and prices, approving orders past a credit hold, Reset demo data. |
+| `staff@clairon.com` | Staff | `/` Today's work | A work queue (to pick and load, move out of blast freezer, to make, delivery problems, sell first, QA hold) and every screen except Sales. Products are read-only. |
+| `rider@clairon.com` | Rider | `/driver` | The driver handheld only. |
+
+Sign up makes a staff account saved in that browser only. Forgot password shows a confirmation but sends nothing.
 
 ## Screens
 
 | Route | What it does |
 | --- | --- |
-| `/` Today | Sales (counted when delivered, or when paid at the counter), stops delivered, trucks out, live route lines, a 14-day sales chart, and a "needs attention" list (exceptions, low stock, short-dated lots, held lots, accounts past due). |
+| `/login` | Log in, sign up, forgot password, show password. |
+| `/` Today | Admin: Sales (counted when delivered, or when paid at the counter), stops delivered, trucks out, live route lines, a 14-day sales chart, and a "needs attention" list (exceptions, low stock, short-dated lots, held lots, accounts past due). Staff: Today's work, a queue of pick and load, blast freezer moves, what to make, delivery problems, sell-first lots and QA holds, with no money figures. |
 | `/counter` | Wholesale order entry. Tier pricing per account, catch-weight items, FEFO lot reservation, ₱300 small-drop fee under ₱5,000, ₱150 fuel surcharge, credit hold with manager override, truck delivery or will-call, GCash/cash/card/check/on-account payment, printable invoice with 12% VAT breakdown. Type `SKU qty` (e.g. `DM-1001 4`) and Enter to add fast. Press `/` to focus search. |
 | `/inventory` | **Products**: add, edit and deactivate products, each with its own selling unit (case, tub, tray…) and contents. Stock vs reorder point and par, lots with best-by and core temp at put-away, QA hold/release, cycle counts and write-offs, bin moves, movement ledger. Links to Production for what to make. |
 | `/production` | Record a batch (it becomes a lot in the blast freezer), what to make next from reorder point and par, batches made, produced per product today and over 7 days. |
@@ -23,9 +36,9 @@ Everything runs in the browser. Data is seeded relative to the current time and 
 | `/sales` | Sales by product for any date range (today, 7 days, 30 days, this month, or custom): cases sold, VATable sales, 12% VAT and amount per product, with delivery fees and a total row. Prints as a report. Downloads as CSV for today, the last 7 days or the last 30 days. |
 | `/orders` | All orders with invoice number, payment and delivery status. Sales invoice with BIR details (sample seller TIN and permit for now), print, send the receipt by SMS or e-mail, cancel (releases reserved stock). |
 | `/clients` | Accounts with terms, credit use, past due, and full delivery history showing who signed and at what temperature. |
-| `/driver` | Phone-sized handheld for van drivers and riders: start route, arrive, unload, capture signature and temps, report problems. Open it in a second tab next to Dispatch to watch updates sync. |
+| `/driver` | Phone-sized handheld for van drivers and riders (log in as the rider): start route, arrive, unload, capture signature and temps, report problems. Open it in a second browser window next to Dispatch to watch updates sync. |
 
-On phones a bottom bar replaces the sidebar: Inventory, Production, Home, Delivery, and Sales (a menu with the sales table, Counter, Orders, Clients and the driver handheld).
+On phones a bottom bar replaces the sidebar: Inventory, Production, Home, Delivery, and Sales (a menu with the sales table, Counter, Orders, Clients and Log out; staff see it as "More", without the sales table).
 
 Freezer temperature monitoring is left out: live readings need sensors in the freezers (an embedded system), so the prototype doesn't fake them.
 
@@ -48,6 +61,6 @@ Freezer temperature monitoring is left out: live readings need sensors in the fr
 ## Next steps toward production
 
 - Move the store to a real database and API (Postgres is a natural fit; the store actions map 1:1 to endpoints).
-- Auth and roles (counter, warehouse, dispatch, driver, manager override).
+- Real auth on the server, replacing the front-end demo accounts, with finer roles (counter, warehouse, production, dispatch) and a reset e-mail.
 - Real ref van and freezer telemetry instead of simulated readings.
 - Payments, accounting export, and catch-weight capture from the pick scale.

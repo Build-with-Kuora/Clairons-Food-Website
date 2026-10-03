@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronLeft, MapPin, Navigation, Phone, Thermometer } from "lucide-react";
+import { ChevronLeft, LogOut, MapPin, Navigation, Phone, Thermometer } from "lucide-react";
 import { useState } from "react";
 import { ExceptionForm, PodForm } from "@/components/Pod";
 import { Logo } from "@/components/Logo";
 import { StatusPill, cx } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
 import { clock, dateKey, tempBare, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
@@ -232,13 +233,17 @@ export default function Driver() {
 }
 
 function Frame({ children }: { children: React.ReactNode }) {
+  const logOut = useAuth((s) => s.logOut);
   return (
     <div className="min-h-screen bg-page">
       <div className="sticky top-0 z-10 border-b border-line bg-panel">
         <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 py-2.5">
           <Logo height={26} />
-          
+
           <span className="text-[14px] text-ink-3">Driver</span>
+          <button className="btn btn-quiet btn-sm ml-auto" onClick={logOut}>
+            <LogOut size={14} aria-hidden /> Log out
+          </button>
         </div>
       </div>
       <div className="mx-auto max-w-md px-4">{children}</div>

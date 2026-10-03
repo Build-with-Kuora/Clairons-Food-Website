@@ -1,9 +1,10 @@
 "use client";
 
-import { Boxes, Building2, ChartColumn, Factory, Gauge, ReceiptText, RotateCcw, ScanBarcode, Smartphone, Truck } from "lucide-react";
+import { Boxes, Building2, ChartColumn, Factory, Gauge, LogOut, ReceiptText, RotateCcw, ScanBarcode, Truck } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { AUTH_KEY, ROLE_LABEL, canOpen, homeFor, useAuth, type Role } from "@/lib/auth";
 import { clock, dayLong } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { STORAGE_KEY, useStore, useUi } from "@/lib/store";
@@ -26,12 +27,15 @@ function useBoot() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let alive = true;
-    Promise.resolve(useStore.persist.rehydrate()).then(() => {
+    Promise.all([useStore.persist.rehydrate(), useAuth.persist.rehydrate()]).then(() => {
       if (!useStore.getState().products.length) useStore.getState().reset();
       if (alive) setReady(true);
     });
-    // Keep tabs in sync: the driver handheld and dispatch board share one store.
-    const onStorage = (e: StorageEvent) => e.key === STORAGE_KEY && useStore.persist.rehydrate();
+    // Keep tabs in sync: the driver handheld and dispatch board share one store, and logging out logs out every tab.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) useStore.persist.rehydrate();
+      if (e.key === AUTH_KEY) useAuth.persist.rehydrate();
+    };
     window.addEventListener("storage", onStorage);
     const t = setInterval(() => useStore.getState().tick(), 30_000);
     return () => {
@@ -43,17 +47,43 @@ function useBoot() {
   return ready;
 }
 
+/** Where to send someone who may not see this path: logged out goes to /login, anyone else to their home page. */
+function redirectFor(path: string, role: Role | undefined) {
+  if (!role) return path.startsWith("/login") ? null : "/login";
+  if (path.startsWith("/login") || !canOpen(role, path)) return homeFor(role);
+  return null;
+}
+
 export default function Shell({ children }: { children: ReactNode }) {
   const ready = useBoot();
   const path = usePathname();
   const now = useNow(15_000);
   const reset = useStore((s) => s.reset);
   const toast = useUi((s) => s.toast);
+  const user = useAuth((s) => s.user);
+  const logOut = useAuth((s) => s.logOut);
+  const router = useRouter();
+  const to = ready ? redirectFor(path, user?.role) : null;
+  const show = ready && !to;
+
+  useEffect(() => {
+    if (to) router.replace(to);
+  }, [to, router]);
+
+  // Login stands alone: no sidebar or header.
+  if (path.startsWith("/login")) {
+    return (
+      <>
+        {show && children}
+        <Toaster />
+      </>
+    );
+  }
 
   if (path.startsWith("/driver")) {
     return (
       <>
-        {ready ? children : <Boot />}
+        {show ? children : <Boot />}
         <Toaster />
       </>
     );
@@ -67,7 +97,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           <div className="mt-1.5 text-[12.5px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Coldline</div>
         </Link>
         <nav className="flex flex-col gap-0.5 px-2">
-          {NAV.map((n) => {
+          {NAV.filter((n) => user && canOpen(user.role, n.href)).map((n) => {
             const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
             return (
               <Link
@@ -84,24 +114,25 @@ export default function Shell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="mx-4 my-4 border-t border-line" />
-        <Link href="/driver" target="_blank" className="mx-2 flex h-10 items-center gap-3 rounded-md px-3 text-[15px] font-semibold text-ink-2 hover:bg-sunk hover:text-ink">
-          <Smartphone size={18} aria-hidden />
-          Driver handheld
-        </Link>
-        <p className="mx-5 mt-1 text-[12.5px] leading-snug text-ink-3">Opens in a new tab. Stops you complete there show up on Dispatch.</p>
         <div className="mt-auto border-t border-line p-4">
-          <div className="text-[13px] text-ink-3">Signed in at</div>
-          <div className="text-[14px] font-semibold">Front counter, Dock 1</div>
-          <button
-            className="btn btn-quiet btn-sm mt-3 -ml-2.5"
-            onClick={() => {
-              reset();
-              toast("Demo data reset to this morning");
-            }}
-          >
-            <RotateCcw size={14} /> Reset demo data
+          <div className="text-[13px] text-ink-3">Signed in as {user && ROLE_LABEL[user.role]}</div>
+          <div className="truncate text-[14px] font-semibold" title={user?.email}>
+            {user?.email}
+          </div>
+          <button className="btn btn-quiet btn-sm mt-3 -ml-2.5" onClick={logOut}>
+            <LogOut size={14} /> Log out
           </button>
+          {user?.role === "admin" && (
+            <button
+              className="btn btn-quiet btn-sm mt-1 -ml-2.5"
+              onClick={() => {
+                reset();
+                toast("Demo data reset to this morning");
+              }}
+            >
+              <RotateCcw size={14} /> Reset demo data
+            </button>
+          )}
         </div>
       </aside>
 
@@ -121,7 +152,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-6 lg:pb-6">{ready ? children : <Boot />}</main>
+        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-6 lg:pb-6">{show ? children : <Boot />}</main>
       </div>
       <BottomNav />
       <Toaster aboveNav />

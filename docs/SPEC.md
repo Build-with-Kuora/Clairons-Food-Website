@@ -31,8 +31,8 @@ These change what we build, so they come first.
 | 1.1 | Header with page title on every screen | Done | |
 | 1.2 | **[changed]** Works on phones *and* on desktop/tablet. Phones get a bottom navigation bar; wider screens keep the sidebar. | Done | Original said "mobile app layout". POS and the inventory tables are used at the counter on a bigger screen, so the app must work there as well. `components/BottomNav.tsx` below desktop width, sidebar above it. |
 | 1.3 | Bottom nav on phones: Inventory · Production · **Home** (center) · Delivery · Sales | Done | Delivery opens the Delivery page (`/dispatch`). |
-| 1.4 | **[changed]** Screens with no bottom-nav slot (POS counter, Orders, Customers, Driver view) sit under **Sales** or a "More" menu | Done | The original five tabs leave out the POS counter, orders and customers. Sales opens a menu with the sales table first, then Counter, Orders, Clients and the driver handheld. |
-| 1.5 | Home/Dashboard is the default landing screen | Done | `/` Today |
+| 1.4 | **[changed]** Screens with no bottom-nav slot (POS counter, Orders, Customers, Driver view) sit under **Sales** or a "More" menu | Done | The original five tabs leave out the POS counter, orders and customers. Sales opens a menu with the sales table first, then Counter, Orders, Clients and Log out. The driver handheld is reached by logging in as a rider. |
+| 1.5 | Home/Dashboard is the default landing screen | Done | **[changed]** The app opens on `/login` first (10.3). After logging in, `/` is Home: the owner's Today for admin, Today's work for staff. Riders land on `/driver`. |
 
 ## 2. Dashboard / Home
 
@@ -124,7 +124,7 @@ These change what we build, so they come first.
 |---|---|---|---|
 | 10.1 | One system for POS, inventory, production, delivery, sales, e-commerce | Partial | Everything except e-commerce is in one app |
 | 10.2 | Single shared database so every device stays in sync | Missing (deferred) | Prototype data lives in each browser's local storage, so two phones don't share data. A real database is deferred until the client signs off on the prototype. |
-| 10.3 | **[changed]** Logins and roles: owner, counter, production, rider | Missing | Needed once data is shared, so riders can't edit prices and so on. |
+| 10.3 | **[changed]** Logins and roles: owner, counter, production, rider | Partial | Prototype logins, checked in the browser with no database (`lib/auth.ts`): `admin@clairon.com`, `staff@clairon.com`, `rider@clairon.com`. **Admin** (owner) sees everything: the sales Today, the sales report, add/edit products and prices, approving orders past a credit hold, and resetting the demo. **Staff** (counter, warehouse, production, dispatch) get a work-queue home (to pick and load, move out of blast freezer, to make, delivery problems, sell first, QA hold) and every screen except the sales report; they can't edit products or approve credit holds. **Riders** only get the driver handheld. Sign up makes a staff account in that browser only. Forgot password shows a confirmation but sends nothing. Left for the main app: real accounts and passwords on the server, separate counter and production roles, and a reset e-mail. The demo passwords are readable in the page source, so they are for the presentation only. |
 
 ---
 
@@ -151,7 +151,7 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 ## Suggested build order (prototype, no database)
 
-Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3), sales CSV download for today, 7 days and 30 days.
+Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3), prototype logins with an admin, staff and rider view (10.3), sales CSV download for today, 7 days and 30 days.
 
 Left out of the prototype for now: **e-commerce** (section 9), whose scope (0.7) is still open with the client, **BIR accreditation** (7.2), and **freezer temperature monitoring** (needs sensors).
 
