@@ -287,6 +287,31 @@ export function salesSummary(sales: Sale[], from: number, to: number) {
   return { rows, count, cases: rows.reduce((t, r) => t + r.qty, 0), products, fees: round2(fees), total: round2(products + fees) };
 }
 
+/**
+ * The sales-by-product table as CSV for a spreadsheet or the accountant: one row per product,
+ * then products, delivery fees and total rows. Amounts are plain numbers in pesos, VAT-inclusive.
+ */
+export function salesCsv(sum: ReturnType<typeof salesSummary>, products: Map<string, Product>, period: string) {
+  const cell = (v: string | number) => (typeof v === "number" ? v.toFixed(2).replace(/\.00$/, "") : /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const row = (...v: (string | number)[]) => v.map(cell).join(",");
+  const money = (gross: number) => {
+    const v = vatSplit(gross);
+    return [v.net.toFixed(2), v.vat.toFixed(2), gross.toFixed(2)];
+  };
+  const lines = [
+    row("Clairon's Food, sales by product", period),
+    row("SKU", "Product", "Unit", "Sold", "Sales", "VATable sales", "VAT 12%", "Amount"),
+    ...sum.rows.map((r) => {
+      const p = products.get(r.sku);
+      return row(r.sku, p?.name ?? r.sku, p?.unit ?? "", r.qty, r.orders, ...money(r.amount));
+    }),
+    row("", "Products", "", sum.cases, "", ...money(sum.products)),
+    row("", "Delivery fees (small drop, fuel)", "", "", "", ...money(sum.fees)),
+    row("", "Total", "", sum.cases, sum.count, ...money(sum.total)),
+  ];
+  return lines.join("\r\n") + "\r\n";
+}
+
 /** Units produced per SKU in batches made since `since`. */
 export function producedBySku(batches: Batch[], since: number) {
   const out = new Map<string, number>();
