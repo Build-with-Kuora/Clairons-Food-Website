@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-export type Role = "admin" | "staff" | "rider";
+export type Role = "admin" | "staff" | "rider" | "customer";
 
 export interface Account {
   email: string;
@@ -24,25 +24,29 @@ export const DEMO_ACCOUNTS: Account[] = [
   { email: "admin@clairon.com", password: "12345678", role: "admin" },
   { email: "staff@clairon.com", password: "12345678", role: "staff" },
   { email: "rider@clairon.com", password: "12345678", role: "rider" },
+  { email: "customer@clairon.com", password: "12345678", role: "customer" },
 ];
 
 export const AUTH_KEY = "coldline-auth";
 export const PASSWORD_MIN = 8;
 
-export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", staff: "Staff", rider: "Rider" };
+export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", staff: "Staff", rider: "Rider", customer: "Customer" };
 
-/** Where each role lands after logging in. Riders only get the driver handheld. */
-export const homeFor = (role: Role) => (role === "rider" ? "/driver" : "/");
+/** Where each role lands after logging in. Riders only get the driver handheld, customers the online store. */
+export const homeFor = (role: Role) => (role === "rider" ? "/driver" : role === "customer" ? "/shop" : "/");
 
 /**
  * What each role may open (spec 10.3). Admin is the owner and sees everything. Staff run the counter,
  * warehouse, production and dispatch, but not the sales report. Riders only get the driver handheld.
+ * Customers only get the online store. Anyone, logged in or not, can browse the store's catalogue.
  */
 const STAFF_BLOCKED = ["/sales"];
 
-export function canOpen(role: Role, path: string) {
+export function canOpen(role: Role | undefined, path: string) {
   const under = (p: string) => path === p || path.startsWith(`${p}/`);
+  if (!role) return under("/login") || path === "/shop";
   if (role === "rider") return under("/driver");
+  if (role === "customer") return under("/shop");
   if (role === "staff") return !STAFF_BLOCKED.some(under);
   return true;
 }
@@ -54,7 +58,7 @@ type Result = { ok: true; user: User } | { ok: false; error: string };
 
 interface Auth {
   user: User | null;
-  /** Accounts made with Sign up in this browser. New accounts are staff. */
+  /** Accounts made with Sign up in this browser. Anyone can sign up, so new accounts are customers. */
   accounts: Account[];
   logIn(email: string, password: string): Result;
   signUp(email: string, password: string): Result;
@@ -82,7 +86,7 @@ export const useAuth = create<Auth>()(
         const e = norm(email);
         if ([...DEMO_ACCOUNTS, ...get().accounts].some((a) => a.email === e)) return { ok: false, error: "An account with this email already exists. Log in instead." };
         if (password.length < PASSWORD_MIN) return { ok: false, error: `Use at least ${PASSWORD_MIN} characters.` };
-        const acc: Account = { email: e, password, role: "staff" };
+        const acc: Account = { email: e, password, role: "customer" };
         const user = { email: e, role: acc.role };
         set((s) => ({ accounts: [...s.accounts, acc], user }));
         return { ok: true, user };

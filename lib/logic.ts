@@ -2,6 +2,7 @@ import type {
   Alloc,
   Batch,
   Client,
+  CustomerInput,
   Delivery,
   DeliveryStatus,
   Lot,
@@ -335,6 +336,48 @@ export function freeBlastBin(lots: Lot[]) {
     if (!used.has(bin)) return bin;
   }
   return "B-01-99";
+}
+
+/** Cities the online store delivers to, and the van route that covers each. Dispatch can still hand a stop to a rider. */
+export const SERVICE_AREAS: Record<string, string> = {
+  Manila: "MNL",
+  Caloocan: "MNL",
+  "Quezon City": "QC",
+  "San Juan": "QC",
+  Marikina: "QC",
+  Mandaluyong: "STH",
+  Makati: "STH",
+  Pasig: "STH",
+  Taguig: "STH",
+  Pasay: "STH",
+  "Parañaque": "STH",
+  "Las Piñas": "STH",
+};
+
+/** Online shoppers buy at list price (tier C), the same as walk-in COD accounts. */
+export const ONLINE_TIER = "C" as const;
+
+/** What is wrong with a customer's delivery details, or null when they are fine. */
+export function customerError(i: CustomerInput): string | null {
+  if (!i.name.trim()) return "Enter the name to deliver to.";
+  if (i.phone.replace(/\D/g, "").length < 10) return "Enter a mobile number the rider can call, like 0917 555 1234.";
+  if (!i.address.trim()) return "Enter the street address, barangay and landmark.";
+  if (!SERVICE_AREAS[i.city]) return "Pick a city we deliver to.";
+  return null;
+}
+
+/**
+ * The online cart priced at the online tier, with the delivery fees the order will carry.
+ * Matches what `placeOrder` charges: catch-weight items are estimated at their nominal weight.
+ */
+export function cartQuote(products: Product[], lines: { sku: string; qty: number }[]) {
+  const bySku = new Map(products.map((p) => [p.sku, p]));
+  const items = lines.flatMap((l) => {
+    const p = bySku.get(l.sku);
+    return p && p.active && l.qty > 0 ? [{ product: p, qty: l.qty, total: round2(casePrice(p, ONLINE_TIER) * l.qty) }] : [];
+  });
+  const subtotal = round2(items.reduce((t, i) => t + i.total, 0));
+  return { items, subtotal, ...orderTotals(subtotal, "DELIVERY") };
 }
 
 export const DROP_MIN = 5000;

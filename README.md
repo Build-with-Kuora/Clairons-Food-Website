@@ -20,8 +20,9 @@ The app opens on `/login`. There is no database yet, so the demo accounts live i
 | `admin@clairon.com` | Admin (owner) | `/` Today | Everything: sales figures, the sales report, add/edit products and prices, approving orders past a credit hold, Reset demo data. |
 | `staff@clairon.com` | Staff | `/` Today's work | A work queue (to pick and load, move out of blast freezer, to make, delivery problems, sell first, QA hold) and every screen except Sales. Products are read-only. |
 | `rider@clairon.com` | Rider | `/driver` | The driver handheld only. |
+| `customer@clairon.com` | Customer | `/shop` | The online store only: shop, check out, track their own orders. |
 
-Sign up makes a staff account saved in that browser only. Forgot password shows a confirmation but sends nothing.
+Anyone can browse `/shop` without logging in. Sign up makes a customer account, saved in that browser only. Forgot password shows a confirmation but sends nothing.
 
 ## Screens
 
@@ -37,6 +38,9 @@ Sign up makes a staff account saved in that browser only. Forgot password shows 
 | `/orders` | All orders with invoice number, payment and delivery status. Sales invoice with BIR details (sample seller TIN and permit for now), print, send the receipt by SMS or e-mail, cancel (releases reserved stock). |
 | `/clients` | Accounts with terms, credit use, past due, and full delivery history showing who signed and at what temperature. |
 | `/driver` | Phone-sized handheld for van drivers and riders (log in as the rider): start route, arrive, unload, capture signature and temps, report problems. Open it in a second browser window next to Dispatch to watch updates sync. |
+| `/shop` | Public online store: browse by category, search, see what is in stock, add to cart. Delivery fees match the counter (₱150, plus ₱300 under ₱5,000). |
+| `/shop/checkout` | Customers only: delivery address (Metro Manila cities mapped to a van route), delivery day, GCash, card or cash on delivery. Payment is simulated; nothing is charged. The order goes through the same `placeOrder` as the counter, so it reserves stock, gets an invoice number, lands on Delivery and counts as a sale by the same rule. Staff see it in Orders tagged "Online". |
+| `/shop/orders` | Customers only: their orders with a four-step tracker (placed, packed, out for delivery, delivered), payment status and what was delivered. |
 
 On phones a bottom bar replaces the sidebar: Inventory, Production, Home, Delivery, and Sales (a menu with the sales table, Counter, Orders, Clients and Log out; staff see it as "More", without the sales table).
 

@@ -6,7 +6,10 @@ import { DAY, HOUR, dateKey, keyToTs, lotCode, uid, unitPlural } from "./format"
 import {
   ASSIGNABLE,
   NOTE_MAX,
+  ONLINE_TIER,
+  SERVICE_AREAS,
   allocateFEFO,
+  customerError,
   freeBlastBin,
   nextSku,
   orderTotals,
@@ -22,6 +25,8 @@ import {
 import { SELLER, buildSeed, type Data } from "./seed";
 import type {
   Batch,
+  Client,
+  CustomerInput,
   DeliveryStatus,
   Lot,
   Movement,
@@ -45,6 +50,7 @@ export interface PlaceOrderInput {
   clientPo?: string;
   notes?: string;
   by: string;
+  channel?: "ONLINE";
 }
 
 export interface ProduceInput {
@@ -80,6 +86,8 @@ interface Actions {
   setDeliveryNote(deliveryId: string, note: string, by: string): { ok: true } | { ok: false; error: string };
   /** Add a product, or edit one (including deactivating it). */
   saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
+  /** Create or update an online customer's client record (matched by e-mail) from their checkout details. */
+  saveCustomer(i: CustomerInput): { ok: true; client: Client } | { ok: false; error: string };
   /** Record that a copy of the receipt went to the buyer. */
   logReceipt(orderId: string, channel: ReceiptChannel, to: string, by: string): { ok: true } | { ok: false; error: string };
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
@@ -182,6 +190,7 @@ export const useStore = create<Store>()(
           status: "OPEN",
           clientPo: i.clientPo || undefined,
           notes: i.notes || undefined,
+          channel: i.channel,
         };
 
         let lots = s.lots;
@@ -440,6 +449,36 @@ export const useStore = create<Store>()(
         return { ok: true, product };
       },
 
+      saveCustomer: (i) => {
+        const err = customerError(i);
+        if (err) return { ok: false, error: err };
+        const s = get();
+        const email = i.email.trim().toLowerCase();
+        const prev = s.clients.find((c) => c.type === "Online customer" && c.email === email);
+        const client: Client = {
+          ...(prev ?? {
+            id: `c-web-${uid()}`,
+            type: "Online customer",
+            tier: ONLINE_TIER,
+            terms: "COD",
+            creditLimit: 0,
+            balance: 0,
+            pastDue: 0,
+            window: "8 am–5 pm",
+            dockNote: "",
+            email,
+          }),
+          name: i.name.trim(),
+          contact: i.name.trim(),
+          phone: i.phone.trim(),
+          address: i.address.trim(),
+          city: i.city,
+          routeId: SERVICE_AREAS[i.city],
+        };
+        set({ clients: prev ? s.clients.map((c) => (c.id === prev.id ? client : c)) : [...s.clients, client] });
+        return { ok: true, client };
+      },
+
       logReceipt: (orderId, channel, to, by) => {
         const s = get();
         if (!s.orders.some((o) => o.id === orderId)) return { ok: false, error: "Order not found." };
@@ -536,6 +575,9 @@ interface Ui {
   toast(text: string, tone?: "ok" | "warn"): void;
   counterClientId?: string;
   setCounterClient(id?: string): void;
+  /** The online order just placed at checkout, so My orders can thank the customer. */
+  placedOrderId?: string;
+  setPlacedOrder(id?: string): void;
 }
 
 export const useUi = create<Ui>()((set) => ({
@@ -547,4 +589,6 @@ export const useUi = create<Ui>()((set) => ({
   },
   counterClientId: undefined,
   setCounterClient: (id) => set({ counterClientId: id }),
+  placedOrderId: undefined,
+  setPlacedOrder: (id) => set({ placedOrderId: id }),
 }));

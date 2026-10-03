@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { AUTH_KEY, ROLE_LABEL, canOpen, homeFor, useAuth, type Role } from "@/lib/auth";
+import { useCart } from "@/lib/cart";
 import { clock, dayLong } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { STORAGE_KEY, useStore, useUi } from "@/lib/store";
@@ -27,7 +28,7 @@ function useBoot() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let alive = true;
-    Promise.all([useStore.persist.rehydrate(), useAuth.persist.rehydrate()]).then(() => {
+    Promise.all([useStore.persist.rehydrate(), useAuth.persist.rehydrate(), useCart.persist.rehydrate()]).then(() => {
       if (!useStore.getState().products.length) useStore.getState().reset();
       if (alive) setReady(true);
     });
@@ -47,11 +48,21 @@ function useBoot() {
   return ready;
 }
 
-/** Where to send someone who may not see this path: logged out goes to /login, anyone else to their home page. */
+/**
+ * Where to send someone who may not see this path. Logged out goes to /login, and comes back to the
+ * store page they were on after logging in. Anyone else goes to their home page.
+ */
 function redirectFor(path: string, role: Role | undefined) {
-  if (!role) return path.startsWith("/login") ? null : "/login";
-  if (path.startsWith("/login") || !canOpen(role, path)) return homeFor(role);
+  if (!role) return canOpen(role, path) ? null : path.startsWith("/shop") ? `/login?next=${encodeURIComponent(path)}` : "/login";
+  if (path.startsWith("/login")) return nextFrom(role) ?? homeFor(role);
+  if (!canOpen(role, path)) return homeFor(role);
   return null;
+}
+
+/** The ?next= page on /login, when the role may open it. */
+function nextFrom(role: Role) {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") && canOpen(role, next) ? next : null;
 }
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -80,7 +91,8 @@ export default function Shell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (path.startsWith("/driver")) {
+  // The driver handheld and the online store bring their own header.
+  if (path.startsWith("/driver") || path.startsWith("/shop")) {
     return (
       <>
         {show ? children : <Boot />}

@@ -136,6 +136,7 @@ const BUYS: Record<Client["type"], Category[]> = {
   Caterer: ["Dimsum", "Pork", "Seafood", "Desserts", "Bakery", "Chiller"],
   Hotel: ["Seafood", "Pork", "Bakery", "Desserts", "Dimsum", "Chiller", "Tocino & longganisa"],
   "Convenience store": ["Dimsum", "Streetfood", "Desserts", "Tocino & longganisa"],
+  "Online customer": ["Dimsum", "Streetfood", "Tocino & longganisa", "Desserts"],
 };
 
 const BIG: Client["type"][] = ["Supermarket", "School canteen", "Hospital", "Hotel", "Convenience store"];
