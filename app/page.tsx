@@ -4,13 +4,13 @@ import { AlertTriangle, ArrowUpRight, CalendarClock, PauseCircle, TrendingDown }
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { DailyBars, Sparkline } from "@/components/charts";
+import { DailyBars } from "@/components/charts";
 import { ProductGrid } from "@/components/ProductGrid";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, PageHead, Panel, cx } from "@/components/ui";
 import { DAY, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, tempBare, units } from "@/lib/format";
 import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
-import { TRUCK_LIMIT_C, ZONES, runKey } from "@/lib/logic";
+import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 
 export default function Today() {
@@ -19,7 +19,6 @@ export default function Today() {
   const deliveries = useStore((s) => s.deliveries);
   const runs = useStore((s) => s.runs);
   const routes = useStore((s) => s.routes);
-  const zones = useStore((s) => s.zones);
   const lots = useStore((s) => s.lots);
   const clients = useStore((s) => s.clients);
   const maps = useMaps();
@@ -120,35 +119,9 @@ export default function Today() {
         })}
       </Panel>
 
-      <div className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
-        <Panel title="Sales, last 14 days" actions={<span className="text-[13px] text-ink-3">Order value incl. fees</span>}>
-          <DailyBars data={daily} format={pesoK} />
-        </Panel>
-
-        <Panel title="Freezers" bodyClass="divide-y divide-line" actions={<Link href="/inventory?tab=zones" className="btn btn-quiet btn-sm">Zones <ArrowUpRight size={14} /></Link>}>
-          {zones.map((z) => {
-            const cur = z.readings.at(-1) ?? z.setPointC;
-            return (
-              <div key={z.id} className="flex items-center gap-4 px-4 py-2.5" style={{ boxShadow: `inset 4px 0 0 ${ZONES[z.id].color}` }}>
-                <div className="w-28">
-                  <div className="text-[14px] font-semibold">{z.name}</div>
-                  <div className="text-[12.5px] text-ink-3">Set {tempBare(z.setPointC, 0)}, alarm {tempBare(z.maxC, 0)}</div>
-                </div>
-                <div className="flex-1">
-                  <Sparkline values={z.readings.slice(-36)} setPoint={z.setPointC} alarm={z.maxC} />
-                </div>
-                <div className={cx("display w-20 text-right text-[26px] font-semibold", cur > z.maxC && "text-bad")}>{tempBare(cur)}</div>
-                <div className="hidden w-24 text-right text-[12.5px] text-ink-3 sm:block">
-                  {z.used}/{z.capacity} pallets
-                  <div className="mt-1 h-1.5 rounded-full bg-sunk">
-                    <div className="h-full rounded-full bg-ink-2" style={{ width: `${(z.used / z.capacity) * 100}%` }} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </Panel>
-      </div>
+      <Panel title="Sales, last 14 days" actions={<span className="text-[13px] text-ink-3">Order value incl. fees</span>}>
+        <DailyBars data={daily} format={pesoK} />
+      </Panel>
 
       <h2 className="display mt-7 mb-3 text-[22px] font-semibold">Needs attention</h2>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

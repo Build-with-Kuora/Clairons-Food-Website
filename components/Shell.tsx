@@ -4,9 +4,8 @@ import { Boxes, Building2, ChartColumn, Factory, Gauge, ReceiptText, RotateCcw, 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { clock, dayLong, tempBare } from "@/lib/format";
+import { clock, dayLong } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
-import { ZONES, ZONE_ORDER } from "@/lib/logic";
 import { STORAGE_KEY, useStore, useUi } from "@/lib/store";
 import { BottomNav } from "./BottomNav";
 import { Logo } from "./Logo";
@@ -42,37 +41,6 @@ function useBoot() {
     };
   }, []);
   return ready;
-}
-
-function ZoneStrip() {
-  const zones = useStore((s) => s.zones);
-  return (
-    <div className="flex min-w-0 items-stretch overflow-x-auto scroll-thin" aria-label="Freezer temperatures">
-      {ZONE_ORDER.map((id) => {
-        const z = zones.find((x) => x.id === id);
-        if (!z) return null;
-        const cur = z.readings.at(-1) ?? z.setPointC;
-        const alarm = cur > z.maxC;
-        return (
-          <Link
-            key={id}
-            href="/inventory?tab=zones"
-            className="group flex items-center gap-2.5 border-l border-line px-4 py-1.5 hover:bg-sunk"
-            title={`${z.name}: set ${tempBare(z.setPointC, 0)}C, alarm above ${tempBare(z.maxC, 0)}C`}
-          >
-            <span className="h-7 w-1 rounded-full" style={{ background: ZONES[id].color }} aria-hidden />
-            <span className="leading-tight">
-              <span className="block text-[12px] whitespace-nowrap text-ink-3">{z.name}</span>
-              <span className={cx("display block text-[21px] font-semibold", alarm ? "text-bad" : "text-ink")}>
-                {tempBare(cur)}
-                <span className="ml-0.5 text-[13px] font-medium text-ink-3">C</span>
-              </span>
-            </span>
-          </Link>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -151,7 +119,6 @@ export default function Shell({ children }: { children: ReactNode }) {
                 </div>
               </div>
             </div>
-            {ready && <ZoneStrip />}
           </div>
         </div>
         <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-6 lg:pb-6">{ready ? children : <Boot />}</main>

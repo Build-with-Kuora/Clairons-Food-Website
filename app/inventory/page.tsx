@@ -3,7 +3,6 @@
 import { ArrowRight, Factory, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Sparkline } from "@/components/charts";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
@@ -13,7 +12,7 @@ import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceU
 import { useStore } from "@/lib/store";
 import type { Category, Lot, MoveType, Product, ZoneId } from "@/lib/types";
 
-type Tab = "stock" | "lots" | "moves" | "zones" | "products";
+type Tab = "stock" | "lots" | "moves" | "products";
 
 const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"> = {
   PRODUCE: "good",
@@ -75,7 +74,6 @@ export default function Inventory() {
               { id: "stock", label: "Stock", count: all.length },
               { id: "lots", label: "Lots and dating", count: shortDated.length + held.length || undefined },
               { id: "moves", label: "Movements" },
-              { id: "zones", label: "Freezer zones" },
               { id: "products", label: "Products" },
             ]}
           />
@@ -90,7 +88,6 @@ export default function Inventory() {
         {tab === "stock" && <StockTab rows={all} onOpen={setOpenSku} />}
         {tab === "lots" && <LotsTab onOpen={setOpenSku} />}
         {tab === "moves" && <MovesTab />}
-        {tab === "zones" && <ZonesTab />}
         {tab === "products" && <ProductsTab onOpen={setOpenSku} />}
       </div>
 
@@ -513,74 +510,6 @@ function MovesTab() {
         </table>
       </div>
     </Panel>
-  );
-}
-
-function ZonesTab() {
-  const zones = useStore((s) => s.zones);
-  const lots = useStore((s) => s.lots);
-  const maps = useMaps();
-  return (
-    <div className="grid gap-5 md:grid-cols-2">
-      {zones.map((z) => {
-        const cur = z.readings.at(-1) ?? z.setPointC;
-        const inZone = lots.filter((l) => l.qty > 0 && zoneOfBin(l.bin) === z.id);
-        const cases = inZone.reduce((s, l) => s + l.qty, 0);
-        const unit = commonUnit(inZone.map((l) => maps.product.get(l.sku)));
-        const bySku = new Map<string, number>();
-        for (const l of inZone) bySku.set(l.sku, (bySku.get(l.sku) ?? 0) + l.qty);
-        const top = [...bySku.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-        const hi = Math.max(...z.readings);
-        const lo = Math.min(...z.readings);
-        return (
-          <Panel key={z.id} edge={ZONES[z.id].color} title={z.name} actions={<span className="text-[13px] text-ink-3">Set {tempBare(z.setPointC, 0)}C, alarm above {tempBare(z.maxC, 0)}C</span>}>
-            <div className="flex flex-wrap items-end gap-6">
-              <div>
-                <div className="text-[13px] text-ink-3">Now</div>
-                <div className={cx("display text-[56px] leading-none font-semibold", cur > z.maxC && "text-bad")}>
-                  {tempBare(cur)}
-                  <span className="text-[22px] text-ink-3">C</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="mb-1 text-[13px] text-ink-3">
-                  Last {z.readings.length} readings, low {tempBare(lo)}, high {tempBare(hi)}
-                </div>
-                <Sparkline values={z.readings} setPoint={z.setPointC} alarm={z.maxC} width={300} height={56} />
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-3 text-[13.5px]">
-              <div>
-                <div className="text-ink-3">Pallet positions</div>
-                <div className="font-semibold">
-                  {z.used} of {z.capacity} ({Math.round((z.used / z.capacity) * 100)}%)
-                </div>
-              </div>
-              <div>
-                <div className="text-ink-3">Stored</div>
-                <div className="font-semibold">{units(cases, unit)}</div>
-              </div>
-              <div>
-                <div className="text-ink-3">Lots</div>
-                <div className="font-semibold">{inZone.length}</div>
-              </div>
-            </div>
-            {top.length > 0 && (
-              <ul className="mt-3 text-[13.5px]">
-                {top.map(([sku, n]) => (
-                  <li key={sku} className="flex justify-between border-t border-line/60 py-1">
-                    <span className="truncate">{maps.product.get(sku)?.name}</span>
-                    <span className="ml-2 shrink-0 text-ink-2">{units(n, maps.product.get(sku)?.unit ?? "unit")}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {z.id === "BLAST" && <p className="mt-2 text-[12.5px] text-ink-3">Product sits here 24 to 48 hours to reach core temperature before put-away.</p>}
-          </Panel>
-        );
-      })}
-      <p className="text-[12.5px] text-ink-3 md:col-span-2">Readings arrive every 30 seconds from the zone probes. Pallet counts come from the last slotting scan.</p>
-    </div>
   );
 }
 

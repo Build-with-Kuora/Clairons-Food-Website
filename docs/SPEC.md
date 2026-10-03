@@ -46,7 +46,7 @@ These change what we build, so they come first.
 | 2.6 | Low stock is highlighted on the card | Done | Amber below reorder point, red when out |
 | 2.7 | **[changed]** With many products: search and category filter on the grid | Done | The sketch shows 4 products; the catalogue has 48 SKUs. |
 | 2.8 | Owner can add / edit / deactivate products: name, price, **selling unit and its contents** (decision 0.4), reorder level, par level | Done | Inventory → Products: add, edit, deactivate. Also tier prices, weight per unit, catch weight, storage zone, home bin and shelf life, which a new product needs to be stocked and sold. New SKUs are numbered by category. Inactive products keep their stock and history but drop off the Counter, the Dashboard grid, "To make" and the batch picker. Rules are `productError` and `nextSku` in `lib/logic.ts`; the store action is `saveProduct`. Price changes are not logged yet. |
-| 2.9 | Current dashboard content (headline figures, routes, freezer temps, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. |
+| 2.9 | Current dashboard content (headline figures, routes, sales chart, "needs attention") stays below the product grid | Done | Keep it. It covers delivery tracking and alerts. **[changed]** Freezer temperatures are removed from the dashboard, the header and Inventory (2026-10-03): live readings need sensors in the freezers, an embedded system outside this build. |
 
 ## 3. Inventory (finished goods)
 
@@ -145,6 +145,7 @@ Not built in the prototype. Do these once the client approves the prototype and 
 - **Offline delivery.** The rider/driver side must keep working with no signal: view stops, mark arrived/delivered, capture proof of delivery and COD collected. Store data on the phone in **IndexedDB** and queue each change. When the phone is back online, sync the queue to the database. Each queued change carries an id, so a retry doesn't apply it twice. Conflicts (e.g. dispatch reassigned a stop while the rider was offline) are flagged for dispatch to resolve rather than silently overwritten. The prototype's store actions (`advance`, `completeDelivery`, `reportException`) are the operations to queue.
 - **Shared database and API**, logins and roles (10.2, 10.3).
 - **E-commerce** (section 9) once its scope is decided (0.7).
+- **Freezer and ref van telemetry** from sensors, if the client wants live temperatures (an embedded system).
 - **BIR registration** of the invoicing system (7.2), with the real registered name, TIN, address and Permit to Use replacing the sample `SELLER` details.
 - **Sending receipts** through an SMS gateway and mail service instead of the device's own apps (7.4).
 
@@ -152,6 +153,6 @@ Not built in the prototype. Do these once the client approves the prototype and 
 
 Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3).
 
-Left out of the prototype for now: **e-commerce** (section 9). Its scope (0.7) is still open with the client.
+Left out of the prototype for now: **e-commerce** (section 9), whose scope (0.7) is still open with the client, and **freezer temperature monitoring** (needs sensors).
 
 1. **Main app** (see Future notes): database and API, logins and roles, offline delivery, e-commerce, BIR registration.
