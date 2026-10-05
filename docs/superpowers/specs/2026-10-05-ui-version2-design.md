@@ -2,7 +2,7 @@
 
 Branch: `ui-version2` (from `origin/prototype` at `f78eb1d`)
 Date: 2026-10-05
-Status: approved in chat, awaiting spec review
+Status: built on ui-version2
 
 ## Goal
 
@@ -186,7 +186,9 @@ Left column:
 Right column, sticky **Current order** panel:
 
 - Order type pills: **Walk-in** | **Delivery**.
-- Walk-in: optional "Customer name" field. Payment buttons Cash, GCash,
+- Walk-in: optional "Customer name" field, and an optional "Charge to an
+  account" picker for account holders buying at the counter (their terms and
+  payment options apply). Anonymous payment buttons Cash, GCash,
   Card. Pays and deducts stock now (the existing PICKUP path).
 - Delivery: customer account picker (as today, with last order and credit
   info), delivery day, PO and notes behind "More details", payment buttons
