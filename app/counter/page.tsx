@@ -58,6 +58,7 @@ export default function Counter() {
   const [done, setDone] = useState<Order | null>(null);
   const [sending, setSending] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const orderRef = useRef<HTMLElement>(null);
 
   const fulfillment = mode === "WALK_IN" ? "PICKUP" : "DELIVERY";
   const accounts = useMemo(() => clients.filter((c) => !isWalkIn(c)), [clients]);
@@ -191,7 +192,7 @@ export default function Counter() {
   const doneClient = done ? maps.client.get(done.clientId) ?? walkIn : undefined;
 
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className={cx("mx-auto max-w-[1500px]", cart.length > 0 && "pb-16 xl:pb-0")}>
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         {/* ---------- Catalog ---------- */}
         <div className="min-w-0">
@@ -241,7 +242,7 @@ export default function Counter() {
             ))}
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
             {filtered.map((p) => {
               const avail = rows.get(p.sku)?.available ?? 0;
               const qty = inCart.get(p.sku) ?? 0;
@@ -263,7 +264,7 @@ export default function Counter() {
                     <span className="code">{p.sku}</span>, per {p.unit}, {p.pack}
                     {p.catchWeight && ", catch weight"}
                   </div>
-                  <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+                  <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-3">
                     <div>
                       <div className="display text-[20px] leading-none font-semibold text-brand">
                         {money(p.price[tier])}
@@ -273,7 +274,7 @@ export default function Counter() {
                         {out ? "Out of stock" : `${units(avail, p.unit)} left`}
                       </div>
                     </div>
-                    <button className="btn btn-primary btn-sm h-8 rounded-lg px-3" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
+                    <button className="btn btn-primary btn-sm ml-auto h-8 rounded-lg px-3" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
                       <Plus size={14} strokeWidth={2.6} /> Add
                     </button>
                   </div>
@@ -290,7 +291,7 @@ export default function Counter() {
         </div>
 
         {/* ---------- Current order ---------- */}
-        <aside className="flex flex-col overflow-hidden rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)]">
+        <aside ref={orderRef} className="scroll-mt-20 flex flex-col overflow-hidden rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)]">
           <div className="space-y-4 px-5 pt-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="display text-[24px] font-semibold">Current order</h2>
@@ -554,6 +555,17 @@ export default function Counter() {
           </div>
         </aside>
       </div>
+
+      {/* Below xl the order sits under the products, so phones and tablets get a shortcut to it. */}
+      {cart.length > 0 && (
+        <button
+          className="btn btn-dark fixed inset-x-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 h-12 justify-between rounded-xl px-4 text-[15px] shadow-lg lg:bottom-4 xl:hidden"
+          onClick={() => orderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        >
+          <span>View order, {units(items, "item")}</span>
+          <span>{money(totals.total)}</span>
+        </button>
+      )}
 
       <Modal
         open={!!done}

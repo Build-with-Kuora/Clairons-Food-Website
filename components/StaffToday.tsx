@@ -49,7 +49,7 @@ export function StaffToday() {
         }
       />
 
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Stat dark icon={<PackageSearch size={20} />} label="To pick and load" value={String(toLoad.length)} href="/dispatch" foot="Stops leaving today" />
         <Stat
           icon={<PackageCheck size={20} />}

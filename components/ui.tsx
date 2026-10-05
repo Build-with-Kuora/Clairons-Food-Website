@@ -159,7 +159,7 @@ export function Stat({
   return (
     <section
       className={cx(
-        "relative flex min-w-0 flex-col rounded-2xl border p-5 shadow-card",
+        "relative flex min-w-0 flex-col rounded-2xl border p-4 shadow-card sm:p-5",
         dark ? "border-ink bg-ink text-white" : "border-line/70 bg-panel",
         className,
       )}
@@ -181,8 +181,8 @@ export function Stat({
           </Link>
         )}
       </div>
-      <div className={cx("mt-5 text-[14.5px]", dark ? "text-white/75" : "text-ink-2")}>{label}</div>
-      <div className="display mt-1 truncate text-[30px] leading-none font-semibold xl:text-[32px]">{value}</div>
+      <div className={cx("mt-4 text-[14px] sm:mt-5 sm:text-[14.5px]", dark ? "text-white/75" : "text-ink-2")}>{label}</div>
+      <div className="display mt-1 truncate text-[24px] leading-none font-semibold sm:text-[30px] xl:text-[32px]">{value}</div>
       {foot && <div className={cx("mt-3 flex flex-wrap items-center gap-2 text-[13px]", dark ? "text-white/70" : "text-ink-3")}>{foot}</div>}
     </section>
   );

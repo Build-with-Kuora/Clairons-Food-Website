@@ -47,7 +47,7 @@ export default function Orders() {
   const cancellable = open?.status === "OPEN" && (!openD || openD.status === "SCHEDULED" || openD.status === "PICKING");
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="mx-auto max-w-[1500px]">
       <PageHead
         title="Orders"
         sub={`${orders.filter((o) => o.status === "OPEN").length} open, ${money0(orders.filter((o) => !o.paid && o.status !== "CANCELLED").reduce((s, o) => s + o.total, 0))} not yet paid.`}

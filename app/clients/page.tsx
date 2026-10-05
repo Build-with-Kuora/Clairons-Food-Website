@@ -25,8 +25,8 @@ export default function Clients() {
   const open = clients.find((c) => c.id === openId);
 
   return (
-    <div className="mx-auto max-w-[1400px]">
-      <PageHead title="Clients" sub={`${clients.length} accounts. ${money0(totalAR)} receivable, ${money0(pastDue)} past due.`} />
+    <div className="mx-auto max-w-[1500px]">
+      <PageHead title="Customers" sub={`${clients.filter((c) => !isWalkIn(c)).length} accounts. ${money0(totalAR)} receivable, ${money0(pastDue)} past due.`} />
       <Panel bodyClass="">
         <div className="border-b border-line p-3">
           <div className="relative max-w-sm">
