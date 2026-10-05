@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, ChartColumn, Factory, Gauge, LogOut, ReceiptText, ScanBarcode, Truck, Wallet, X } from "lucide-react";
+import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, ReceiptText, ScanBarcode, Truck, Users, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -16,9 +16,9 @@ const SIDE_RIGHT = [{ href: "/dispatch", label: "Delivery", icon: Truck }];
 /** Screens without their own slot live under Sales. */
 const SALES = [
   { href: "/sales", label: "Sales", sub: "Sold by product, with VAT", icon: ChartColumn },
-  { href: "/counter", label: "Counter", sub: "Take an order", icon: ScanBarcode },
+  { href: "/counter", label: "POS", sub: "Walk-in sales and delivery orders", icon: ScanBarcode },
   { href: "/orders", label: "Orders", sub: "Every order and invoice", icon: ReceiptText },
-  { href: "/clients", label: "Clients", sub: "Accounts, terms, balances", icon: Building2 },
+  { href: "/clients", label: "Customers", sub: "Accounts, terms, balances", icon: Users },
 ];
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
@@ -52,7 +52,7 @@ export function BottomNav() {
           <div
             role="dialog"
             aria-label={menuLabel}
-            className="rise fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 mx-2 mb-2 rounded-xl border border-line bg-panel p-2 shadow-lg"
+            className="rise fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 mx-2 mb-2 rounded-2xl border border-line bg-panel p-2 shadow-lg"
           >
             <div className="flex items-center justify-between px-2 pt-1 pb-2">
               <span className="text-[13px] font-semibold tracking-[0.06em] text-ink-3 uppercase">{menuLabel}</span>
@@ -64,7 +64,7 @@ export function BottomNav() {
               <Link
                 key={s.href}
                 href={s.href}
-                className={cx("flex items-center gap-3 rounded-lg px-3 py-2.5", isActive(path, s.href) ? "bg-ink text-white" : "hover:bg-sunk")}
+                className={cx("flex items-center gap-3 rounded-xl px-3 py-2.5", isActive(path, s.href) ? "bg-brand text-white" : "hover:bg-sunk")}
               >
                 <s.icon size={20} aria-hidden />
                 <span className="leading-tight">
@@ -94,7 +94,7 @@ export function BottomNav() {
         ))}
         <Link href="/" aria-current={path === "/" ? "page" : undefined} className="flex h-16 flex-col items-center justify-center gap-0.5">
           <span className={cx("-mt-5 flex h-12 w-12 items-center justify-center rounded-full border-4 border-panel shadow-md", path === "/" ? "bg-brand text-white" : "bg-ink text-white")}>
-            <Gauge size={22} aria-hidden />
+            <LayoutDashboard size={22} aria-hidden />
           </span>
           <span className={cx("text-[12px] font-semibold", path === "/" ? "text-ink" : "text-ink-3")}>Home</span>
         </Link>

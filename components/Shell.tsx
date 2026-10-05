@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, ChartColumn, Factory, Gauge, LogOut, ReceiptText, RotateCcw, ScanBarcode, Truck } from "lucide-react";
+import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, Plus, ReceiptText, RotateCcw, ScanBarcode, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -13,16 +13,19 @@ import { BottomNav } from "./BottomNav";
 import { Logo } from "./Logo";
 import { Toaster, cx } from "./ui";
 
-const NAV = [
-  { href: "/", label: "Today", icon: Gauge },
-  { href: "/counter", label: "Counter", icon: ScanBarcode },
+/** The main tabs, in the client's order. Routes keep their original names; only the labels changed. */
+export const NAV = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/counter", label: "POS", icon: ScanBarcode },
   { href: "/inventory", label: "Inventory", icon: Boxes },
-  { href: "/production", label: "Production", icon: Factory },
   { href: "/dispatch", label: "Delivery", icon: Truck },
   { href: "/sales", label: "Sales", icon: ChartColumn },
   { href: "/orders", label: "Orders", icon: ReceiptText },
-  { href: "/clients", label: "Clients", icon: Building2 },
+  { href: "/clients", label: "Customers", icon: Users },
+  { href: "/production", label: "Production", icon: Factory },
 ];
+
+const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
 
 function useBoot() {
   const [ready, setReady] = useState(false);
@@ -101,70 +104,116 @@ export default function Shell({ children }: { children: ReactNode }) {
     );
   }
 
+  const tabs = NAV.filter((n) => user && canOpen(user.role, n.href));
+  const here = NAV.find((n) => isActive(path, n.href));
+  const home = path === "/";
+  const canSell = !!user && canOpen(user.role, "/counter");
+
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-[212px] shrink-0 flex-col border-r border-line bg-panel lg:flex">
-        <Link href="/" className="block px-4 pt-5 pb-5" aria-label="Clairon's Food Coldline, go to Today">
-          <Logo height={56} />
-          <div className="mt-1.5 text-[12.5px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Coldline</div>
+      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col bg-side text-side-ink lg:flex">
+        <Link href="/" className="mx-4 mt-5 mb-6 block rounded-2xl bg-white px-4 py-3" aria-label="Clairon's Food Coldline, go to the dashboard">
+          <Logo height={46} />
+          <div className="mt-1 text-[12px] font-semibold tracking-[0.12em] text-ink-3 uppercase">Coldline</div>
         </Link>
-        <nav className="flex flex-col gap-0.5 px-2">
-          {NAV.filter((n) => user && canOpen(user.role, n.href)).map((n) => {
-            const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
+        <div className="px-6 pb-2 text-[12px] font-semibold tracking-[0.1em] text-side-ink-2 uppercase">Menu</div>
+        <nav aria-label="Main" className="flex flex-col gap-1 overflow-y-auto px-3 scroll-thin">
+          {tabs.map((n) => {
+            const active = isActive(path, n.href);
             return (
               <Link
                 key={n.href}
                 href={n.href}
+                aria-current={active ? "page" : undefined}
                 className={cx(
-                  "flex h-10 items-center gap-3 rounded-md px-3 text-[15px] font-semibold",
-                  active ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk hover:text-ink",
+                  "flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15.5px] font-semibold transition-colors focus-visible:outline-white",
+                  active ? "bg-brand text-white" : "text-side-ink-2 hover:bg-side-2 hover:text-white",
                 )}
               >
-                <n.icon size={18} strokeWidth={2} className={active ? "text-brand" : undefined} aria-hidden />
+                <n.icon size={19} strokeWidth={2} aria-hidden />
                 {n.label}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-auto border-t border-line p-4">
-          <div className="text-[13px] text-ink-3">Signed in as {user && ROLE_LABEL[user.role]}</div>
-          <div className="truncate text-[14px] font-semibold" title={user?.email}>
-            {user?.email}
+        <div className="mx-3 mt-auto mb-4 rounded-2xl bg-side-2 p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-[15px] font-bold text-white uppercase" aria-hidden>
+              {user?.email.charAt(0)}
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-[14px] font-semibold" title={user?.email}>
+                {user?.email}
+              </div>
+              <div className="text-[13px] text-side-ink-2">{user && ROLE_LABEL[user.role]}</div>
+            </div>
           </div>
-          <button className="btn btn-quiet btn-sm mt-3 -ml-2.5" onClick={logOut}>
-            <LogOut size={14} /> Log out
-          </button>
-          {user?.role === "admin" && (
-            <button
-              className="btn btn-quiet btn-sm mt-1 -ml-2.5"
-              onClick={() => {
-                reset();
-                toast("Demo data reset to this morning");
-              }}
-            >
-              <RotateCcw size={14} /> Reset demo data
+          <div className="mt-3 flex flex-col items-start gap-0.5">
+            <button className="btn btn-sm -ml-2.5 border-transparent bg-transparent text-side-ink-2 hover:bg-white/10 hover:text-white" onClick={logOut}>
+              <LogOut size={14} /> Log out
             </button>
-          )}
+            {user?.role === "admin" && (
+              <button
+                className="btn btn-sm -ml-2.5 border-transparent bg-transparent text-side-ink-2 hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  reset();
+                  toast("Demo data reset to this morning");
+                }}
+              >
+                <RotateCcw size={14} /> Reset demo data
+              </button>
+            )}
+          </div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 border-b border-line bg-panel/95 backdrop-blur">
-          <div className="flex items-center justify-between gap-4 pl-4 lg:pl-6">
-            <div className="flex shrink-0 items-center gap-3 py-2">
+        <header className="sticky top-0 z-30 border-b border-line bg-panel/95 backdrop-blur">
+          <div className="flex min-h-[68px] items-center justify-between gap-4 px-4 lg:px-7">
+            <div className="flex min-w-0 items-center gap-3 py-2">
               <Logo height={30} className="lg:hidden" />
-              <div className="leading-tight">
-                <div className="text-[14px] font-semibold whitespace-nowrap" suppressHydrationWarning>
-                  {dayLong(now)}
+              {home ? (
+                <div className="min-w-0 leading-tight">
+                  <div className="display truncate text-[24px] font-semibold lg:text-[28px]">Hello, {user ? ROLE_LABEL[user.role] : "there"}</div>
+                  <div className="text-[13.5px] text-ink-3" suppressHydrationWarning>
+                    {dayLong(now)}, {clock(now)}
+                  </div>
                 </div>
-                <div className="text-[13px] text-ink-3" suppressHydrationWarning>
-                  {clock(now)}
+              ) : (
+                <div className="min-w-0 leading-tight">
+                  <nav aria-label="Breadcrumb" className="hidden text-[13px] text-ink-3 sm:block">
+                    <Link href="/" className="hover:text-ink">
+                      Home
+                    </Link>
+                    <span className="mx-1.5" aria-hidden>
+                      /
+                    </span>
+                    <span className="text-ink-2">{here?.label}</span>
+                  </nav>
+                  <div className="display truncate text-[22px] font-semibold">{here?.label}</div>
                 </div>
-              </div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-4">
+              {!home && (
+                <div className="hidden text-right leading-tight md:block">
+                  <div className="text-[14px] font-semibold whitespace-nowrap" suppressHydrationWarning>
+                    {dayLong(now)}
+                  </div>
+                  <div className="text-[13px] text-ink-3" suppressHydrationWarning>
+                    {clock(now)}
+                  </div>
+                </div>
+              )}
+              {canSell && path !== "/counter" && (
+                <Link href="/counter" className="btn btn-primary h-10 rounded-xl px-4">
+                  <Plus size={17} strokeWidth={2.4} /> <span className="hidden sm:inline">New order</span>
+                </Link>
+              )}
             </div>
           </div>
-        </div>
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-6 lg:pb-6">{show ? children : <Boot />}</main>
+        </header>
+        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-7 lg:pb-8">{show ? children : <Boot />}</main>
       </div>
       <BottomNav />
       <Toaster aboveNav />
