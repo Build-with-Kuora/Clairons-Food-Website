@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight, Factory, Pencil, Plus, Search } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Download, Ellipsis, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { CategoryTile } from "@/components/CategoryTile";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
-import { capitalize, count, dateTime, day, daysUntil, money, money0, temp, tempBare, unitPlural, units } from "@/lib/format";
+import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, plural, temp, tempBare, unitPlural, units } from "@/lib/format";
 import { useIsAdmin } from "@/lib/auth";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
@@ -56,25 +57,42 @@ export default function Inventory() {
   const shortDated = lots.filter((l) => l.qty > 0 && daysUntil(l.bestBy, now) <= 30);
   const held = lots.filter((l) => l.qty > 0 && l.status === "HOLD");
 
+  const active = all.filter((r) => r.product.active);
+  const categories = new Set(active.map((r) => r.product.category));
+  const out = active.filter((r) => r.available <= 0);
+
   return (
     <div className="mx-auto max-w-[1500px]">
       <PageHead
-        title="Inventory"
+        title="Inventory summary"
         sub={`${all.length} SKUs, ${units(totalCases, commonUnit(products))} on hand, ${money0(value)} at cost.`}
         actions={
           <>
+            <Link href="/production" className="btn btn-ghost">
+              <Factory size={16} /> Record batch
+            </Link>
             {admin && (
-              <button className="btn btn-ghost" onClick={() => setAdding(true)}>
+              <button className="btn btn-primary" onClick={() => setAdding(true)}>
                 <Plus size={16} /> Add product
               </button>
             )}
-            <Link href="/production" className="btn btn-primary">
-              <Factory size={16} /> Record batch
-            </Link>
           </>
         }
       />
       {adding && <ProductForm onClose={() => setAdding(false)} />}
+
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <SummaryCard title="Categories" tone="ink" value={`Total ${count(categories.size)}`} note="Sold now" />
+        <SummaryCard title="Total products" tone="brand" value={`Total ${count(active.length)}`} note={`${units(totalCases, commonUnit(products))} on hand`} />
+        <SummaryCard
+          title="Low stock"
+          tone="bad"
+          value={`Total ${count(low.filter((r) => r.product.active).length)}`}
+          note={out.length ? `${count(out.length)} out of stock` : "None out of stock"}
+          href="/inventory?filter=low"
+          onClick={() => setTab("stock")}
+        />
+      </div>
 
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">
@@ -109,110 +127,275 @@ export default function Inventory() {
   );
 }
 
+/** One of the three cards over the items table: a colored title, the count, and a note. */
+function SummaryCard({ title, tone, value, note, href, onClick }: { title: string; tone: "ink" | "brand" | "bad"; value: string; note: string; href?: string; onClick?: () => void }) {
+  const body = (
+    <>
+      <div className={cx("display text-[26px] leading-tight font-semibold", tone === "brand" ? "text-brand" : tone === "bad" ? "text-bad" : "text-ink")}>{title}</div>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <span className="text-[19px] text-ink-2">{value}</span>
+        <span className="text-[13.5px] text-ink-3">{note}</span>
+      </div>
+    </>
+  );
+  const cls = "block rounded-2xl border border-line/70 bg-panel p-5 shadow-card";
+  return href ? (
+    <Link href={href} onClick={onClick} className={cx(cls, "transition-colors hover:border-line-2")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+type StockStatus = "in" | "low" | "out" | "hold" | "freezing";
+
+/** What the status pill says. Low is below the reorder point; out with stock held or freezing says why. */
+function stockStatus(r: StockRow): StockStatus {
+  if (r.available <= 0) return r.held > 0 ? "hold" : r.freezing > 0 ? "freezing" : "out";
+  return r.available < r.product.reorderPoint ? "low" : "in";
+}
+
+const STATUS_PILL: Record<StockStatus, { label: string; dot: string; text: string }> = {
+  in: { label: "In stock", dot: "bg-good", text: "text-good" },
+  low: { label: "Low stock", dot: "bg-warn", text: "text-warn" },
+  out: { label: "Out of stock", dot: "bg-bad", text: "text-bad" },
+  hold: { label: "On hold", dot: "bg-bad", text: "text-bad" },
+  freezing: { label: "Freezing", dot: "bg-accent", text: "text-accent" },
+};
+
+type StatusFilter = "" | "in" | "below" | "out" | "hold";
+
+const PAGE = 10;
+
 function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) => void }) {
+  const admin = useIsAdmin();
   const [q, setQ] = useState("");
   const [zone, setZone] = useState<ZoneId | "">("");
   const [cat, setCat] = useState<Category | "">("");
-  const [lowOnly, setLowOnly] = useState(false);
+  // The dashboard's "Below reorder point" card links here with ?filter=low.
+  const [status, setStatus] = useState<StatusFilter>(() => (queryParam("filter") === "low" ? "below" : ""));
+  const [page, setPage] = useState(0);
+  const [menu, setMenu] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Product | null>(null);
   const now = useNow();
   const cats = [...new Set(rows.map((r) => r.product.category))];
-  const list = rows.filter(
-    (r) =>
+  const list = rows.filter((r) => {
+    const s = stockStatus(r);
+    return (
       (!q || r.product.name.toLowerCase().includes(q.toLowerCase()) || r.product.sku.toLowerCase().includes(q.toLowerCase())) &&
       (!zone || r.product.zone === zone) &&
       (!cat || r.product.category === cat) &&
-      (!lowOnly || r.available < r.product.reorderPoint),
-  );
+      (!status ||
+        (status === "in" && s === "in") ||
+        (status === "below" && r.available < r.product.reorderPoint) ||
+        (status === "out" && r.available <= 0) ||
+        (status === "hold" && r.held > 0))
+    );
+  });
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  const at = Math.min(page, pages - 1);
+  const shown = list.slice(at * PAGE, at * PAGE + PAGE);
+  // Any change to the search or filters goes back to the first page.
+  const first = () => setPage(0);
+
+  /** The filtered rows as a CSV file, in each product's selling unit. Value is at cost. */
+  function exportCsv() {
+    const cell = (v: string | number) => (typeof v === "number" ? String(v) : /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const lines = [
+      ["SKU", "Product", "Category", "Unit", "On hand", "Reserved", "Held", "Freezing", "Free to sell", "Reorder point", "List price", "Stock value at cost", "Status"].join(","),
+      ...list.map((r) =>
+        [r.product.sku, r.product.name, r.product.category, r.product.unit, r.onHand, r.reserved, r.held, r.freezing, r.available, r.product.reorderPoint, r.product.price.C, Math.round(r.value * 100) / 100, STATUS_PILL[stockStatus(r)].label]
+          .map(cell)
+          .join(","),
+      ),
+    ];
+    const blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `clairons-inventory-${dateKey(now)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   return (
-    <Panel bodyClass="">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
-        <div className="relative min-w-[220px] flex-1">
+    <Panel
+      title="Inventory items"
+      sub={`${plural(list.length, "product")}${list.length !== rows.length ? ` of ${rows.length}` : ""}`}
+      bodyClass=""
+      actions={
+        <button className="btn btn-primary btn-sm h-9 px-3" onClick={exportCsv} disabled={!list.length}>
+          <Download size={15} /> Export
+        </button>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
+        <div className="relative min-w-[220px] flex-1 md:max-w-[340px]">
           <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" />
-          <input className="input pl-8" placeholder="Search SKU or product" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-8" placeholder="Search SKU or product" value={q} onChange={(e) => {
+              setQ(e.target.value);
+              first();
+            }} aria-label="Search inventory" />
         </div>
-        <select className="input w-auto" value={zone} onChange={(e) => setZone(e.target.value as ZoneId | "")} aria-label="Zone">
-          <option value="">All zones</option>
-          {ZONE_ORDER.map((z) => (
-            <option key={z} value={z}>
-              {ZONES[z].name}
-            </option>
-          ))}
-        </select>
-        <select className="input w-auto" value={cat} onChange={(e) => setCat(e.target.value as Category | "")} aria-label="Category">
-          <option value="">All categories</option>
-          {cats.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-3 text-[14px]">
-          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} className="accent-ink" />
-          Below reorder point
-        </label>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <ListFilter size={16} className="text-ink-3" aria-hidden />
+          <select className="input w-auto" value={status} onChange={(e) => {
+              setStatus(e.target.value as StatusFilter);
+              first();
+            }} aria-label="Status">
+            <option value="">All statuses</option>
+            <option value="in">In stock</option>
+            <option value="below">Below reorder point</option>
+            <option value="out">Out of stock</option>
+            <option value="hold">With held stock</option>
+          </select>
+          <select className="input w-auto" value={cat} onChange={(e) => {
+              setCat(e.target.value as Category | "");
+              first();
+            }} aria-label="Category">
+            <option value="">All categories</option>
+            {cats.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <select className="input w-auto" value={zone} onChange={(e) => {
+              setZone(e.target.value as ZoneId | "");
+              first();
+            }} aria-label="Zone">
+            <option value="">All zones</option>
+            {ZONE_ORDER.map((z) => (
+              <option key={z} value={z}>
+                {ZONES[z].name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div className="overflow-x-auto scroll-thin">
-        <table className="tbl min-w-[1080px]">
+      <div className="overflow-x-auto border-t border-line scroll-thin">
+        <table className="tbl min-w-[1040px]">
           <thead>
             <tr>
+              <th className="pl-5">Product name</th>
+              <th>Category</th>
               <th>SKU</th>
-              <th>Product</th>
-              <th>Zone</th>
               <th className="r">On hand</th>
               <th className="r">Reserved</th>
-              <th className="r">Held</th>
-              <th className="r">Freezing</th>
               <th className="r">Free to sell</th>
-              <th>Level vs par</th>
-              <th>Next best-by</th>
-              <th className="r">Value</th>
+              <th className="r">Unit price</th>
+              <th className="r">Stock value</th>
+              <th>Status</th>
+              <th className="r pr-5">Action</th>
             </tr>
           </thead>
           <tbody>
-            {list.map((r) => {
-              const d = r.nextBestBy ? daysUntil(r.nextBestBy, now) : null;
+            {shown.map((r) => {
+              const s = STATUS_PILL[stockStatus(r)];
               return (
                 <tr key={r.product.sku} className="clickable" onClick={() => onOpen(r.product.sku)}>
+                  <td className="pl-5">
+                    <div className="flex items-center gap-3">
+                      <CategoryTile category={r.product.category} size="sm" />
+                      <div className="min-w-0">
+                        <div className="font-semibold">
+                          {r.product.name} {!r.product.active && <Badge>Inactive</Badge>}
+                        </div>
+                        <div className="text-[12.5px] text-ink-3">
+                          Per {r.product.unit}, {r.product.pack}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-ink-2">{r.product.category}</td>
                   <td className="code text-ink-2">{r.product.sku}</td>
-                  <td>
-                    <div className="font-semibold">
-                      {r.product.name} {!r.product.active && <Badge>Inactive</Badge>}
-                    </div>
-                    <div className="text-[13px] text-ink-3">
-                      Per {r.product.unit}, {r.product.pack}, {r.lots.length} {r.lots.length === 1 ? "lot" : "lots"}
-                    </div>
-                  </td>
-                  <td>
-                    <ZoneTag zone={r.product.zone} temp={false} />
-                  </td>
                   <td className="r font-semibold">{r.onHand}</td>
                   <td className="r text-ink-2">{r.reserved || "–"}</td>
-                  <td className={cx("r", r.held ? "font-semibold text-bad" : "text-ink-3")}>{r.held || "–"}</td>
-                  <td className={cx("r", r.freezing ? "font-semibold text-accent" : "text-ink-3")}>{r.freezing || "–"}</td>
-                  <td className={cx("r font-semibold", r.available < r.product.reorderPoint && "text-warn", r.available === 0 && "text-bad")}>{r.available}</td>
-                  <td>
-                    <LevelBar value={r.available} reorder={r.product.reorderPoint} par={r.product.par} />
-                  </td>
-                  <td className={cx(d !== null && d <= 30 ? "font-semibold text-warn" : "text-ink-2")}>
-                    {r.nextBestBy ? `${day(r.nextBestBy)}` : "–"}
-                    {d !== null && d <= 30 && <span className="ml-1 text-[12.5px]">({d} d)</span>}
+                  <td className={cx("r font-semibold", r.available < r.product.reorderPoint && "text-warn", r.available <= 0 && "text-bad")}>{r.available}</td>
+                  <td className="r text-ink-2 whitespace-nowrap">
+                    {money0(r.product.price.C)}
+                    <span className="text-[12px] text-ink-3">/{priceUnit(r.product)}</span>
                   </td>
                   <td className="r text-ink-2">{money0(r.value)}</td>
+                  <td>
+                    <span className={cx("inline-flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap", s.text)}>
+                      <span className={cx("h-2 w-2 rounded-full", s.dot)} aria-hidden />
+                      {s.label}
+                    </span>
+                  </td>
+                  <td className="r relative pr-5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="btn btn-quiet btn-sm px-2"
+                      onClick={() => setMenu(menu === r.product.sku ? null : r.product.sku)}
+                      aria-haspopup="menu"
+                      aria-expanded={menu === r.product.sku}
+                      aria-label={`Actions for ${r.product.name}`}
+                    >
+                      <Ellipsis size={18} />
+                    </button>
+                    {menu === r.product.sku && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setMenu(null)} aria-hidden />
+                        <div role="menu" className="rise absolute top-full right-4 z-20 w-44 rounded-xl border border-line bg-panel p-1 text-left shadow-lg">
+                          <MenuItem
+                            onClick={() => {
+                              setMenu(null);
+                              onOpen(r.product.sku);
+                            }}
+                          >
+                            Open details
+                          </MenuItem>
+                          <MenuItem href={`/production?sku=${r.product.sku}`}>Record a batch</MenuItem>
+                          {admin && (
+                            <MenuItem
+                              onClick={() => {
+                                setMenu(null);
+                                setEditing(r.product);
+                              }}
+                            >
+                              Edit product
+                            </MenuItem>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {list.length === 0 && <Empty title="No SKUs match these filters">Clear the search or turn off “Below reorder point”.</Empty>}
+        {list.length === 0 && <Empty title="No products match these filters">Clear the search or set the filters back to all.</Empty>}
       </div>
-      <div className="flex flex-wrap items-center gap-4 border-t border-line px-4 py-2 text-[12.5px] text-ink-3">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-px bg-warn" /> Reorder point
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+        <div className="flex gap-2">
+          <button className="btn btn-ghost btn-sm h-8" onClick={() => setPage(at - 1)} disabled={at === 0}>
+            <ChevronLeft size={15} /> Previous
+          </button>
+          <button className="btn btn-ghost btn-sm h-8" onClick={() => setPage(at + 1)} disabled={at >= pages - 1}>
+            Next <ChevronRight size={15} />
+          </button>
+        </div>
+        <span className="text-[13px] text-ink-2">
+          Page {at + 1} of {pages}
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-px bg-ink-3" /> Par level
-        </span>
-        <span>Counts are in each product&rsquo;s selling unit. Reserved = on orders not yet loaded. Held = QA hold or past best-by.</span>
       </div>
+      <p className="border-t border-line px-5 py-2.5 text-[12.5px] text-ink-3">
+        Counts are in each product&rsquo;s selling unit. Reserved = on orders not yet loaded. Unit price is the list price (tier C); stock value is at cost. Open a product for lots, best-by dates and adjustments.
+      </p>
+      {editing && <ProductForm key={editing.sku} product={editing} onClose={() => setEditing(null)} />}
     </Panel>
+  );
+}
+
+function MenuItem({ children, onClick, href }: { children: ReactNode; onClick?: () => void; href?: string }) {
+  const cls = "flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-[14px] font-medium text-ink hover:bg-sunk";
+  return href ? (
+    <Link role="menuitem" href={href} className={cls}>
+      {children}
+    </Link>
+  ) : (
+    <button role="menuitem" className={cls} onClick={onClick}>
+      {children}
+    </button>
   );
 }
 
