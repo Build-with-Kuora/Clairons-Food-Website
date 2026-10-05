@@ -1,12 +1,16 @@
 "use client";
 
-import { Download, Printer } from "lucide-react";
+import { Download, Package, Percent, Printer, ReceiptText, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Empty, PageHead, Panel, cx } from "@/components/ui";
-import { DAY, HOUR, count, dateKey, day, keyToTs, money, plural, startOfDay, unitPlural, capitalize } from "@/lib/format";
+import { PairedBars, Rings } from "@/components/trendCharts";
+import { Delta, Empty, PageHead, Panel, Stat, cx } from "@/components/ui";
+import { DAY, HOUR, count, dateKey, day, keyToTs, money, money0, pesoK, plural, startOfDay, unitPlural, capitalize } from "@/lib/format";
 import { useMaps, useSales, useToday } from "@/lib/hooks";
-import { commonUnit, salesCsv, salesSummary, vatSplit } from "@/lib/logic";
+import { buyerName, commonUnit, isWalkIn, previousRange, salesByCategory, salesByClient, salesByDay, salesCsv, salesSummary, vatSplit } from "@/lib/logic";
+
+/** Ring colors for the top categories, strongest first: red, black, then their light tints. */
+const RING_COLORS = ["var(--color-brand)", "var(--color-ink)", "var(--color-brand-soft)", "var(--color-line-2)"];
 
 type Preset = "today" | "yesterday" | "week" | "month" | "thisMonth";
 
@@ -80,18 +84,24 @@ export default function Sales() {
   const fees = vatSplit(sum.fees);
   const unit = commonUnit(sum.rows.map((r) => maps.product.get(r.sku)));
 
-  const figures = [
-    { label: "Total sales", value: money(sum.total), sub: `${plural(sum.count, "sale")}, VAT included` },
-    { label: "VATable sales", value: money(total.net), sub: "Without VAT" },
-    { label: "VAT 12%", value: money(total.vat), sub: "Output VAT in the total" },
-    { label: `${capitalize(unitPlural(unit))} sold`, value: count(sum.cases), sub: plural(sum.rows.length, "product") },
-  ];
+  // The period of the same length just before, for the change on each figure.
+  const prev = previousRange(from, to);
+  const before = salesSummary(sales, prev.from, prev.to);
+  const beforeTotal = vatSplit(before.total);
+  const vsLabel = fromKey === toKey ? "vs the day before" : "vs the period before";
+
+  const byCategory = salesByCategory(sales, maps.product, from, to);
+  const topCats = byCategory.slice(0, 4);
+  const catTotal = byCategory.reduce((t, c) => t + c.amount, 0);
+  const byDay = salesByDay(sales, maps.order, from, to);
+  const byClient = salesByClient(sales, from, to).slice(0, 5);
+  const topClient = byClient[0]?.amount ?? 0;
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="mx-auto max-w-[1500px]">
       <PageHead
-        title="Sales"
-        sub="Counted when delivered, or when paid at the counter. Refused cases are left out."
+        title="Sales report"
+        sub={`${label}. Counted when delivered, or when paid at the counter. Refused cases are left out.`}
         actions={
           <>
             <div className="flex items-center gap-1.5" role="group" aria-label="Download CSV">
@@ -139,14 +149,141 @@ export default function Sales() {
         </div>
       </div>
 
-      <div className="mb-5 grid grid-cols-2 overflow-hidden rounded-[10px] border border-line bg-panel md:grid-cols-4">
-        {figures.map((f, i) => (
-          <div key={f.label} className={cx("min-w-0 px-4 py-3", i > 0 && "md:border-l", i % 2 === 1 && "border-l", i > 1 && "border-t md:border-t-0", "border-line")}>
-            <div className="text-[13px] text-ink-3">{f.label}</div>
-            <div className="display mt-0.5 truncate text-[26px] leading-none font-semibold md:text-[30px]">{f.value}</div>
-            <div className="mt-1 text-[13px] text-ink-3">{f.sub}</div>
-          </div>
-        ))}
+      <div className="mb-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Stat
+            dark
+            icon={<Wallet size={20} />}
+            label="Total sales"
+            value={money(sum.total)}
+            foot={
+              <>
+                <Delta now={sum.total} prev={before.total} onDark /> {plural(sum.count, "sale")}, VAT included
+              </>
+            }
+          />
+          <Stat
+            icon={<ReceiptText size={20} />}
+            label="VATable sales"
+            value={money(total.net)}
+            foot={
+              <>
+                <Delta now={total.net} prev={beforeTotal.net} /> {vsLabel}
+              </>
+            }
+          />
+          <Stat
+            icon={<Percent size={20} />}
+            label="VAT 12%"
+            value={money(total.vat)}
+            foot={
+              <>
+                <Delta now={total.vat} prev={beforeTotal.vat} /> Output VAT in the total
+              </>
+            }
+          />
+          <Stat
+            icon={<Package size={20} />}
+            label={`${capitalize(unitPlural(unit))} sold`}
+            value={count(sum.cases)}
+            foot={
+              <>
+                <Delta now={sum.cases} prev={before.cases} /> {plural(sum.rows.length, "product")}
+              </>
+            }
+          />
+        </div>
+
+        <Panel title="Sales by category" sub="Product sales, fees left out">
+          {topCats.length ? (
+            <div>
+              <div className="flex items-center gap-5">
+                <Rings items={topCats.map((c, i) => ({ label: c.category, value: c.amount, color: RING_COLORS[i] }))} size={150} label="Top categories by amount" />
+                <div className="min-w-0">
+                  <div className="display text-[30px] leading-none font-semibold">{pesoK(catTotal)}</div>
+                  <div className="mt-1 text-[13px] text-ink-3">
+                    Product sales across {plural(byCategory.length, "category", "categories")}
+                  </div>
+                </div>
+              </div>
+              <ul className="mt-5 space-y-2.5 text-[13.5px]">
+                {topCats.map((c, i) => (
+                  <li key={c.category} className="flex items-center gap-2">
+                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: RING_COLORS[i] }} aria-hidden />
+                    <span className="min-w-0 flex-1 truncate text-ink-2">{c.category}</span>
+                    <span className="font-semibold">{pesoK(c.amount)}</span>
+                    <span className="w-10 text-right text-[12.5px] text-ink-3">{catTotal ? Math.round((c.amount / catTotal) * 100) : 0}%</span>
+                  </li>
+                ))}
+                {byCategory.length > topCats.length && (
+                  <li className="text-[12.5px] text-ink-3">
+                    {plural(byCategory.length - topCats.length, "more category", "more categories")}, {pesoK(catTotal - topCats.reduce((t, c) => t + c.amount, 0))}
+                  </li>
+                )}
+              </ul>
+            </div>
+          ) : (
+            <Empty title="No sales in this range" />
+          )}
+        </Panel>
+      </div>
+
+      <div className="mb-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <Panel
+          title={byDay.step === 7 ? "Sales by week" : "Sales by day"}
+          sub="Walk-in against delivery, fees included"
+          actions={
+            <div className="flex items-center gap-4 text-[13px] text-ink-2">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-brand" aria-hidden /> Walk-in
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-ink" aria-hidden /> Delivery
+              </span>
+            </div>
+          }
+        >
+          <PairedBars
+            names={["Walk-in", "Delivery"]}
+            format={pesoK}
+            data={byDay.buckets.map((b) => ({
+              label: new Date(b.start).toLocaleDateString("en-US", byDay.buckets.length > 10 ? { month: "short", day: "numeric" } : { weekday: "short", day: "numeric" }),
+              sub: byDay.step === 7 ? `Week of ${day(b.start)}` : new Date(b.start).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }),
+              a: b.walkIn,
+              b: b.delivery,
+            }))}
+          />
+        </Panel>
+
+        <Panel title="Top customers" sub={`By amount, ${label}`}>
+          {byClient.length ? (
+            <ul className="space-y-3.5">
+              {byClient.map((c) => {
+                const client = maps.client.get(c.clientId);
+                return (
+                  <li key={c.clientId}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      {isWalkIn(client) ? (
+                        <span className="truncate text-[14px] font-semibold">Walk-in customers</span>
+                      ) : (
+                        <Link href={`/clients?id=${c.clientId}`} className="truncate text-[14px] font-semibold hover:underline">
+                          {buyerName({}, client)}
+                        </Link>
+                      )}
+                      <span className="text-[14px] font-semibold whitespace-nowrap">{money0(c.amount)}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-sunk" aria-hidden>
+                      <div className={cx("h-full rounded-full", isWalkIn(client) ? "bg-brand" : "bg-ink")} style={{ width: `${topClient ? (c.amount / topClient) * 100 : 0}%` }} />
+                    </div>
+                    <div className="mt-0.5 text-[12.5px] text-ink-3">{plural(c.count, "sale")}</div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <Empty title="No sales in this range" />
+          )}
+        </Panel>
       </div>
 
       <Panel title={`Sales by product, ${label}`} bodyClass="">
