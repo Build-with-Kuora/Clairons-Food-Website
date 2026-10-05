@@ -291,7 +291,7 @@ export default function Counter() {
         </div>
 
         {/* ---------- Current order ---------- */}
-        <aside ref={orderRef} className="scroll-mt-20 flex flex-col overflow-hidden rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)]">
+        <aside ref={orderRef} className="scroll-mt-20 flex flex-col overflow-y-auto rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)] scroll-thin">
           <div className="space-y-4 px-5 pt-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="display text-[24px] font-semibold">Current order</h2>
@@ -392,7 +392,7 @@ export default function Counter() {
             )}
           </div>
 
-          <div className="mt-4 min-h-[140px] flex-1 overflow-y-auto border-y border-line bg-sunk/50 px-3 py-3 scroll-thin">
+          <div className="mt-4 min-h-[140px] shrink-0 border-y border-line bg-sunk/50 px-3 py-3 scroll-thin">
             {cart.length === 0 ? (
               <p className="px-3 py-8 text-center text-[14px] text-ink-3">Add products from the left, or type a SKU and press Enter.</p>
             ) : (
@@ -448,7 +448,7 @@ export default function Counter() {
             )}
           </div>
 
-          <div className="space-y-4 px-5 pt-4 pb-5">
+          <div className="space-y-4 px-5 pt-4 pb-4">
             {mode === "DELIVERY" && (
               <div className="space-y-2">
                 <Field label="Delivery day">
@@ -547,11 +547,14 @@ export default function Counter() {
                 )}
               </div>
             )}
+          </div>
 
+          {/* Checkout stays in view at the bottom of the panel however long the order gets. */}
+          <div className="sticky bottom-0 border-t border-line bg-panel px-5 pt-3 pb-5">
             <button className="btn btn-primary btn-lg w-full" disabled={!canPlace} onClick={submit}>
-              {mode === "WALK_IN" ? `Checkout ${money(totals.total)}` : `Place order for ${dayShort(keyToTs(date)).split(",")[0]}`}
+              {mode === "WALK_IN" ? `Checkout ${money(totals.total)}` : `Place order for ${dayShort(keyToTs(date)).split(",")[0]}, ${money(totals.total)}`}
             </button>
-            {mode === "DELIVERY" && !client && cart.length > 0 && <p className="-mt-2 text-[12.5px] text-ink-3">Choose the customer account to price and place this order.</p>}
+            {mode === "DELIVERY" && !client && cart.length > 0 && <p className="mt-2 text-[12.5px] text-ink-3">Choose the customer account to price and place this order.</p>}
           </div>
         </aside>
       </div>
