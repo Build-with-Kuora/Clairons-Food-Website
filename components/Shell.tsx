@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, Plus, ReceiptText, RotateCcw, ScanBarcode, Truck, Users } from "lucide-react";
+import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, ReceiptText, RotateCcw, ScanBarcode, Search, Sun, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -77,6 +77,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const user = useAuth((s) => s.user);
   const logOut = useAuth((s) => s.logOut);
   const router = useRouter();
+  const [collapsed, setCollapsed] = useCollapsed();
   const to = ready ? redirectFor(path, user?.role) : null;
   const show = ready && !to;
 
@@ -109,15 +110,35 @@ export default function Shell({ children }: { children: ReactNode }) {
   const home = path === "/";
   const canSell = !!user && canOpen(user.role, "/counter");
 
+  function search(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const term = new FormData(e.currentTarget).get("q")?.toString().trim();
+    if (!term) return;
+    // Inventory starts its table from this search, and restarts it when a new one comes in.
+    useUi.getState().searchInventory(term);
+    router.push(`/inventory?q=${encodeURIComponent(term)}`);
+  }
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col bg-side text-side-ink lg:flex">
-        <Link href="/" className="mx-4 mt-5 mb-6 block rounded-2xl bg-white px-4 py-3" aria-label="Clairon's Food Coldline, go to the dashboard">
-          <Logo height={46} />
-          <div className="mt-1 text-[12px] font-semibold tracking-[0.12em] text-ink-3 uppercase">Coldline</div>
-        </Link>
-        <div className="px-6 pb-2 text-[12px] font-semibold tracking-[0.1em] text-side-ink-2 uppercase">Menu</div>
-        <nav aria-label="Main" className="flex flex-col gap-1 overflow-y-auto px-3 scroll-thin">
+    // The frame is the sidebar's black; the content sits on it as a light panel with a curved left edge.
+    <div className="flex min-h-screen bg-page lg:bg-side">
+      <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col bg-side text-side-ink transition-[width] duration-200 lg:flex", collapsed ? "w-[92px]" : "w-[264px]")}>
+        <div className={cx("flex items-center gap-2 border-b border-white/10 py-5", collapsed ? "flex-col px-3" : "justify-between px-5")}>
+          <Link href="/" className="block rounded-xl bg-white px-2.5 py-2" aria-label="Clairon's Food Coldline, go to the dashboard">
+            <Logo height={collapsed ? 22 : 38} />
+          </Link>
+          <button
+            className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white"
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+            aria-pressed={collapsed}
+          >
+            {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          </button>
+        </div>
+
+        <div className={cx("pt-6 pb-2 text-[13px] font-semibold tracking-[0.08em] text-side-ink-2 uppercase", collapsed ? "text-center" : "px-7")}>Menu</div>
+        <nav aria-label="Main" className="flex flex-col gap-0.5 overflow-y-auto px-3 scroll-thin">
           {tabs.map((n) => {
             const active = isActive(path, n.href);
             return (
@@ -125,58 +146,81 @@ export default function Shell({ children }: { children: ReactNode }) {
                 key={n.href}
                 href={n.href}
                 aria-current={active ? "page" : undefined}
+                title={collapsed ? n.label : undefined}
                 className={cx(
-                  "flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15.5px] font-semibold transition-colors focus-visible:outline-white",
-                  active ? "bg-brand text-white" : "text-side-ink-2 hover:bg-side-2 hover:text-white",
+                  "flex h-12 items-center gap-3.5 rounded-xl text-[16.5px] font-medium transition-colors focus-visible:outline-white",
+                  collapsed ? "justify-center" : "px-4",
+                  active ? "text-brand" : "text-side-ink-2 hover:bg-white/5 hover:text-white",
                 )}
               >
-                <n.icon size={19} strokeWidth={2} aria-hidden />
-                {n.label}
+                <n.icon size={22} strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+                {!collapsed && n.label}
               </Link>
             );
           })}
         </nav>
-        <div className="mx-3 mt-auto mb-4 rounded-2xl bg-side-2 p-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-[15px] font-bold text-white uppercase" aria-hidden>
+
+        <div className="mt-auto">
+          {!collapsed && canSell && (
+            <div className="mx-4 mb-5 rounded-2xl bg-white p-5 text-ink">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink text-white" aria-hidden>
+                <ScanBarcode size={20} />
+              </span>
+              <div className="display mt-4 text-[21px] leading-tight font-semibold">Ring up a sale?</div>
+              <p className="mt-1.5 text-[14px] leading-snug text-ink-2">Walk-in or delivery. Stock is reserved oldest best-by first.</p>
+              <Link href="/counter" className="btn btn-dark btn-lg mt-4 w-full text-[15px]">
+                Open POS
+              </Link>
+            </div>
+          )}
+          <div className={cx("flex items-center gap-3 border-t border-white/10 py-4", collapsed ? "flex-col px-3" : "px-5")}>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-[16px] font-bold text-white uppercase" aria-hidden title={user?.email}>
               {user?.email.charAt(0)}
             </span>
-            <div className="min-w-0">
-              <div className="truncate text-[14px] font-semibold" title={user?.email}>
-                {user?.email}
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-semibold" title={user?.email}>
+                  {user?.email}
+                </div>
+                <div className="text-[13px] text-side-ink-2">{user && ROLE_LABEL[user.role]}</div>
               </div>
-              <div className="text-[13px] text-side-ink-2">{user && ROLE_LABEL[user.role]}</div>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-col items-start gap-0.5">
-            <button className="btn btn-sm -ml-2.5 border-transparent bg-transparent text-side-ink-2 hover:bg-white/10 hover:text-white" onClick={logOut}>
-              <LogOut size={14} /> Log out
-            </button>
-            {user?.role === "admin" && (
-              <button
-                className="btn btn-sm -ml-2.5 border-transparent bg-transparent text-side-ink-2 hover:bg-white/10 hover:text-white"
-                onClick={() => {
-                  reset();
-                  toast("Demo data reset to this morning");
-                }}
-              >
-                <RotateCcw size={14} /> Reset demo data
-              </button>
             )}
+            <button
+              className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white"
+              onClick={logOut}
+              aria-label="Log out"
+              title="Log out"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
+          {user?.role === "admin" && !collapsed && (
+            <button
+              className="mx-5 mb-4 -mt-1 flex cursor-pointer items-center gap-1.5 text-[12.5px] text-side-ink-2 hover:text-white"
+              onClick={() => {
+                reset();
+                toast("Demo data reset to this morning");
+              }}
+            >
+              <RotateCcw size={13} /> Reset demo data
+            </button>
+          )}
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-line bg-panel/95 backdrop-blur">
-          <div className="flex min-h-[68px] items-center justify-between gap-4 px-4 lg:px-7">
+      <div className="flex min-w-0 flex-1 flex-col bg-page lg:rounded-l-[36px]">
+        <header className="sticky top-0 z-30 border-b border-line bg-panel lg:rounded-tl-[36px]">
+          <div className="flex min-h-[72px] items-center justify-between gap-4 px-4 lg:min-h-[96px] lg:px-9">
             <div className="flex min-w-0 items-center gap-3 py-2">
               <Logo height={30} className="lg:hidden" />
               {home ? (
-                <div className="min-w-0 leading-tight">
-                  <div className="display truncate text-[24px] font-semibold lg:text-[28px]">Hello, {user ? ROLE_LABEL[user.role] : "there"}</div>
-                  <div className="text-[13.5px] text-ink-3" suppressHydrationWarning>
-                    {dayLong(now)}, {clock(now)}
+                <div className="flex min-w-0 items-center gap-3">
+                  <Sun size={30} className="hidden shrink-0 text-brand sm:block" aria-hidden />
+                  <div className="min-w-0 leading-tight">
+                    <div className="display truncate text-[24px] font-semibold lg:text-[34px]">Hello, {user ? ROLE_LABEL[user.role] : "there"}</div>
+                    <div className="text-[13.5px] text-ink-3" suppressHydrationWarning>
+                      {dayLong(now)}, {clock(now)}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -190,13 +234,19 @@ export default function Shell({ children }: { children: ReactNode }) {
                     </span>
                     <span className="text-ink-2">{here?.label}</span>
                   </nav>
-                  <div className="display truncate text-[22px] font-semibold">{here?.label}</div>
+                  <div className="display truncate text-[22px] font-semibold lg:text-[28px]">{here?.label}</div>
                 </div>
               )}
             </div>
+
+            <form onSubmit={search} role="search" className="relative mx-4 hidden max-w-[520px] flex-1 xl:block">
+              <Search size={20} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-3" aria-hidden />
+              <input name="q" className="input h-12 rounded-xl border-line bg-sunk/60 pl-12 text-[15px]" placeholder="Search products by name or SKU" aria-label="Search products" />
+            </form>
+
             <div className="flex shrink-0 items-center gap-4">
               {!home && (
-                <div className="hidden text-right leading-tight md:block">
+                <div className="hidden text-right leading-tight md:block xl:hidden 2xl:block">
                   <div className="text-[14px] font-semibold whitespace-nowrap" suppressHydrationWarning>
                     {dayLong(now)}
                   </div>
@@ -206,19 +256,48 @@ export default function Shell({ children }: { children: ReactNode }) {
                 </div>
               )}
               {canSell && path !== "/counter" && (
-                <Link href="/counter" className="btn btn-primary h-10 rounded-xl px-4">
-                  <Plus size={17} strokeWidth={2.4} /> <span className="hidden sm:inline">New order</span>
+                <Link href="/counter" className="flex h-11 items-center gap-2.5 rounded-xl border border-line bg-sunk/60 pr-2 pl-4 text-[15px] font-semibold transition-colors hover:border-line-2 hover:bg-sunk lg:h-12 lg:pl-5">
+                  <span className="hidden sm:inline">New order</span>
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-white" aria-hidden>
+                    <Plus size={17} strokeWidth={2.6} />
+                  </span>
+                  <span className="sr-only sm:hidden">New order</span>
                 </Link>
               )}
             </div>
           </div>
         </header>
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-7 lg:pb-8">{show ? children : <Boot />}</main>
+        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:px-9 lg:pt-7 lg:pb-9">{show ? children : <Boot />}</main>
       </div>
       <BottomNav />
       <Toaster aboveNav />
     </div>
   );
+}
+
+const COLLAPSE_KEY = "coldline-sidebar";
+
+/** Whether the desktop sidebar is folded to icons. Remembered per browser; a convenience, so failures are ignored. */
+function useCollapsed() {
+  const [collapsed, setState] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve().then(() => {
+      try {
+        if (alive && localStorage.getItem(COLLAPSE_KEY) === "1") setState(true);
+      } catch {}
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const setCollapsed = (v: boolean) => {
+    setState(v);
+    try {
+      localStorage.setItem(COLLAPSE_KEY, v ? "1" : "0");
+    } catch {}
+  };
+  return [collapsed, setCollapsed] as const;
 }
 
 function Boot() {

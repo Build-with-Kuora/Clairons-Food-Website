@@ -589,6 +589,11 @@ interface Ui {
   /** The online order just placed at checkout, so My orders can thank the customer. */
   placedOrderId?: string;
   setPlacedOrder(id?: string): void;
+  /** A search typed in the header, for Inventory. `searchId` changes on every search so the table restarts with it. */
+  inventorySearch: string;
+  searchId: number;
+  searchInventory(term: string): void;
+  clearInventorySearch(): void;
 }
 
 export const useUi = create<Ui>()((set) => ({
@@ -602,4 +607,8 @@ export const useUi = create<Ui>()((set) => ({
   setCounterClient: (id) => set({ counterClientId: id }),
   placedOrderId: undefined,
   setPlacedOrder: (id) => set({ placedOrderId: id }),
+  inventorySearch: "",
+  searchId: 0,
+  searchInventory: (term) => set((s) => ({ inventorySearch: term, searchId: s.searchId + 1 })),
+  clearInventorySearch: () => set({ inventorySearch: "" }),
 }));

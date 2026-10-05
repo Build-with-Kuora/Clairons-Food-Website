@@ -2,7 +2,7 @@
 
 import { ArrowRight, ChevronLeft, ChevronRight, Download, Ellipsis, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CategoryTile } from "@/components/CategoryTile";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { ProductForm } from "@/components/ProductForm";
@@ -11,7 +11,7 @@ import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, pl
 import { useIsAdmin } from "@/lib/auth";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
-import { useStore } from "@/lib/store";
+import { useStore, useUi } from "@/lib/store";
 import type { Category, Lot, MoveType, Product, ZoneId } from "@/lib/types";
 
 type Tab = "stock" | "lots" | "moves" | "products";
@@ -40,8 +40,15 @@ const MOVE_LABEL: Record<MoveType, string> = {
   RELEASE: "Released",
 };
 
+/** A search from the header restarts the page on the Stock tab with that search; leaving the page forgets it. */
 export default function Inventory() {
-  const [tab, setTab] = useState<Tab>(() => (queryParam("tab") as Tab | null) ?? "stock");
+  const searchId = useUi((s) => s.searchId);
+  useEffect(() => () => useUi.getState().clearInventorySearch(), []);
+  return <InventoryPage key={searchId} />;
+}
+
+function InventoryPage() {
+  const [tab, setTab] = useState<Tab>(() => (useUi.getState().inventorySearch ? "stock" : ((queryParam("tab") as Tab | null) ?? "stock")));
   const [openSku, setOpenSku] = useState<string | null>(() => queryParam("sku"));
   const { rows } = useStock();
   const lots = useStore((s) => s.lots);
@@ -170,7 +177,7 @@ const PAGE = 10;
 
 function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) => void }) {
   const admin = useIsAdmin();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => useUi.getState().inventorySearch || queryParam("q") || "");
   const [zone, setZone] = useState<ZoneId | "">("");
   const [cat, setCat] = useState<Category | "">("");
   // The dashboard's "Below reorder point" card links here with ?filter=low.
