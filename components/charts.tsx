@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { clock, tempBare } from "@/lib/format";
 import type { TempReading } from "@/lib/types";
 
-function useWidth(ref: RefObject<HTMLElement | null>, fallback = 600) {
+export function useWidth(ref: RefObject<HTMLElement | null>, fallback = 600) {
   const [w, setW] = useState(fallback);
   useEffect(() => {
     if (!ref.current) return;
@@ -15,7 +15,7 @@ function useWidth(ref: RefObject<HTMLElement | null>, fallback = 600) {
   return w;
 }
 
-function niceMax(v: number) {
+export function niceMax(v: number) {
   if (v <= 0) return 1;
   const p = Math.pow(10, Math.floor(Math.log10(v)));
   const n = v / p;
@@ -23,12 +23,12 @@ function niceMax(v: number) {
 }
 
 /** Bar with a 4px rounded data-end, square to the baseline. */
-function barPath(x: number, y: number, w: number, h: number) {
+export function barPath(x: number, y: number, w: number, h: number) {
   const r = Math.min(4, w / 2, h);
   return `M${x} ${y + h}V${y + r}Q${x} ${y} ${x + r} ${y}H${x + w - r}Q${x + w} ${y} ${x + w} ${y + r}V${y + h}Z`;
 }
 
-function Tip({ x, y, children, width }: { x: number; y: number; children: React.ReactNode; width: number }) {
+export function Tip({ x, y, children, width }: { x: number; y: number; children: React.ReactNode; width: number }) {
   const left = Math.min(Math.max(x, 70), width - 70);
   return (
     <div

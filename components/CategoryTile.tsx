@@ -16,13 +16,13 @@ export const CATEGORY_ICON: Record<Category, typeof Beef> = {
   Chiller: Milk,
 };
 
-/** Soft red tile with the category icon, sized for table rows (sm), lists (md) or product cards (lg). */
-export function CategoryTile({ category, size = "md", className }: { category: Category; size?: "sm" | "md" | "lg"; className?: string }) {
+/** Soft red tile (or translucent white on a dark card) with the category icon, sized for table rows (sm), lists (md) or product cards (lg). */
+export function CategoryTile({ category, size = "md", onDark = false, className }: { category: Category; size?: "sm" | "md" | "lg"; onDark?: boolean; className?: string }) {
   const Icon = CATEGORY_ICON[category] ?? CakeSlice;
   const box = size === "sm" ? "h-8 w-8 rounded-lg" : size === "md" ? "h-10 w-10 rounded-xl" : "h-24 w-full rounded-xl";
   const icon = size === "sm" ? 16 : size === "md" ? 19 : 38;
   return (
-    <span className={cx("grid shrink-0 place-items-center bg-brand-bg text-brand", box, className)} aria-hidden>
+    <span className={cx("grid shrink-0 place-items-center", onDark ? "bg-white/10 text-white" : "bg-brand-bg text-brand", box, className)} aria-hidden>
       <Icon size={icon} strokeWidth={1.8} />
     </span>
   );
