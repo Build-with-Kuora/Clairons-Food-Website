@@ -1,19 +1,20 @@
 "use client";
 
-import { AlertTriangle, ArrowUpRight, CalendarClock, Eye, Factory, PackageCheck, PackageSearch, PauseCircle, TrendingDown, Truck, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarClock, Eye, PackageCheck, PackageSearch, PauseCircle, TrendingDown, Truck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AttentionList } from "@/components/AttentionList";
-import { CategoryTile } from "@/components/CategoryTile";
+import { CATEGORY_ICON, CategoryTile } from "@/components/CategoryTile";
 import { ProductGrid } from "@/components/ProductGrid";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { StaffToday } from "@/components/StaffToday";
 import { AreaTrend, Donut } from "@/components/trendCharts";
-import { Badge, Delta, Empty, Panel, Segmented, Stat, StatusPill, cx } from "@/components/ui";
+import { Badge, Delta, Empty, Panel, Segmented, Stat, cx } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { DAY, ago, clock, count, dateKey, daysUntil, money, money0, pesoK, plural, startOfDay, units } from "@/lib/format";
 import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
-import { buyerName, runKey, soldBySku } from "@/lib/logic";
+import { STATUS_LABEL, buyerName, runKey, soldBySku } from "@/lib/logic";
+import type { Category } from "@/lib/types";
 import { useStore } from "@/lib/store";
 
 /** Home is different per role: the owner gets sales and money, staff get today's work. Riders never land here. */
@@ -85,8 +86,8 @@ function OwnerToday() {
   const overCredit = clients.filter((c) => c.pastDue > 0 || (c.creditLimit > 0 && c.balance > c.creditLimit * 0.9));
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
         <Stat
           dark
           icon={<Wallet size={20} />}
@@ -118,7 +119,7 @@ function OwnerToday() {
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,330px)] 2xl:grid-cols-[minmax(0,1fr)_330px_330px]">
+      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <Panel
           title={
             <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -130,9 +131,9 @@ function OwnerToday() {
             </span>
           }
           actions={<Segmented label="Period" options={[...PERIODS]} value={period} onChange={setPeriod} />}
-          className="xl:row-span-2 2xl:row-span-1"
+          className="lg:col-span-2 xl:col-span-1"
         >
-          <AreaTrend data={daily} format={pesoK} height={270} label={`Sales, last ${days} days`} />
+          <AreaTrend data={daily} format={pesoK} height={330} label={`Sales, last ${days} days`} />
           <p className="mt-1 text-[12.5px] text-ink-3">Order value including fees. Deliveries count once delivered, walk-ins when paid.</p>
         </Panel>
 
@@ -140,10 +141,10 @@ function OwnerToday() {
         <StockHealth healthy={healthy} low={low.length} out={out.length} pct={healthyPct} expiring={expiring.length} />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,330px)] 2xl:grid-cols-[minmax(0,1fr)_330px_330px]">
-        <RecentOrders />
+      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <RecentOrders className="lg:col-span-2 xl:col-span-1" />
         <BestSeller now={now} />
-        <JustProduced now={now} className="xl:col-span-2 2xl:col-span-1" />
+        <JustProduced now={now} />
       </div>
 
       <ProductGrid now={now} />
@@ -213,7 +214,10 @@ function OwnerToday() {
   );
 }
 
-/** Today's stops per van route, and the motorbike riders as one more row. */
+/**
+ * Today's deliveries, laid out like the reference's map card: a dark board with each van as a line of
+ * stops (red once delivered), then the day's progress and a button to the delivery board.
+ */
 function RoutesSummary({ today }: { today: string }) {
   const deliveries = useStore((s) => s.deliveries);
   const runs = useStore((s) => s.runs);
@@ -225,101 +229,140 @@ function RoutesSummary({ today }: { today: string }) {
       return {
         id: r.id,
         name: r.name,
-        sub: r.truck,
-        list: stops.filter((d) => d.routeId === r.id && !d.riderId),
-        state: run?.returnedAt ? "Back at the plant" : run?.departedAt ? "On the road" : "Not left yet",
+        list: stops.filter((d) => d.routeId === r.id && !d.riderId).sort((a, b) => a.seq - b.seq),
+        state: run?.returnedAt ? "Back" : run?.departedAt ? "On the road" : "Not left",
       };
     }),
-    { id: "riders", name: "Riders", sub: "Motorbike drops", list: stops.filter((d) => d.riderId), state: "" },
+    { id: "riders", name: "Riders", list: stops.filter((d) => d.riderId), state: "Motorbikes" },
   ];
-  const all = stops.length;
   const delivered = stops.filter((d) => d.status === "DELIVERED").length;
+  const pct = stops.length ? Math.round((delivered / stops.length) * 100) : 0;
+  const busiest = [...lanes].sort((a, b) => b.list.length - a.list.length)[0];
 
   return (
-    <Panel title="Deliveries by route" sub={`${delivered} of ${plural(all, "stop")} delivered today`} bodyClass="flex flex-col px-5 pt-2 pb-5">
-      <ul className="space-y-4">
-        {lanes.map((l) => {
-          const done = l.list.filter((d) => d.status === "DELIVERED").length;
-          const problem = l.list.some((d) => d.status === "EXCEPTION");
-          const pct = l.list.length ? Math.round((done / l.list.length) * 100) : 0;
-          return (
+    <Panel title="Deliveries by route" bodyClass="flex flex-1 flex-col px-5 pt-1 pb-5" className="flex flex-col">
+      <div className="rounded-2xl bg-ink p-4 text-white">
+        <ul className="space-y-3.5">
+          {lanes.map((l) => (
             <li key={l.id}>
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-[14.5px] font-semibold">{l.name}</span>
-                <span className="text-[13px] whitespace-nowrap text-ink-2">
-                  {done} of {l.list.length}
-                </span>
+              <div className="flex items-baseline justify-between gap-2 text-[13px]">
+                <span className="truncate font-semibold">{l.name}</span>
+                <span className="shrink-0 text-white/60">{l.state}</span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-sunk" role="img" aria-label={`${l.name}: ${done} of ${l.list.length} stops delivered`}>
-                <div className={cx("h-full rounded-full", problem ? "bg-bad" : "bg-brand")} style={{ width: `${pct}%` }} />
-              </div>
-              <div className="mt-1 text-[12.5px] text-ink-3">
-                {[l.sub, l.state, problem && "has an exception"].filter(Boolean).join(", ")}
+              <div className="mt-1.5 flex flex-wrap items-center gap-1" role="img" aria-label={`${l.name}: ${l.list.filter((d) => d.status === "DELIVERED").length} of ${l.list.length} stops delivered`}>
+                {l.list.length === 0 && <span className="text-[12px] text-white/50">No stops today</span>}
+                {l.list.map((d) => (
+                  <span
+                    key={d.id}
+                    className={cx(
+                      "h-3 w-3 rounded-full",
+                      d.status === "DELIVERED" ? "bg-brand" : d.status === "EXCEPTION" ? "bg-warn-bg ring-2 ring-brand" : d.status === "EN_ROUTE" || d.status === "ARRIVED" ? "bg-white" : "bg-white/25",
+                    )}
+                  />
+                ))}
               </div>
             </li>
-          );
-        })}
-      </ul>
-      <Link href="/dispatch" className="btn btn-dark btn-lg mt-5 w-full">
-        See all deliveries
+          ))}
+        </ul>
+        <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t border-white/10 pt-3 text-[11.5px] text-white/60">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-brand" /> Delivered
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-white" /> On the way
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-white/25" /> Waiting
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 mb-5">
+        <div className="flex items-baseline justify-between gap-2 text-[14px]">
+          <span className="truncate font-semibold">{busiest ? `${plural(stops.length, "stop")} today` : "No stops today"}</span>
+          <span className="font-semibold">{pct}%</span>
+        </div>
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-brand-bg" aria-hidden>
+          <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="mt-1 text-[12.5px] text-ink-3">{delivered} delivered so far</div>
+      </div>
+
+      <Link href="/dispatch" className="btn btn-dark btn-lg mt-auto w-full text-[15px]">
+        See all
       </Link>
     </Panel>
   );
 }
 
-/** Share of active products that are fine, low or out, and how many lots are near best-by. */
+/** Share of active products that are fine, low or out, and how many lots are near best-by. Like the reference's capacity guide. */
 function StockHealth({ healthy, low, out, pct, expiring }: { healthy: number; low: number; out: number; pct: number; expiring: number }) {
+  const total = healthy + low + out;
+  const share = (n: number) => (total ? Math.round((n / total) * 100) : 0);
   const parts = [
     { label: "Healthy", value: healthy, color: "var(--color-ink)" },
     { label: "Below reorder point", value: low, color: "var(--color-brand-soft)" },
     { label: "Out of stock", value: out, color: "var(--color-brand)" },
   ];
   return (
-    <Panel title="Stock health" sub="Free-to-sell stock against reorder points">
-      <div className="flex flex-wrap items-center gap-5">
-        <Donut parts={parts} size={150} thickness={20} label={`${pct}% of products healthy`}>
+    <Panel title="Stock health" sub="Free-to-sell stock against reorder points" className="flex flex-col" bodyClass="flex flex-1 flex-col px-5 pt-2 pb-5">
+      <div className="mb-5 flex items-center gap-4">
+        <Donut parts={parts} size={140} thickness={20} label={`${pct}% of products healthy`}>
           <div>
-            <div className="display text-[30px] leading-none font-semibold">{pct}%</div>
-            <div className="text-[12px] text-ink-3">healthy</div>
+            <div className="display text-[28px] leading-none font-semibold">{pct}%</div>
+            <div className="text-[11.5px] leading-tight text-ink-3">
+              products
+              <br />
+              healthy
+            </div>
           </div>
         </Donut>
-        <ul className="min-w-0 flex-1 space-y-2 text-[13.5px]">
-          {parts.map((p) => (
-            <li key={p.label} className="flex items-center gap-2">
-              <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden />
-              <span className="flex-1 text-ink-2">{p.label}</span>
-              <span className="font-semibold">{p.value}</span>
-            </li>
-          ))}
+        <ul className="min-w-0 flex-1 space-y-3">
+          <li>
+            <div className="text-[15px] font-semibold text-brand-hover">{share(low)}%</div>
+            <div className="text-[13px] leading-snug text-ink-2">Products below reorder point</div>
+          </li>
+          <li>
+            <div className="text-[15px] font-semibold text-brand">{share(out)}%</div>
+            <div className="text-[13px] leading-snug text-ink-2">Products out of stock</div>
+          </li>
         </ul>
       </div>
-      <div className="mt-5 border-t border-line pt-4">
-        <div className="text-[14px] text-ink-2">Short-dated lots</div>
-        <div className="mt-1 flex items-end justify-between gap-2">
-          <div className="display text-[28px] leading-none font-semibold">{plural(expiring, "lot")}</div>
+      <div className="mt-auto border-t border-line pt-4">
+        <div className="text-[14.5px] text-ink-2">Short-dated lots</div>
+        <div className="display mt-2 text-[30px] leading-none font-semibold">{plural(expiring, "lot")}</div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-[12.5px] text-ink-3">Best-by within 30 days</span>
           <Link href="/inventory?tab=lots" className="btn btn-ghost btn-sm">
-            View lots <ArrowUpRight size={14} />
+            Sell first <ArrowUpRight size={14} />
           </Link>
         </div>
-        <div className="mt-1 text-[12.5px] text-ink-3">Best-by within 30 days. Sell these first.</div>
       </div>
     </Panel>
   );
 }
 
-function RecentOrders() {
+const STATUS_TEXT: Record<string, string> = {
+  DELIVERED: "text-good",
+  EXCEPTION: "text-bad",
+  EN_ROUTE: "text-warn",
+  ARRIVED: "text-warn",
+};
+
+/** Latest orders as a table, like the reference's Sales & Order: buyer, order, amount, status in color, and an action. */
+function RecentOrders({ className }: { className?: string }) {
   const orders = useStore((s) => s.orders);
   const deliveries = useStore((s) => s.deliveries);
   const maps = useMaps();
   const byId = useMemo(() => new Map(deliveries.map((d) => [d.id, d])), [deliveries]);
-  const recent = useMemo(() => [...orders].sort((a, b) => b.createdAt - a.createdAt).slice(0, 7), [orders]);
+  const recent = useMemo(() => [...orders].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6), [orders]);
 
   return (
     <Panel
-      title="Recent orders"
-      sub="Latest from the counter and the online store"
+      title="Sales & orders"
+      className={className}
       actions={
-        <Link href="/orders" className="btn btn-ghost btn-sm">
+        <Link href="/orders" className="btn btn-ghost btn-sm h-9 rounded-full px-3.5">
           All orders <ArrowUpRight size={14} />
         </Link>
       }
@@ -329,32 +372,38 @@ function RecentOrders() {
         <table className="tbl min-w-[620px]">
           <thead>
             <tr>
-              <th className="pl-5">Customer</th>
-              <th>Order</th>
+              <th className="pl-5">Order details</th>
+              <th>Order ID</th>
               <th className="r">Amount</th>
-              <th>Status</th>
-              <th className="r pr-5">
-                <span className="sr-only">Open</span>
-              </th>
+              <th>Delivery status</th>
+              <th className="r pr-5">Actions</th>
             </tr>
           </thead>
           <tbody>
             {recent.map((o) => {
               const d = o.deliveryId ? byId.get(o.deliveryId) : undefined;
+              const first = maps.product.get(o.lines[0]?.sku ?? "");
+              const status = o.status === "CANCELLED" ? "Cancelled" : d ? STATUS_LABEL[d.status] : "Sold at counter";
+              const tone = o.status === "CANCELLED" ? "text-ink-3" : d ? (STATUS_TEXT[d.status] ?? "text-ink-2") : "text-good";
               return (
                 <tr key={o.id}>
                   <td className="pl-5">
-                    <div className="font-semibold">{buyerName(o, maps.client.get(o.clientId))}</div>
-                    <div className="text-[12.5px] text-ink-3">
-                      {o.fulfillment === "PICKUP" ? "Walk-in" : o.channel === "ONLINE" ? "Online, delivery" : "Delivery"}, {plural(o.lines.length, "line")}
+                    <div className="flex items-center gap-3">
+                      {first ? <CategoryTile category={first.category} size="md" /> : null}
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold">{buyerName(o, maps.client.get(o.clientId))}</div>
+                        <div className="text-[12.5px] text-ink-3">
+                          {o.fulfillment === "PICKUP" ? "Walk-in" : o.channel === "ONLINE" ? "Online" : "Delivery"}, {plural(o.lines.length, "item")}
+                        </div>
+                      </div>
                     </div>
                   </td>
-                  <td className="code text-ink-2">{o.number}</td>
+                  <td className="code text-ink-2">#{o.number}</td>
                   <td className="r font-semibold">{money(o.total)}</td>
-                  <td>{o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : d ? <StatusPill status={d.status} /> : <Badge tone="good">Sold at counter</Badge>}</td>
+                  <td className={cx("font-semibold", tone)}>{status}</td>
                   <td className="r pr-5">
                     <Link href={`/orders?id=${o.id}`} className="btn btn-quiet btn-sm px-2" aria-label={`Open ${o.number}`}>
-                      <Eye size={16} />
+                      <Eye size={17} />
                     </Link>
                   </td>
                 </tr>
@@ -369,7 +418,7 @@ function RecentOrders() {
   );
 }
 
-/** The product that sold the most cases in the last 7 days, against what is free to sell. */
+/** The product that sold the most in the last 7 days, against what is free to sell. Like the reference's best-selling card. */
 function BestSeller({ now }: { now: number }) {
   const sales = useSales();
   const maps = useMaps();
@@ -380,23 +429,23 @@ function BestSeller({ now }: { now: number }) {
   const row = p ? rows.get(p.sku) : undefined;
 
   return (
-    <Panel title="Best seller this week">
+    <Panel title="Best selling product" className="flex flex-col" bodyClass="flex flex-1 flex-col px-5 pt-2 pb-5">
       {p && top ? (
-        <div>
-          <div className="relative overflow-hidden rounded-2xl bg-ink p-5 text-white">
-            <CategoryTile category={p.category} size="lg" onDark />
-            <div className="mt-4 text-[17px] leading-snug font-semibold">{p.name}</div>
-            <div className="text-[13px] text-white/70">
-              <span className="code">{p.sku}</span>, {p.category}
-            </div>
-            <div className="mt-4 flex items-end justify-between gap-3">
-              <div className="text-[13px] text-white/75">
-                Sold <span className="font-semibold text-white">{units(top[1], p.unit)}</span>
-                <br />
-                Free to sell <span className="font-semibold text-white">{units(row?.available ?? 0, p.unit)}</span>
+        <div className="relative flex flex-1 flex-col">
+          {/* Stacked cards behind, as in the reference */}
+          <div className="absolute inset-x-6 -top-1 h-6 rounded-2xl bg-sunk" aria-hidden />
+          <div className="relative flex flex-1 flex-col rounded-2xl border border-line bg-sunk p-3 shadow-card">
+            <BestSellerArt category={p.category} />
+            <div className="mt-3 flex items-end justify-between gap-3 px-1">
+              <div className="min-w-0">
+                <div className="truncate text-[15.5px] font-semibold">{p.name}</div>
+                <div className="mt-0.5 text-[12.5px] text-ink-3">
+                  Sold <span className="font-semibold text-ink-2">{count(top[1])}</span>
+                  <span className="mx-2">Free <span className="font-semibold text-ink-2">{count(row?.available ?? 0)}</span></span>
+                </div>
               </div>
-              <Link href={`/production?sku=${p.sku}`} className="btn btn-primary">
-                <Factory size={15} /> Make more
+              <Link href={`/production?sku=${p.sku}`} className="btn btn-dark shrink-0 rounded-xl">
+                Make more
               </Link>
             </div>
           </div>
@@ -408,42 +457,56 @@ function BestSeller({ now }: { now: number }) {
   );
 }
 
-function JustProduced({ now, className }: { now: number; className?: string }) {
+/** Latest production batches as a small table, like the reference's newly arrived stock. */
+function JustProduced({ now }: { now: number }) {
   const batches = useStore((s) => s.batches);
   const maps = useMaps();
   const latest = useMemo(() => [...batches].sort((a, b) => b.madeAt - a.madeAt).slice(0, 5), [batches]);
   return (
-    <Panel
-      title="Just produced"
-      className={className}
-      actions={
-        <Link href="/production" className="btn btn-ghost btn-sm">
-          Production <ArrowUpRight size={14} />
-        </Link>
-      }
-    >
+    <Panel title="Newly produced stock">
       {latest.length ? (
-        <ul className="divide-y divide-line/80">
-          {latest.map((b) => {
-            const p = maps.product.get(b.sku);
-            return (
-              <li key={b.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                {p && <CategoryTile category={p.category} size="md" />}
-                <div className="min-w-0 flex-1">
-                  <div className="code text-[11.5px] text-ink-3">{b.sku}</div>
-                  <div className="truncate text-[14px] font-semibold">{p?.name ?? b.sku}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[14px] font-semibold">{units(b.qty, p?.unit ?? "case")}</div>
-                  <div className="text-[12px] text-ink-3">{ago(b.madeAt, now)}</div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <table className="w-full text-[14px]">
+          <thead>
+            <tr className="text-left text-[13px] text-ink-3">
+              <th className="pb-2 font-medium">Products</th>
+              <th className="pb-2 text-right font-medium">Qty</th>
+              <th className="pb-2 text-right font-medium">Made</th>
+            </tr>
+          </thead>
+          <tbody>
+            {latest.map((b) => {
+              const p = maps.product.get(b.sku);
+              return (
+                <tr key={b.id}>
+                  <td className="py-2">
+                    <Link href={`/inventory?sku=${b.sku}`} className="flex items-center gap-3 hover:underline">
+                      {p && <CategoryTile category={p.category} size="md" className="rounded-full" />}
+                      <span className="min-w-0">
+                        <span className="code block text-[11.5px] text-ink-3">{b.sku}</span>
+                        <span className="block max-w-[150px] truncate font-semibold">{p?.name ?? b.sku}</span>
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="py-2 text-right font-semibold">{count(b.qty)}</td>
+                  <td className="py-2 text-right text-[13px] whitespace-nowrap text-ink-3">{ago(b.madeAt, now)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       ) : (
         <Empty title="No batches yet">Record a batch on Production.</Empty>
       )}
     </Panel>
+  );
+}
+
+/** The best seller's picture: its category icon large on a black panel, standing in for a product photo. */
+function BestSellerArt({ category }: { category: Category }) {
+  const Icon = CATEGORY_ICON[category];
+  return (
+    <div className="grid min-h-36 flex-1 place-items-center rounded-xl bg-ink text-white" aria-hidden>
+      <Icon size={56} strokeWidth={1.4} />
+    </div>
   );
 }
