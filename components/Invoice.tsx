@@ -1,7 +1,7 @@
 "use client";
 
 import { dateTime, dayShort, invoiceNumber, keyToTs, money, units } from "@/lib/format";
-import { PAY_LABEL, TERMS_LABEL, commonUnit, vatSplit } from "@/lib/logic";
+import { PAY_LABEL, TERMS_LABEL, buyerName, commonUnit, isWalkIn, vatSplit } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import type { Client, Delivery, Order, Product, Rider, Route } from "@/lib/types";
 import { Logo } from "./Logo";
@@ -60,15 +60,15 @@ export function Invoice({
       <div className="grid grid-cols-3 gap-4 border-b border-line py-3">
         <div>
           <div className="text-[12px] text-ink-3">Bill to</div>
-          <div className="font-semibold">{client.name}</div>
-          <div>{client.address}</div>
-          <div>{client.city}</div>
+          <div className="font-semibold">{buyerName(order, client)}</div>
+          {client.address && <div>{client.address}</div>}
+          {client.city && <div>{client.city}</div>}
           {client.tin && <div>TIN {client.tin}</div>}
         </div>
         <div>
           <div className="text-[12px] text-ink-3">{order.fulfillment === "PICKUP" ? "Picked up" : "Ship to"}</div>
           {order.fulfillment === "PICKUP" ? (
-            <div className="font-semibold">At dock, will-call</div>
+            <div className="font-semibold">Walk-in, at the counter</div>
           ) : (
             <>
               <div className="font-semibold">{delivery ? dayShort(keyToTs(delivery.date)) : ""}, {client.window}</div>
@@ -90,7 +90,7 @@ export function Invoice({
         </div>
         <div>
           <div className="text-[12px] text-ink-3">Terms</div>
-          <div className="font-semibold">{TERMS_LABEL[client.terms]}, price tier {client.tier}</div>
+          <div className="font-semibold">{isWalkIn(client) ? "Paid at the counter" : `${TERMS_LABEL[client.terms]}, price tier ${client.tier}`}</div>
           <div>Paid by: {PAY_LABEL[order.payMethod]}</div>
           {order.clientPo && <div>Client PO {order.clientPo}</div>}
         </div>

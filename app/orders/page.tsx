@@ -8,7 +8,7 @@ import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Drawer, Empty, PageHead, Panel, StatusPill, cx } from "@/components/ui";
 import { dateTime, dayShort, invoiceNumber, keyToTs, money, money0, startOfDay } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
-import { PAY_LABEL } from "@/lib/logic";
+import { PAY_LABEL, buyerName } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Order } from "@/lib/types";
 
@@ -38,7 +38,7 @@ export default function Orders() {
     })
     .filter((o) => {
       const needle = q.trim().toLowerCase();
-      return !needle || o.number.toLowerCase().includes(needle) || invoiceNumber(o.invoiceNo).toLowerCase().includes(needle) || maps.client.get(o.clientId)?.name.toLowerCase().includes(needle);
+      return !needle || o.number.toLowerCase().includes(needle) || invoiceNumber(o.invoiceNo).toLowerCase().includes(needle) || buyerName(o, maps.client.get(o.clientId)).toLowerCase().includes(needle);
     })
     .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -96,7 +96,7 @@ export default function Orders() {
                     <td className="code text-ink-2">{invoiceNumber(o.invoiceNo)}</td>
                     <td className="whitespace-nowrap text-ink-2">{dateTime(o.createdAt)}</td>
                     <td className="font-semibold">
-                      {maps.client.get(o.clientId)?.name}
+                      {buyerName(o, maps.client.get(o.clientId))}
                       {o.channel === "ONLINE" && (
                         <Badge tone="accent" className="ml-1.5 align-middle">
                           Online
@@ -104,9 +104,9 @@ export default function Orders() {
                       )}
                     </td>
                     <td className="text-ink-2">
-                      {o.fulfillment === "PICKUP" ? "Will-call" : d ? `${dayShort(keyToTs(d.date))}, ${d.riderId ? `rider ${maps.rider.get(d.riderId)?.name}` : maps.route.get(d.routeId)?.name}` : "Truck"}
+                      {o.fulfillment === "PICKUP" ? "Walk-in" : d ? `${dayShort(keyToTs(d.date))}, ${d.riderId ? `rider ${maps.rider.get(d.riderId)?.name}` : maps.route.get(d.routeId)?.name}` : "Truck"}
                     </td>
-                    <td>{o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : d ? <StatusPill status={d.status} /> : <Badge tone="good">Picked up</Badge>}</td>
+                    <td>{o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : d ? <StatusPill status={d.status} /> : <Badge tone="good">Sold at counter</Badge>}</td>
                     <td>
                       <span className="text-ink-2">{PAY_LABEL[o.payMethod]}</span>{" "}
                       {o.status !== "CANCELLED" && (o.paid ? <Badge tone="good">Paid</Badge> : o.payMethod === "COD" ? <Badge tone="warn">Collect</Badge> : <Badge>Invoiced</Badge>)}
@@ -126,7 +126,7 @@ export default function Orders() {
           open
           onClose={() => setOpenId(null)}
           title={open.number}
-          sub={`${maps.client.get(open.clientId)?.name}, placed ${dateTime(open.createdAt)} by ${open.by}`}
+          sub={`${buyerName(open, maps.client.get(open.clientId))}, placed ${dateTime(open.createdAt)} by ${open.by}`}
           footer={
             <>
               <button className="btn btn-ghost" onClick={() => window.print()}>

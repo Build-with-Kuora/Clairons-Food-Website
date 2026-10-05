@@ -8,6 +8,8 @@ import {
   NOTE_MAX,
   ONLINE_TIER,
   SERVICE_AREAS,
+  WALK_IN,
+  WALK_IN_ID,
   allocateFEFO,
   customerError,
   freeBlastBin,
@@ -51,6 +53,8 @@ export interface PlaceOrderInput {
   notes?: string;
   by: string;
   channel?: "ONLINE";
+  /** Walk-in buyer's name, optional */
+  buyerName?: string;
 }
 
 export interface ProduceInput {
@@ -191,6 +195,7 @@ export const useStore = create<Store>()(
           clientPo: i.clientPo || undefined,
           notes: i.notes || undefined,
           channel: i.channel,
+          buyerName: i.buyerName?.trim() || undefined,
         };
 
         let lots = s.lots;
@@ -560,6 +565,12 @@ export const useStore = create<Store>()(
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      // Demo data saved before walk-in sales existed has no walk-in account; add it rather than reseed.
+      merge: (saved, current) => {
+        const s = { ...current, ...(saved as Partial<Store>) };
+        if (s.products.length && !s.clients.some((c) => c.id === WALK_IN_ID)) s.clients = [...s.clients, WALK_IN];
+        return s;
+      },
       partialize: (s) => {
         const data: Partial<Data> = {};
         for (const k of Object.keys(empty) as (keyof Data)[]) (data as Record<string, unknown>)[k] = s[k];

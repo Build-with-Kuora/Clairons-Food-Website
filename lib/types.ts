@@ -98,7 +98,7 @@ export type Terms = "COD" | "NET15" | "NET30";
 export interface Client {
   id: string;
   name: string;
-  type: "Restaurant" | "Carinderia" | "Supermarket" | "Sari-sari store" | "Food cart franchise" | "School canteen" | "Hospital" | "Caterer" | "Hotel" | "Convenience store" | "Online customer";
+  type: "Restaurant" | "Carinderia" | "Supermarket" | "Sari-sari store" | "Food cart franchise" | "School canteen" | "Hospital" | "Caterer" | "Hotel" | "Convenience store" | "Online customer" | "Walk-in";
   tier: Tier;
   terms: Terms;
   creditLimit: number;
@@ -188,6 +188,8 @@ export interface Order {
   receipts?: ReceiptSend[];
   /** Placed by a customer on the online store rather than at the counter */
   channel?: "ONLINE";
+  /** Name a walk-in buyer gave at the counter, printed in place of the account name */
+  buyerName?: string;
 }
 
 /** What a customer gives at checkout on the online store. Becomes (or updates) their client record. */

@@ -30,7 +30,7 @@ const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"
 const MOVE_LABEL: Record<MoveType, string> = {
   PRODUCE: "Produced",
   SHIP: "Shipped",
-  PICKUP: "Will-call",
+  PICKUP: "Walk-in",
   ADJUST: "Count adj.",
   WASTE: "Written off",
   TRANSFER: "Moved",

@@ -288,6 +288,36 @@ export function salesSummary(sales: Sale[], from: number, to: number) {
   return { rows, count, cases: rows.reduce((t, r) => t + r.qty, 0), products, fees: round2(fees), total: round2(products + fees) };
 }
 
+/**
+ * Anonymous counter sales go to this one built-in account, so they price, invoice and count like
+ * any other sale. List price, cash at the counter, no credit and no route. Hidden from Customers.
+ */
+export const WALK_IN_ID = "walk-in";
+export const WALK_IN: Client = {
+  id: WALK_IN_ID,
+  name: "Walk-in customer",
+  type: "Walk-in",
+  tier: "C",
+  terms: "COD",
+  creditLimit: 0,
+  balance: 0,
+  pastDue: 0,
+  address: "",
+  city: "",
+  contact: "",
+  phone: "",
+  routeId: "",
+  window: "",
+  dockNote: "",
+};
+export const isWalkIn = (c: Pick<Client, "id"> | undefined) => c?.id === WALK_IN_ID;
+
+/** Who bought: the name a walk-in gave, else the account name. */
+export const buyerName = (o: Pick<Order, "buyerName">, c: Pick<Client, "name"> | undefined) => o.buyerName || c?.name || "";
+
+/** Fulfillment as staff say it: counter sales are walk-ins, the rest go out on a truck or bike. */
+export const FULFILLMENT_LABEL: Record<Order["fulfillment"], string> = { PICKUP: "Walk-in", DELIVERY: "Delivery" };
+
 /** Whole-number percent change from `prev` to `now`, or null when there is nothing to compare against. */
 export function pctChange(now: number, prev: number): number | null {
   if (prev === 0) return null;
@@ -518,8 +548,8 @@ export function receiptMessage(o: Order, buyer: Client, seller: Seller, channel:
     "",
     `Sales invoice ${no}, order ${o.number}`,
     `Date: ${dateTime(o.createdAt)}`,
-    `Sold to: ${buyer.name}${buyer.tin ? `, TIN ${buyer.tin}` : ""}`,
-    `${buyer.address}, ${buyer.city}`,
+    `Sold to: ${buyerName(o, buyer)}${buyer.tin ? `, TIN ${buyer.tin}` : ""}`,
+    ...(buyer.address ? [`${buyer.address}, ${buyer.city}`] : []),
     "",
     ...lines,
     ...fees,
