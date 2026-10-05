@@ -1,0 +1,329 @@
+/* Public landing page: the side of a printed frozen master case.
+   White-coated corrugated board, two-colour flexo in the logo's black and red. */
+
+.lp {
+  --lp-board: #f5f6f6;
+  --lp-label: #fdfdfd;
+  --lp-ink: #141518;
+  --lp-ink-2: #3c3f46;
+  --lp-red: #d71f26;
+  --lp-red-press: #b3181e;
+  --lp-kraft: #b68b5a;
+  --lp-liner: #dcc39c;
+  --lp-rule: 3px;
+
+  background: var(--lp-board);
+  color: var(--lp-ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.lp ::selection {
+  background: var(--lp-red);
+  color: #fff;
+}
+
+.lp :focus-visible {
+  outline: 3px solid var(--lp-ink);
+  outline-offset: 3px;
+}
+
+/* Printed type */
+.lp-display {
+  font-family: var(--font-archivo), var(--font-display), sans-serif;
+  font-variation-settings: "wdth" 66;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  line-height: 0.9;
+  text-wrap: balance;
+}
+.lp-h1 {
+  font-size: clamp(3.25rem, 8vw, 6rem);
+}
+.lp-h2 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+}
+.lp-h3 {
+  font-size: 1.6rem;
+  line-height: 0.95;
+}
+.lp-figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.lp-lede {
+  color: var(--lp-ink-2);
+  max-width: 34rem;
+  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+  line-height: 1.45;
+}
+.lp-body {
+  color: var(--lp-ink-2);
+  max-width: 65ch;
+}
+
+/* Corrugated board: the flutes show faintly through the coated liner */
+.lp-flutes {
+  background-color: var(--lp-board);
+  background-image: repeating-linear-gradient(90deg, rgb(20 21 24 / 0.028) 0 2px, transparent 2px 9px);
+}
+
+/* The printed panel border on a case face */
+.lp-keyline {
+  border: var(--lp-rule) solid var(--lp-ink);
+}
+.lp-rule-t {
+  border-top: var(--lp-rule) solid var(--lp-ink);
+}
+.lp-rule-b {
+  border-bottom: var(--lp-rule) solid var(--lp-ink);
+}
+
+/* Cut edge of the board: kraft liner and the wave of the flute */
+.lp-cutedge {
+  height: 14px;
+  background-color: var(--lp-liner);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='14' viewBox='0 0 16 14'%3E%3Cpath d='M0 7 Q4 1 8 7 T16 7' fill='none' stroke='%23b68b5a' stroke-width='2.2'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+  border-top: 2px solid var(--lp-kraft);
+  border-bottom: 2px solid var(--lp-kraft);
+}
+
+/* Buttons are printed blocks. The red plate sits a few pixels off the black keyline, like real two-colour flexo. */
+.lp-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 3.25rem;
+  padding: 0 1.5rem;
+  font-family: var(--font-archivo), var(--font-display), sans-serif;
+  font-variation-settings: "wdth" 80;
+  font-weight: 800;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease-out,
+    background-color 0.15s ease-out,
+    color 0.15s ease-out;
+}
+.lp-btn:active {
+  transform: translateY(2px);
+}
+.lp-btn-red {
+  background: var(--lp-red);
+  color: #fff;
+}
+.lp-btn-red::after {
+  content: "";
+  position: absolute;
+  inset: -3px 3px 3px -3px;
+  border: 2px solid var(--lp-ink);
+  pointer-events: none;
+}
+.lp-btn-red:hover {
+  background: var(--lp-red-press);
+}
+.lp-btn-ink {
+  background: transparent;
+  color: var(--lp-ink);
+  border: var(--lp-rule) solid var(--lp-ink);
+}
+.lp-btn-ink:hover {
+  background: var(--lp-ink);
+  color: #fff;
+}
+.lp-btn-paper {
+  background: var(--lp-label);
+  color: var(--lp-ink);
+  border: var(--lp-rule) solid var(--lp-ink);
+}
+.lp-btn-paper:hover {
+  background: var(--lp-ink);
+  color: #fff;
+}
+.lp-btn-sm {
+  height: 2.5rem;
+  padding: 0 1rem;
+  font-size: 0.95rem;
+}
+
+.lp-navlink {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--lp-ink-2);
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+}
+.lp-navlink:hover {
+  color: var(--lp-ink);
+  text-decoration-line: underline;
+  text-decoration-color: var(--lp-red);
+}
+
+/* The white case label with ruled fields */
+.lp-label {
+  background: var(--lp-label);
+  border: var(--lp-rule) solid var(--lp-ink);
+}
+.lp-label-head {
+  background: var(--lp-ink);
+  color: #fff;
+}
+.lp-field + .lp-field {
+  border-top: 1.5px solid var(--lp-ink);
+}
+
+/* Handling marks */
+.lp-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border: var(--lp-rule) solid var(--lp-ink);
+}
+
+.lp-mark-red {
+  border-color: var(--lp-red);
+  color: var(--lp-red);
+}
+
+/* Rubber stamp in red ink, pressed onto the label once the date is known */
+.lp-stamp {
+  display: inline-block;
+  padding: 0.45rem 0.8rem 0.5rem;
+  border: 3px solid var(--lp-red);
+  color: var(--lp-red);
+  transform: rotate(-5deg);
+  opacity: 0;
+}
+.lp-stamp[data-on="true"] {
+  opacity: 0.92;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-stamp[data-on="true"] {
+    animation: lp-press 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+  }
+}
+@keyframes lp-press {
+  from {
+    opacity: 0;
+    transform: rotate(-11deg) scale(1.7);
+    filter: blur(3px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0.92;
+    transform: rotate(-5deg) scale(1);
+  }
+}
+
+/* Photo slots: placeholders until the client's photos arrive */
+.lp-photo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  background-color: #e8eaeb;
+  background-image: repeating-linear-gradient(135deg, rgb(20 21 24 / 0.07) 0 1.5px, transparent 1.5px 11px);
+  border: var(--lp-rule) solid var(--lp-ink);
+}
+.lp-photo-flush {
+  border-width: 0 0 var(--lp-rule) 0;
+}
+.lp-photo-note {
+  margin: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--lp-label);
+  border: 1.5px solid var(--lp-ink);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--lp-ink-2);
+  max-width: 28rem;
+}
+
+/* Placeholder copy the client still has to supply */
+.lp-todo {
+  background: rgb(215 31 38 / 0.08);
+  border: 1.5px dashed var(--lp-red);
+  padding: 0.75rem 0.9rem;
+  color: var(--lp-ink-2);
+}
+
+.lp-todo-inline {
+  background: rgb(215 31 38 / 0.08);
+  border: 1.5px dashed var(--lp-red);
+  padding: 0.1rem 0.5rem;
+  color: var(--lp-ink-2);
+}
+
+/* The delivery week */
+.lp-day {
+  border: var(--lp-rule) solid var(--lp-ink);
+  background: var(--lp-label);
+}
+.lp-day-off {
+  border-color: var(--lp-red);
+  color: var(--lp-red);
+  background: transparent;
+}
+
+/* The red field: strong colour spent on one region per screen */
+.lp-red-field {
+  background: var(--lp-red);
+  color: #fff;
+}
+.lp-red-field .lp-body {
+  color: rgb(255 255 255 / 0.92);
+}
+
+/* Form */
+.lp-input {
+  width: 100%;
+  height: 3rem;
+  padding: 0 0.85rem;
+  background: var(--lp-label);
+  border: 2px solid var(--lp-ink);
+  color: var(--lp-ink);
+  font-size: 1rem;
+  border-radius: 0;
+  caret-color: var(--lp-red);
+}
+textarea.lp-input {
+  height: auto;
+  padding: 0.7rem 0.85rem;
+  resize: vertical;
+}
+.lp-input::placeholder {
+  color: #61656d;
+}
+.lp-input:focus {
+  outline: 3px solid var(--lp-red);
+  outline-offset: 0;
+}
+.lp-input[aria-invalid="true"] {
+  border-color: var(--lp-red);
+}
+.lp-flabel {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.lp-error {
+  margin-top: 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #b0141b;
+}

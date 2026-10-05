@@ -91,6 +91,9 @@ export default function Shell({ children }: { children: ReactNode }) {
     );
   }
 
+  // The public landing page reads no store data, so it renders without waiting for boot.
+  if (path.startsWith("/landing")) return <>{children}</>;
+
   // The driver handheld and the online store bring their own header.
   if (path.startsWith("/driver") || path.startsWith("/shop")) {
     return (
