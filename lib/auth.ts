@@ -44,7 +44,7 @@ const STAFF_BLOCKED = ["/sales"];
 
 export function canOpen(role: Role | undefined, path: string) {
   const under = (p: string) => path === p || path.startsWith(`${p}/`);
-  if (under("/landing")) return true;
+  if (under("/landing") || under("/contact")) return true;
   if (!role) return under("/login") || path === "/shop";
   if (role === "rider") return under("/driver");
   if (role === "customer") return under("/shop");

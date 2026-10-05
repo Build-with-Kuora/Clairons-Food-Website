@@ -1,33 +1,23 @@
-import { Bike, MapPin, Snowflake, Truck } from "lucide-react";
+import { Bike, ChefHat, Snowflake, Truck } from "lucide-react";
 import type { Metadata } from "next";
-import { Archivo } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Logo } from "@/components/Logo";
+import { PublicFrame } from "@/components/landing/PublicFrame";
 import { NextDeliveryStamp } from "@/components/landing/NextDeliveryStamp";
-import { WholesaleForm } from "@/components/landing/WholesaleForm";
 import { money0 } from "@/lib/format";
 import { DROP_FEE, DROP_MIN, FUEL_FEE, SERVICE_AREAS, ZONES } from "@/lib/logic";
 import { ROUTES } from "@/lib/seed";
-import "./landing.css";
 
-const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], axes: ["wdth"] });
 
 export const metadata: Metadata = {
   title: "Clairon's Food | Frozen siopao, siomai and merienda, delivered in Metro Manila",
-  description: "Clairon's Food makes and blast-freezes siopao, siomai, fishballs, tocino and more, and delivers them cold across Metro Manila, Monday to Saturday.",
+  description: "Clairon's Food makes siopao, siomai, fishballs, tocino and more, and delivers them frozen, Monday to Saturday.",
 };
 
 type Item = [name: string, pack: string, price: number];
 
 // Online (tier C) case prices, matching the store's catalogue in lib/seed.ts.
-const LABEL: Item[] = [
-  ["Siomai, pork", "10 × 50 pcs", 2145],
-  ["Siopao asado, large", "6 × 12 pcs", 1738],
-  ["Fish balls", "10 × 1 kg", 935],
-  ["Pork tocino", "10 × 1 kg", 2640],
-];
-
 const DIMSUM: Item[] = [
   ["Siomai, pork, Japanese style", "10 × 50 pcs", 2145],
   ["Siomai, shrimp and pork", "10 × 40 pcs", 2585],
@@ -60,110 +50,60 @@ const CITIES = Object.keys(SERVICE_AREAS);
 
 export default function LandingPage() {
   return (
-    <div className={`lp ${archivo.variable} min-h-[100dvh]`}>
-      <Header />
-      <main>
-        <Hero />
-        <div className="lp-cutedge" aria-hidden />
-        <Contents />
-        <ColdChain />
-        <Doors />
-        <About />
-        <Contact />
-      </main>
-      <Footer />
-    </div>
-  );
-}
-
-function Header() {
-  return (
-    <header className="lp-rule-b sticky top-0 z-30 bg-[var(--lp-board)]">
-      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center gap-8 px-4 sm:px-6">
-        <Link href="/landing" aria-label="Clairon's Food, home">
-          <Logo height={38} />
-        </Link>
-        <nav aria-label="Sections" className="hidden items-center gap-7 md:flex">
-          <a href="#products" className="lp-navlink">
-            Products
-          </a>
-          <a href="#delivery" className="lp-navlink">
-            Delivery
-          </a>
-          <a href="#about" className="lp-navlink">
-            About
-          </a>
-          <a href="#contact" className="lp-navlink">
-            Contact
-          </a>
-        </nav>
-        <Link href="/shop" className="lp-btn lp-btn-red lp-btn-sm ml-auto">
-          Shop online
-        </Link>
-      </div>
-    </header>
+    <PublicFrame page="home">
+      <Hero />
+      <Marks />
+      <Contents />
+      <ColdChain />
+      <Doors />
+      <About />
+    </PublicFrame>
   );
 }
 
 function Hero() {
   return (
-    <section className="lp-flutes">
-      <div className="mx-auto grid max-w-[1320px] gap-10 px-4 pt-10 pb-12 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pt-16 lg:pb-16">
-        <div className="flex flex-col justify-center lg:col-span-7">
-          <h1 className="lp-display lp-h1">Merienda by the case.</h1>
-          <p className="lp-lede mt-6">
-            We make and blast-freeze siopao, siomai, fishballs, tocino and more, then deliver them cold across Metro Manila.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-4">
+    <section className="lp-hero relative isolate overflow-hidden">
+      <div className="absolute inset-x-0 top-0 -z-20 h-[60%] lg:inset-0 lg:h-full">
+        <Image
+          src="/landing/clairons-building.jpg"
+          alt="The Clairon's Food Product building, its white sign listing siopao, siomai, meatball, patties, shanghai and flake ice."
+          fill
+          preload
+          sizes="100vw"
+          className="object-cover object-[32%_50%] lg:object-[0%_55%]"
+        />
+      </div>
+      <div className="lp-hero-fade absolute inset-0 -z-10" aria-hidden />
+
+      <div className="mx-auto flex min-h-[calc(100dvh-71px)] max-w-[1440px] flex-col items-center justify-end px-6 pt-12 pb-14 lg:items-end lg:justify-center lg:py-16 lg:pr-[4vw]">
+        <div className="flex w-full flex-col items-center lg:w-[40%]">
+          <h1 className="lp-hero-logo w-[min(80vw,480px)]">
+            <Image src="/brand/clairons-logo-reverse.png" alt="Clairon's Food" width={1478} height={596} preload sizes="(min-width: 1024px) 480px, 80vw" className="h-auto w-full" />
+          </h1>
+          <div className="lp-hero-actions mt-10 flex flex-wrap justify-center gap-4 lg:mt-12">
             <Link href="/shop" className="lp-btn lp-btn-red">
               Shop online
             </Link>
-            <a href="#wholesale" className="lp-btn lp-btn-ink">
+            <Link href="/contact#wholesale" className="lp-btn lp-btn-light">
               Order wholesale
-            </a>
+            </Link>
           </div>
         </div>
-
-        <CaseLabel />
-      </div>
-
-      <div className="lp-rule-t">
-        <ul className="mx-auto grid max-w-[1320px] gap-x-8 gap-y-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
-          <Mark icon={<Snowflake size={24} strokeWidth={2.25} />} title="Keep frozen" text={`At ${ZONES.FRZ.setPointC}°C or colder`} />
-          <Mark icon={<Truck size={24} strokeWidth={2.25} />} title="Delivered Monday to Saturday" text="Between 8 am and 5 pm" />
-          <Mark icon={<MapPin size={24} strokeWidth={2.25} />} title="Made in Metro Manila" text="In our own kitchen" />
-        </ul>
       </div>
     </section>
   );
 }
 
-function CaseLabel() {
+function Marks() {
   return (
-    <aside aria-label="What's in a case" className="lp-label self-center lg:col-span-5">
-      <div className="lp-label-head flex items-baseline justify-between px-5 py-3">
-        <span className="lp-display text-[1.5rem]">Contents</span>
-        <span className="text-[0.85rem] font-semibold">Online price per case</span>
-      </div>
-      <ul className="px-5">
-        {LABEL.map(([name, pack, price]) => (
-          <li key={name} className="lp-field flex items-baseline gap-3 py-3">
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold">{name}</div>
-              <div className="text-[0.9rem] text-[var(--lp-ink-2)]">{pack}</div>
-            </div>
-            <div className="lp-figure text-[1.15rem] font-medium">{money0(price)}</div>
-          </li>
-        ))}
+    <div className="lp-rule-b">
+      <ul className="mx-auto grid max-w-[1320px] gap-x-8 gap-y-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
+        <Mark icon={<Snowflake size={24} strokeWidth={2.25} />} title="Keep frozen" text={`At ${ZONES.FRZ.setPointC}°C or colder`} />
+        <Mark icon={<Truck size={24} strokeWidth={2.25} />} title="Delivered Monday to Saturday" text="Between 8 am and 5 pm" />
+        <Mark icon={<ChefHat size={24} strokeWidth={2.25} />} title="Made by Clairon's" text="In our own kitchen" />
       </ul>
-      <div className="lp-rule-t flex items-center justify-between gap-4 px-5 py-4">
-        <div className="text-[0.9rem] leading-snug">
-          <div className="font-semibold">Clairon&rsquo;s Food</div>
-          <div className="text-[var(--lp-ink-2)]">Prices include VAT</div>
-        </div>
-        <NextDeliveryStamp />
-      </div>
-    </aside>
+    </div>
   );
 }
 
@@ -240,8 +180,7 @@ function Contents() {
 
 function ColdChain() {
   const steps = [
-    { verb: "Make", text: "Every batch is made in our own kitchen and gets its own lot number and best-by date." },
-    { verb: "Blast-freeze", text: `Batches go into the blast freezer at ${ZONES.BLAST.setPointC}°C and stay 24 hours before they can be sold.` },
+    { verb: "Make", text: "Every batch is made in our own kitchen, frozen, and given its own lot number and best-by date." },
     { verb: "Deliver", text: `Refrigerated vans set to ${ROUTES[0].setPointC}°C log the temperature at every stop. Riders take smaller orders.` },
   ];
   return (
@@ -249,7 +188,7 @@ function ColdChain() {
       <div className="mx-auto max-w-[1320px] px-4 py-16 sm:px-6 lg:py-24">
         <h2 className="lp-display lp-h2 max-w-[16ch]">Cold from our kitchen to your freezer</h2>
 
-        <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0">
+        <ol className="mt-12 grid max-w-[880px] gap-10 md:grid-cols-2 md:gap-0">
           {steps.map((s, i) => (
             <li key={s.verb} className="relative md:pr-10">
               <div className="flex items-center gap-3">
@@ -263,7 +202,10 @@ function ColdChain() {
 
         <div className="mt-16 grid gap-10 lg:grid-cols-12">
           <div className="lg:col-span-6">
-            <h3 className="lp-display lp-h3">Delivery days</h3>
+            <div className="flex items-end justify-between gap-4">
+              <h3 className="lp-display lp-h3">Delivery days</h3>
+              <NextDeliveryStamp />
+            </div>
             <ul className="mt-4 grid grid-cols-7 gap-1.5 sm:gap-2" aria-label="Delivery days: Monday to Saturday, no deliveries on Sunday">
               {DAYS.map((d) => {
                 const off = d === "Sun";
@@ -323,9 +265,9 @@ function Doors() {
           <li>Wholesale price tiers, and terms for regular accounts.</li>
           <li>A spot on our van route with your own delivery window.</li>
         </ul>
-        <a href="#wholesale" className="lp-btn lp-btn-paper mt-8">
+        <Link href="/contact#wholesale" className="lp-btn lp-btn-paper mt-8">
           Order wholesale
-        </a>
+        </Link>
       </div>
     </section>
   );
@@ -350,77 +292,6 @@ function About() {
         </div>
       </div>
     </section>
-  );
-}
-
-function Contact() {
-  return (
-    <section id="contact" className="lp-rule-t lp-flutes scroll-mt-20">
-      <div className="mx-auto grid max-w-[1320px] gap-12 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:py-24">
-        <div className="lg:col-span-5">
-          <h2 className="lp-display lp-h2">Talk to us</h2>
-          <dl className="lp-label mt-8">
-            <div className="lp-label-head px-5 py-3">
-              <dt className="lp-display text-[1.5rem]">From</dt>
-              <dd className="sr-only">Clairon&rsquo;s Food</dd>
-            </div>
-            <ContactRow label="Address" value="Street, barangay, city" />
-            <ContactRow label="Mobile" value="0900 000 0000" />
-            <ContactRow label="Messenger" value="facebook.com/your-page" />
-            <ContactRow label="E-mail" value="orders@your-domain.ph" />
-            <div className="lp-rule-t px-5 py-4">
-              <dt className="text-[0.85rem] font-semibold text-[var(--lp-ink-2)]">Deliveries</dt>
-              <dd className="font-semibold">Monday to Saturday, 8 am to 5 pm</dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-[0.9rem] text-[var(--lp-ink-2)]">Address, mobile, Messenger and e-mail are placeholders until the real ones are in.</p>
-        </div>
-
-        <div id="wholesale" className="scroll-mt-24 lg:col-span-7">
-          <h2 className="lp-display lp-h2">Order wholesale</h2>
-          <p className="lp-body mt-4 mb-8">Tell us about your business and what you need. We set up your account, prices and delivery day.</p>
-          <WholesaleForm />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ContactRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="lp-field flex items-baseline justify-between gap-4 px-5 py-3.5">
-      <dt className="text-[0.85rem] font-semibold text-[var(--lp-ink-2)]">{label}</dt>
-      <dd className="lp-todo-inline text-right">{value}</dd>
-    </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer>
-      <div className="lp-cutedge" aria-hidden />
-      <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-8 gap-y-5 px-4 py-8 sm:px-6">
-        <Logo height={44} />
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
-          <Link href="/shop" className="lp-navlink">
-            Shop online
-          </Link>
-          <a href="#products" className="lp-navlink">
-            Products
-          </a>
-          <a href="#delivery" className="lp-navlink">
-            Delivery
-          </a>
-          <a href="#contact" className="lp-navlink">
-            Contact
-          </a>
-          <Link href="/login" className="lp-navlink">
-            Staff log in
-          </Link>
-        </nav>
-        <p className="w-full text-[0.9rem] text-[var(--lp-ink-2)] lg:ml-auto lg:w-auto">© 2026 Clairon&rsquo;s Food. Prototype: photos and contact details are placeholders.</p>
-      </div>
-    </footer>
   );
 }
 

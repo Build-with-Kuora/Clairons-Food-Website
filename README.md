@@ -28,7 +28,8 @@ Anyone can browse `/shop` without logging in. Sign up makes a customer account, 
 
 | Route | What it does |
 | --- | --- |
-| `/landing` | Public landing page, open to everyone: what Clairon's makes, how it stays frozen, delivery days and areas, about, contact, and a wholesale inquiry form (sends nothing yet). Photos and contact details are placeholders. Will move to `/` for logged-out visitors. See spec section 11. |
+| `/landing` | Public landing page, open to everyone: a full-screen hero with their building fading into black and red, the logo and two buttons (Shop online, Order wholesale), then what Clairon's makes, delivery days and areas, and About. Will move to `/` for logged-out visitors. See spec section 11. |
+| `/contact` | Public contact page: contact details (placeholders for now) and a wholesale inquiry form that checks its fields but sends nothing yet. |
 | `/login` | Log in, sign up, forgot password, show password. |
 | `/` Today | Admin: Sales (counted when delivered, or when paid at the counter), stops delivered, trucks out, live route lines, a 14-day sales chart, and a "needs attention" list (exceptions, low stock, short-dated lots, held lots, accounts past due). Staff: Today's work, a queue of pick and load, blast freezer moves, what to make, delivery problems, sell-first lots and QA holds, with no money figures. |
 | `/counter` | Wholesale order entry. Tier pricing per account, catch-weight items, FEFO lot reservation, ₱300 small-drop fee under ₱5,000, ₱150 fuel surcharge, credit hold with manager override, truck delivery or will-call, GCash/cash/card/check/on-account payment, printable invoice with 12% VAT breakdown. Type `SKU qty` (e.g. `DM-1001 4`) and Enter to add fast. Press `/` to focus search. |

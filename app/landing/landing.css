@@ -1,4 +1,4 @@
-/* Public landing page: the side of a printed frozen master case.
+/* Public pages: the side of a printed frozen master case.
    White-coated corrugated board, two-colour flexo in the logo's black and red. */
 
 .lp {
@@ -8,8 +8,6 @@
   --lp-ink-2: #3c3f46;
   --lp-red: #d71f26;
   --lp-red-press: #b3181e;
-  --lp-kraft: #b68b5a;
-  --lp-liner: #dcc39c;
   --lp-rule: 3px;
 
   background: var(--lp-board);
@@ -80,17 +78,6 @@
 }
 .lp-rule-b {
   border-bottom: var(--lp-rule) solid var(--lp-ink);
-}
-
-/* Cut edge of the board: kraft liner and the wave of the flute */
-.lp-cutedge {
-  height: 14px;
-  background-color: var(--lp-liner);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='14' viewBox='0 0 16 14'%3E%3Cpath d='M0 7 Q4 1 8 7 T16 7' fill='none' stroke='%23b68b5a' stroke-width='2.2'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
-  background-position: 0 50%;
-  border-top: 2px solid var(--lp-kraft);
-  border-bottom: 2px solid var(--lp-kraft);
 }
 
 /* Buttons are printed blocks. The red plate sits a few pixels off the black keyline, like real two-colour flexo. */
@@ -169,6 +156,64 @@
   text-decoration-color: var(--lp-red);
 }
 
+/* Hero: their building fading into a black field, logo red glowing from the far edge */
+.lp-hero {
+  color: #fff;
+  background: var(--lp-ink);
+}
+.lp-hero-fade {
+  pointer-events: none;
+  background:
+    radial-gradient(90% 45% at 50% 100%, rgb(215 31 38 / 0.85) 0%, rgb(155 20 26 / 0.45) 45%, transparent 80%),
+    linear-gradient(180deg, rgb(20 21 24 / 0) 0%, rgb(20 21 24 / 0.08) 22%, rgb(20 21 24 / 0.3) 32%, rgb(20 21 24 / 0.6) 41%, rgb(20 21 24 / 0.85) 50%, var(--lp-ink) 60%);
+}
+@media (min-width: 1024px) {
+  .lp-hero-fade {
+    background:
+      radial-gradient(55% 75% at 100% 100%, rgb(215 31 38 / 0.9) 0%, rgb(155 20 26 / 0.5) 42%, transparent 78%),
+      radial-gradient(40% 55% at 100% 0%, rgb(155 20 26 / 0.6) 0%, transparent 72%),
+      linear-gradient(90deg, rgb(20 21 24 / 0) 18%, rgb(20 21 24 / 0.06) 28%, rgb(20 21 24 / 0.2) 37%, rgb(20 21 24 / 0.42) 45%, rgb(20 21 24 / 0.66) 53%, rgb(20 21 24 / 0.85) 61%, rgb(20 21 24 / 0.96) 69%, var(--lp-ink) 76%);
+  }
+}
+.lp-hero .lp-btn-red::after {
+  border-color: #fff;
+}
+.lp-btn-light {
+  background: transparent;
+  color: #fff;
+  border: var(--lp-rule) solid #fff;
+}
+.lp-btn-light:hover {
+  background: #fff;
+  color: var(--lp-ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-hero-logo {
+    animation: lp-arrive 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .lp-hero-actions {
+    animation: lp-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  }
+}
+@keyframes lp-arrive {
+  from {
+    transform: scale(0.94);
+    filter: blur(6px);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes lp-rise {
+  from {
+    transform: translateY(18px);
+  }
+  to {
+    transform: none;
+  }
+}
+
 /* The white case label with ruled fields */
 .lp-label {
   background: var(--lp-label);
@@ -211,7 +256,7 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .lp-stamp[data-on="true"] {
-    animation: lp-press 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+    animation: lp-press 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
   }
 }
 @keyframes lp-press {
