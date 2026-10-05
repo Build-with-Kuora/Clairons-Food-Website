@@ -161,18 +161,6 @@ export default function Shell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto">
-          {!collapsed && canSell && (
-            <div className="mx-4 mb-5 rounded-2xl bg-white p-5 text-ink">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink text-white" aria-hidden>
-                <ScanBarcode size={20} />
-              </span>
-              <div className="display mt-4 text-[21px] leading-tight font-semibold">Ring up a sale?</div>
-              <p className="mt-1.5 text-[14px] leading-snug text-ink-2">Walk-in or delivery. Stock is reserved oldest best-by first.</p>
-              <Link href="/counter" className="btn btn-dark btn-lg mt-4 w-full text-[15px]">
-                Open POS
-              </Link>
-            </div>
-          )}
           <div className={cx("flex items-center gap-3 border-t border-white/10 py-4", collapsed ? "flex-col px-3" : "px-5")}>
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-[16px] font-bold text-white uppercase" aria-hidden title={user?.email}>
               {user?.email.charAt(0)}
