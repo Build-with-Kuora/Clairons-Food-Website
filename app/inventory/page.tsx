@@ -348,6 +348,9 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
   );
 }
 
+/** Names for the prices in the price change log, matching the Prices table. */
+const PRICE_FIELD = { A: "Contract (A)", B: "Standard (B)", C: "Walk-in and online (C)", cost: "Production cost" } as const;
+
 function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void }) {
   const p = row.product;
   const movements = useStore((s) => s.movements);
@@ -359,6 +362,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
   const [editing, setEditing] = useState(false);
   const admin = useIsAdmin();
   const moves = movements.filter((m) => m.sku === p.sku).slice(0, 14);
+  const priceLog = useStore((s) => s.priceChanges).filter((c) => c.sku === p.sku).slice(0, 10);
   const unit = priceUnit(p);
 
   return (
@@ -496,6 +500,25 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
         </tbody>
       </table>
       {p.catchWeight && <p className="mt-2 hint">Sold by weight: charged on the actual weight from the scale. The price per {p.unit} assumes {p.caseKg} kg.</p>}
+
+      <h3 className="display mt-7 mb-3 text-title font-semibold">Price changes</h3>
+      {priceLog.length ? (
+        <ul className="divide-y divide-line rounded-xl border border-line">
+          {priceLog.map((c) => (
+            <li key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-body">
+              <span className="min-w-0 flex-1">
+                <span className="font-semibold">{PRICE_FIELD[c.field]}</span> {money(c.from)} → <span className="font-semibold">{money(c.to)}</span>
+                <span className="text-ink-3"> /{unit}</span>
+              </span>
+              <span className="text-small text-ink-3">
+                {dateTime(c.at)}, {c.by}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hint">No price changes yet.</p>
+      )}
 
       <h3 className="display mt-7 mb-3 text-title font-semibold">Recent stock history</h3>
       <ul className="divide-y divide-line rounded-xl border border-line">

@@ -3,6 +3,7 @@ import { WALK_IN, ZONES, allocateFEFO, orderTotals, priceLines, refusedCredit, r
 import type {
   Alloc,
   Batch,
+  PriceChange,
   Category,
   Client,
   Delivery,
@@ -232,6 +233,7 @@ export interface Data {
   runs: Record<string, Run>;
   zones: Zone[];
   batches: Batch[];
+  priceChanges: PriceChange[];
   counters: { so: number; batch: number; invoice: number };
   seededAt: number;
 }
@@ -668,6 +670,7 @@ export function buildSeed(now = Date.now()): Data {
     runs,
     zones,
     batches,
+    priceChanges: [],
     counters: { so, batch: lots.length, invoice },
     seededAt: now,
   };

@@ -241,6 +241,14 @@ export function salesOf(orders: Order[], deliveries: Delivery[]): Sale[] {
   return out;
 }
 
+/** The prices (each list, and the production cost) that differ between two versions of a product. */
+export function priceDiff(before: Product, after: Product) {
+  const out: { field: Tier | "cost"; from: number; to: number }[] = [];
+  for (const t of ["A", "B", "C"] as const) if (before.price[t] !== after.price[t]) out.push({ field: t, from: before.price[t], to: after.price[t] });
+  if (before.cost !== after.cost) out.push({ field: "cost", from: before.cost, to: after.cost });
+  return out;
+}
+
 /** What the cases refused at the door are worth, at the prices on the order. Delivery fees stay charged. */
 export function refusedCredit(order: Order, shorts: Short[]) {
   let credit = 0;

@@ -81,6 +81,18 @@ export type MoveType =
   | "HOLD"
   | "RELEASE";
 
+/** One price the owner changed on a product. */
+export interface PriceChange {
+  id: string;
+  at: number;
+  sku: string;
+  /** A price list, or the production cost */
+  field: Tier | "cost";
+  from: number;
+  to: number;
+  by: string;
+}
+
 export interface Movement {
   id: string;
   at: number;

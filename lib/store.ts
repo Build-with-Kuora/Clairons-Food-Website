@@ -14,6 +14,7 @@ import {
   customerError,
   freeBlastBin,
   nextSku,
+  priceDiff,
   orderTotals,
   priceLines,
   productError,
@@ -91,7 +92,7 @@ interface Actions {
   /** Set or clear dispatch's note on a stop. */
   setDeliveryNote(deliveryId: string, note: string, by: string): { ok: true } | { ok: false; error: string };
   /** Add a product, or edit one (including deactivating it). */
-  saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
+  saveProduct(i: ProductInput, by: string): { ok: true; product: Product } | { ok: false; error: string };
   /** Create or update an online customer's client record (matched by e-mail) from their checkout details. */
   saveCustomer(i: CustomerInput): { ok: true; client: Client } | { ok: false; error: string };
   /** Record that a copy of the receipt went to the buyer. */
@@ -119,6 +120,7 @@ const empty: Data = {
   runs: {},
   zones: [],
   batches: [],
+  priceChanges: [],
   counters: { so: 0, batch: 0, invoice: 0 },
   seededAt: 0,
 };
@@ -448,7 +450,7 @@ export const useStore = create<Store>()(
         return { ok: true, rider };
       },
 
-      saveProduct: (i) => {
+      saveProduct: (i, by) => {
         const s = get();
         if (i.sku && !s.products.some((p) => p.sku === i.sku)) return { ok: false, error: "Product not found." };
         const error = productError(i, s.products);
@@ -461,7 +463,13 @@ export const useStore = create<Store>()(
           pack: i.pack.trim(),
           bin: i.bin.trim().toUpperCase(),
         };
-        set({ products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product] });
+        const before = i.sku ? s.products.find((p) => p.sku === i.sku) : undefined;
+        const now = Date.now();
+        const changes = before ? priceDiff(before, product).map((c) => ({ ...c, id: uid(), at: now, sku: product.sku, by })) : [];
+        set({
+          products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product],
+          priceChanges: changes.length ? [...changes, ...s.priceChanges] : s.priceChanges,
+        });
         return { ok: true, product };
       },
 
