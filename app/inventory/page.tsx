@@ -2,6 +2,7 @@
 
 import { Download, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CategoryTile } from "@/components/CategoryTile";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
@@ -9,7 +10,7 @@ import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Pager, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, plural, temp, unitPlural, units } from "@/lib/format";
 import { useIsAdmin } from "@/lib/auth";
-import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
+import { useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Lot, MoveType, Product, ZoneId } from "@/lib/types";
@@ -51,8 +52,9 @@ export default function Inventory() {
 }
 
 function InventoryPage() {
-  const [tab, setTab] = useState<Tab>(() => (useUi.getState().inventorySearch ? "stock" : ((queryParam("tab") as Tab | null) ?? "stock")));
-  const [openSku, setOpenSku] = useState<string | null>(() => queryParam("sku"));
+  const params = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => (useUi.getState().inventorySearch ? "stock" : ((params.get("tab") as Tab | null) ?? "stock")));
+  const [openSku, setOpenSku] = useState<string | null>(() => params.get("sku"));
   const { rows } = useStock();
   const lots = useStore((s) => s.lots);
   const products = useStore((s) => s.products);
@@ -173,11 +175,12 @@ const HISTORY_PAGE = 20;
 
 function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) => void }) {
   const admin = useIsAdmin();
-  const [q, setQ] = useState(() => useUi.getState().inventorySearch || queryParam("q") || "");
+  const params = useSearchParams();
+  const [q, setQ] = useState(() => useUi.getState().inventorySearch || params.get("q") || "");
   const [zone, setZone] = useState<ZoneId | "">("");
   const [cat, setCat] = useState<Category | "">("");
   // The dashboard's "Running low" card links here with ?filter=low.
-  const [status, setStatus] = useState<StatusFilter>(() => (queryParam("filter") === "low" ? "below" : ""));
+  const [status, setStatus] = useState<StatusFilter>(() => (params.get("filter") === "low" ? "below" : ""));
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<Product | null>(null);
   const now = useNow();

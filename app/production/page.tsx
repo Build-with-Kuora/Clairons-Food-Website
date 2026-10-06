@@ -2,10 +2,11 @@
 
 import { Factory } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Empty, Field, LotBadge, PageHead, Panel, cx } from "@/components/ui";
 import { DAY, capitalize, clock, dateTime, plural, startOfDay, unitPlural, units } from "@/lib/format";
-import { queryParam, useStock, useToday } from "@/lib/hooks";
+import { useStock, useToday } from "@/lib/hooks";
 import { BLAST_HOURS, commonUnit, producedBySku, toMake } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
@@ -22,8 +23,9 @@ export default function Production() {
   const produce = useStore((s) => s.produce);
   const toast = useUi((s) => s.toast);
   const { rows } = useStock();
+  const params = useSearchParams();
 
-  const [sku, setSku] = useState(() => queryParam("sku") ?? "");
+  const [sku, setSku] = useState(() => params.get("sku") ?? "");
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");

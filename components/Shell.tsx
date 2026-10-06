@@ -3,7 +3,7 @@
 import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, ReceiptText, RotateCcw, ScanBarcode, Search, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { AUTH_KEY, ROLE_LABEL, canOpen, homeFor, useAuth, type Role } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { clock, dayLong } from "@/lib/format";
@@ -101,6 +101,8 @@ export default function Shell({ children }: { children: ReactNode }) {
   const compact = collapsed || tablet;
   const to = ready ? redirectFor(path, user?.role) : null;
   const show = ready && !to;
+  // Pages read their ?id= / ?sku= links with useSearchParams, which needs a Suspense boundary.
+  const page = <Suspense fallback={<Boot />}>{children}</Suspense>;
 
   useEffect(() => {
     if (to) router.replace(to);
@@ -110,7 +112,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   if (path.startsWith("/login")) {
     return (
       <>
-        {show && children}
+        {show && page}
         <Toaster />
       </>
     );
@@ -123,7 +125,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   if (path.startsWith("/driver") || path.startsWith("/shop")) {
     return (
       <>
-        {show ? children : <Boot />}
+        {show ? page : <Boot />}
         <Toaster />
       </>
     );
@@ -283,7 +285,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main ref={scroller} className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] scroll-thin md:overflow-y-auto md:px-9 md:pt-7 md:pb-9">{show ? children : <Boot />}</main>
+        <main ref={scroller} className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] scroll-thin md:overflow-y-auto md:px-9 md:pt-7 md:pb-9">{show ? page : <Boot />}</main>
       </div>
       <BottomNav />
       <Toaster aboveNav />

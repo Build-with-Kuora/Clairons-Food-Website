@@ -2,13 +2,14 @@
 
 import { Printer, Search, Send } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Drawer, Empty, PageHead, Pager, Panel, StatusPill } from "@/components/ui";
 import { useIsAdmin } from "@/lib/auth";
 import { dateTime, dayShort, invoiceNumber, keyToTs, money, money0, startOfDay } from "@/lib/format";
-import { queryParam, useMaps, useNow } from "@/lib/hooks";
+import { useMaps, useNow } from "@/lib/hooks";
 import { PAY_LABEL, buyerName } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Order } from "@/lib/types";
@@ -27,7 +28,8 @@ export default function Orders() {
   const now = useNow();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
+  const params = useSearchParams();
+  const [openId, setOpenId] = useState<string | null>(() => params.get("id"));
   const [sending, setSending] = useState(false);
   const [page, setPage] = useState(0);
 
