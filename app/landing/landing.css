@@ -1,20 +1,22 @@
-/* Public pages: the side of a printed frozen master case.
-   White-coated corrugated board, two-colour flexo in the logo's black and red. */
+/* Public pages: a plain business site. White and soft grey surfaces, thin rules, the logo's black and red. */
 
 .lp {
-  --lp-board: #f5f6f6;
-  --lp-label: #fdfdfd;
-  --lp-ink: #141518;
-  --lp-ink-2: #3c3f46;
+  --lp-board: #ffffff;
+  --lp-soft: #f6f7f8;
+  --lp-label: #ffffff;
+  --lp-ink: #14161a;
+  --lp-ink-2: #4a4f58;
+  --lp-line: #e3e5e8;
   --lp-red: #d71f26;
   --lp-red-press: #b3181e;
-  --lp-rule: 3px;
+  --lp-radius: 12px;
 
   background: var(--lp-board);
   color: var(--lp-ink);
-  font-family: var(--font-sans);
-  font-size: 17px;
-  line-height: 1.5;
+  font-family: var(--font-inter), var(--font-sans), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 .lp ::selection {
@@ -23,98 +25,85 @@
 }
 
 .lp :focus-visible {
-  outline: 3px solid var(--lp-ink);
+  outline: 2px solid var(--lp-red);
   outline-offset: 3px;
 }
 
-/* Printed type */
+/* Type */
 .lp-display {
-  font-family: var(--font-archivo), var(--font-display), sans-serif;
-  font-variation-settings: "wdth" 66;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: -0.005em;
-  line-height: 0.9;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
   text-wrap: balance;
 }
 .lp-h1 {
-  font-size: clamp(3.25rem, 8vw, 6rem);
+  font-size: clamp(2.5rem, 6vw, 4.25rem);
 }
 .lp-h2 {
-  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-size: clamp(1.9rem, 3.6vw, 2.75rem);
 }
 .lp-h3 {
-  font-size: 1.6rem;
-  line-height: 0.95;
+  font-size: 1.3rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
 }
 .lp-figure {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 .lp-lede {
   color: var(--lp-ink-2);
-  max-width: 34rem;
-  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
-  line-height: 1.45;
+  max-width: 36rem;
+  font-size: clamp(1.05rem, 1.5vw, 1.2rem);
 }
 .lp-body {
   color: var(--lp-ink-2);
   max-width: 65ch;
 }
 
-/* Corrugated board: the flutes show faintly through the coated liner */
+/* Soft grey band, for alternating sections */
 .lp-flutes {
-  background-color: var(--lp-board);
-  background-image: repeating-linear-gradient(90deg, rgb(20 21 24 / 0.028) 0 2px, transparent 2px 9px);
+  background-color: var(--lp-soft);
 }
 
-/* The printed panel border on a case face */
+/* Cards and rules: one thin line */
 .lp-keyline {
-  border: var(--lp-rule) solid var(--lp-ink);
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgb(20 22 26 / 0.04);
 }
 .lp-rule-t {
-  border-top: var(--lp-rule) solid var(--lp-ink);
+  border-top: 1px solid var(--lp-line);
 }
 .lp-rule-b {
-  border-bottom: var(--lp-rule) solid var(--lp-ink);
+  border-bottom: 1px solid var(--lp-line);
 }
 
-/* Buttons are printed blocks. The red plate sits a few pixels off the black keyline, like real two-colour flexo. */
+/* Buttons: one solid or one outlined shape, never a second border */
 .lp-btn {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 3.25rem;
+  height: 3rem;
   padding: 0 1.5rem;
-  font-family: var(--font-archivo), var(--font-display), sans-serif;
-  font-variation-settings: "wdth" 80;
-  font-weight: 800;
-  font-size: 1.05rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-weight: 600;
+  font-size: 0.975rem;
   white-space: nowrap;
   cursor: pointer;
   transition:
-    transform 0.12s ease-out,
     background-color 0.15s ease-out,
-    color 0.15s ease-out;
-}
-.lp-btn:active {
-  transform: translateY(2px);
+    color 0.15s ease-out,
+    border-color 0.15s ease-out;
 }
 .lp-btn-red {
   background: var(--lp-red);
   color: #fff;
-}
-.lp-btn-red::after {
-  content: "";
-  position: absolute;
-  inset: -3px 3px 3px -3px;
-  border: 2px solid var(--lp-ink);
-  pointer-events: none;
 }
 .lp-btn-red:hover {
   background: var(--lp-red-press);
@@ -122,38 +111,46 @@
 .lp-btn-ink {
   background: transparent;
   color: var(--lp-ink);
-  border: var(--lp-rule) solid var(--lp-ink);
+  border-color: var(--lp-ink);
 }
 .lp-btn-ink:hover {
   background: var(--lp-ink);
   color: #fff;
 }
 .lp-btn-paper {
-  background: var(--lp-label);
+  background: #fff;
   color: var(--lp-ink);
-  border: var(--lp-rule) solid var(--lp-ink);
 }
 .lp-btn-paper:hover {
   background: var(--lp-ink);
   color: #fff;
 }
+.lp-btn-light {
+  background: transparent;
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.7);
+}
+.lp-btn-light:hover {
+  background: #fff;
+  color: var(--lp-ink);
+}
 .lp-btn-sm {
   height: 2.5rem;
-  padding: 0 1rem;
-  font-size: 0.95rem;
+  padding: 0 1.1rem;
+  font-size: 0.9rem;
 }
 
 .lp-navlink {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.95rem;
   color: var(--lp-ink-2);
-  text-underline-offset: 6px;
-  text-decoration-thickness: 2px;
 }
 .lp-navlink:hover {
   color: var(--lp-ink);
-  text-decoration-line: underline;
-  text-decoration-color: var(--lp-red);
+}
+.lp-navlink[aria-current="page"] {
+  color: var(--lp-ink);
+  font-weight: 600;
 }
 
 /* Hero: their building fading into a black field, logo red glowing from the far edge */
@@ -175,103 +172,94 @@
       linear-gradient(90deg, rgb(20 21 24 / 0) 18%, rgb(20 21 24 / 0.06) 28%, rgb(20 21 24 / 0.2) 37%, rgb(20 21 24 / 0.42) 45%, rgb(20 21 24 / 0.66) 53%, rgb(20 21 24 / 0.85) 61%, rgb(20 21 24 / 0.96) 69%, var(--lp-ink) 76%);
   }
 }
-.lp-hero .lp-btn-red::after {
-  border-color: #fff;
-}
-.lp-btn-light {
-  background: transparent;
-  color: #fff;
-  border: var(--lp-rule) solid #fff;
-}
-.lp-btn-light:hover {
-  background: #fff;
-  color: var(--lp-ink);
-}
 @media (prefers-reduced-motion: no-preference) {
   .lp-hero-logo {
-    animation: lp-arrive 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: lp-arrive 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   .lp-hero-actions {
-    animation: lp-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+    animation: lp-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
   }
 }
 @keyframes lp-arrive {
   from {
-    transform: scale(0.94);
-    filter: blur(6px);
+    transform: scale(0.96);
+    opacity: 0;
   }
   to {
     transform: none;
-    filter: none;
+    opacity: 1;
   }
 }
 @keyframes lp-rise {
   from {
-    transform: translateY(18px);
+    transform: translateY(14px);
+    opacity: 0;
   }
   to {
     transform: none;
+    opacity: 1;
   }
 }
 
-/* The white case label with ruled fields */
+/* Form panel */
 .lp-label {
   background: var(--lp-label);
-  border: var(--lp-rule) solid var(--lp-ink);
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius);
+  overflow: hidden;
+  box-shadow: 0 8px 28px -12px rgb(20 22 26 / 0.18);
 }
 .lp-label-head {
   background: var(--lp-ink);
   color: #fff;
 }
 .lp-field + .lp-field {
-  border-top: 1.5px solid var(--lp-ink);
+  border-top: 1px solid var(--lp-line);
 }
 
-/* Handling marks */
+/* Icon tile */
 .lp-mark {
   display: grid;
   place-items: center;
   width: 3rem;
   height: 3rem;
   flex-shrink: 0;
-  border: var(--lp-rule) solid var(--lp-ink);
+  border-radius: 10px;
+  background: var(--lp-soft);
+  border: 1px solid var(--lp-line);
 }
-
 .lp-mark-red {
-  border-color: var(--lp-red);
+  background: rgb(215 31 38 / 0.08);
+  border-color: transparent;
   color: var(--lp-red);
 }
 
-/* Rubber stamp in red ink, pressed onto the label once the date is known */
+/* Next delivery badge */
 .lp-stamp {
   display: inline-block;
-  padding: 0.45rem 0.8rem 0.5rem;
-  border: 3px solid var(--lp-red);
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--lp-red);
+  border-radius: 8px;
+  background: rgb(215 31 38 / 0.06);
   color: var(--lp-red);
-  transform: rotate(-5deg);
   opacity: 0;
 }
 .lp-stamp[data-on="true"] {
-  opacity: 0.92;
+  opacity: 1;
 }
 @media (prefers-reduced-motion: no-preference) {
   .lp-stamp[data-on="true"] {
-    animation: lp-press 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    animation: lp-fade 0.4s ease-out both;
   }
 }
-@keyframes lp-press {
+@keyframes lp-fade {
   from {
     opacity: 0;
-    transform: rotate(-11deg) scale(1.7);
-    filter: blur(3px);
-  }
-  60% {
-    opacity: 1;
-    filter: blur(0);
+    transform: translateY(4px);
   }
   to {
-    opacity: 0.92;
-    transform: rotate(-5deg) scale(1);
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -280,82 +268,128 @@
   position: relative;
   display: flex;
   align-items: flex-end;
-  background-color: #e8eaeb;
-  background-image: repeating-linear-gradient(135deg, rgb(20 21 24 / 0.07) 0 1.5px, transparent 1.5px 11px);
-  border: var(--lp-rule) solid var(--lp-ink);
+  background-color: var(--lp-soft);
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius);
 }
 .lp-photo-flush {
-  border-width: 0 0 var(--lp-rule) 0;
+  border-width: 0 0 1px 0;
+  border-radius: 0;
 }
 .lp-photo-note {
   margin: 0.75rem;
-  padding: 0.4rem 0.6rem;
-  background: var(--lp-label);
-  border: 1.5px solid var(--lp-ink);
+  padding: 0.4rem 0.7rem;
+  background: #fff;
+  border: 1px solid var(--lp-line);
+  border-radius: 8px;
   font-size: 0.85rem;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--lp-ink-2);
   max-width: 28rem;
 }
 
 /* Placeholder copy the client still has to supply */
 .lp-todo {
-  background: rgb(215 31 38 / 0.08);
-  border: 1.5px dashed var(--lp-red);
+  background: rgb(215 31 38 / 0.06);
+  border: 1px dashed var(--lp-red);
+  border-radius: 8px;
   padding: 0.75rem 0.9rem;
   color: var(--lp-ink-2);
 }
-
 .lp-todo-inline {
-  background: rgb(215 31 38 / 0.08);
-  border: 1.5px dashed var(--lp-red);
+  background: rgb(215 31 38 / 0.06);
+  border: 1px dashed var(--lp-red);
+  border-radius: 6px;
   padding: 0.1rem 0.5rem;
   color: var(--lp-ink-2);
 }
 
 /* The delivery week */
 .lp-day {
-  border: var(--lp-rule) solid var(--lp-ink);
-  background: var(--lp-label);
+  border: 1px solid var(--lp-line);
+  border-radius: 10px;
+  background: #fff;
 }
 .lp-day-off {
-  border-color: var(--lp-red);
-  color: var(--lp-red);
-  background: transparent;
+  border-color: transparent;
+  background: var(--lp-soft);
+  color: var(--lp-ink-2);
 }
 
 /* The red field: strong colour spent on one region per screen */
 .lp-red-field {
+  --lp-ink: #ffffff;
+  --lp-ink-2: rgb(255 255 255 / 0.92);
+  --lp-line: rgb(255 255 255 / 0.3);
   background: var(--lp-red);
   color: #fff;
 }
+.lp-red-field :focus-visible {
+  outline-color: #fff;
+}
 .lp-red-field .lp-body {
   color: rgb(255 255 255 / 0.92);
+}
+/* White cards on a red field keep dark text */
+.lp-red-field .lp-label,
+.lp-red-field .lp-photo {
+  --lp-ink: #14161a;
+  --lp-ink-2: #4a4f58;
+  --lp-line: #e3e5e8;
+  color: var(--lp-ink);
+}
+.lp-red-field .lp-day {
+  background: rgb(255 255 255 / 0.12);
+  border-color: rgb(255 255 255 / 0.35);
+  color: #fff;
+}
+.lp-red-field .lp-day-off {
+  background: transparent;
+  border-style: dashed;
+  color: rgb(255 255 255 / 0.85);
+}
+.lp-red-field .lp-stamp {
+  border-color: #fff;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+}
+.lp-red-field .lp-todo {
+  background: rgb(255 255 255 / 0.12);
+  border-color: rgb(255 255 255 / 0.7);
+  color: #fff;
+}
+.lp-red-field .lp-btn-red {
+  background: #fff;
+  color: var(--lp-red);
 }
 
 /* Form */
 .lp-input {
   width: 100%;
   height: 3rem;
-  padding: 0 0.85rem;
-  background: var(--lp-label);
-  border: 2px solid var(--lp-ink);
+  padding: 0 0.9rem;
+  background: #fff;
+  border: 1px solid #c9ccd1;
+  border-radius: 8px;
   color: var(--lp-ink);
   font-size: 1rem;
-  border-radius: 0;
   caret-color: var(--lp-red);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 textarea.lp-input {
   height: auto;
-  padding: 0.7rem 0.85rem;
+  padding: 0.7rem 0.9rem;
   resize: vertical;
 }
 .lp-input::placeholder {
-  color: #61656d;
+  color: #6b7079;
 }
 .lp-input:focus {
-  outline: 3px solid var(--lp-red);
-  outline-offset: 0;
+  outline: none;
+  border-color: var(--lp-red);
+  box-shadow: 0 0 0 3px rgb(215 31 38 / 0.18);
 }
 .lp-input[aria-invalid="true"] {
   border-color: var(--lp-red);
@@ -364,11 +398,18 @@ textarea.lp-input {
   display: block;
   margin-bottom: 0.35rem;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 .lp-error {
   margin-top: 0.3rem;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
   color: #b0141b;
+}
+.lp-red-field .lp-label .lp-btn-red {
+  background: var(--lp-red);
+  color: #fff;
+}
+.lp-red-field .lp-label .lp-btn-red:hover {
+  background: var(--lp-red-press);
 }

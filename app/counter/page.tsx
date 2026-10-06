@@ -1,5 +1,6 @@
 "use client";
 
+import { SortableGrid } from "@/components/SortableBlocks";
 import { AlertTriangle, Banknote, CreditCard, FileCheck2, History, Landmark, Minus, Plus, Printer, Search, Send, Smartphone, Store, Trash2, Truck, Wallet, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CategoryTile } from "@/components/CategoryTile";
@@ -98,12 +99,11 @@ export default function Counter() {
   }, []);
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase().replace(/\s+\d+$/, "");
-    return products.filter(
-      (p) =>
-        (cat === "All" || p.category === cat) &&
-        (!term || p.sku.toLowerCase().includes(term) || p.name.toLowerCase().includes(term)),
-    );
+    const term = q
+      .trim()
+      .toLowerCase()
+      .replace(/\s+\d+$/, "");
+    return products.filter((p) => (cat === "All" || p.category === cat) && (!term || p.sku.toLowerCase().includes(term) || p.name.toLowerCase().includes(term)));
   }, [products, q, cat]);
 
   const inCart = new Map(cart.map((l) => [l.sku, l.qty]));
@@ -125,9 +125,7 @@ export default function Counter() {
       : null;
   const canPlace = !!client && cart.length > 0 && shortLines.length === 0 && (!creditProblem || override);
 
-  const lastOrder = picked
-    ? orders.filter((o) => o.clientId === picked.id && o.status !== "CANCELLED").sort((a, b) => b.createdAt - a.createdAt)[0]
-    : undefined;
+  const lastOrder = picked ? orders.filter((o) => o.clientId === picked.id && o.status !== "CANCELLED").sort((a, b) => b.createdAt - a.createdAt)[0] : undefined;
 
   function add(sku: string, n = 1) {
     setCart((c) => {
@@ -189,7 +187,7 @@ export default function Counter() {
     setExtras(false);
   }
 
-  const doneClient = done ? maps.client.get(done.clientId) ?? walkIn : undefined;
+  const doneClient = done ? (maps.client.get(done.clientId) ?? walkIn) : undefined;
 
   return (
     <div className={cx("mx-auto max-w-[1500px]", cart.length > 0 && "pb-16 xl:pb-0")}>
@@ -242,56 +240,66 @@ export default function Counter() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
-            {filtered.map((p) => {
+          <SortableGrid
+            storageKey="coldline-pos-products"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4"
+            items={filtered.map((p) => {
               const avail = rows.get(p.sku)?.available ?? 0;
               const qty = inCart.get(p.sku) ?? 0;
               const out = avail <= 0;
-              return (
-                <article
-                  key={p.sku}
-                  className={cx(
-                    "relative flex flex-col rounded-2xl border bg-panel p-3 shadow-card transition-[border-color,box-shadow]",
-                    qty ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-line/70",
-                    out && "opacity-60",
-                  )}
-                >
-                  <CategoryTile category={p.category} size="lg" />
-                  <div className="mt-3 flex items-start justify-between gap-2">
-                    <h3 className="text-[15px] leading-snug font-semibold">{p.name}</h3>
-                  </div>
-                  <div className="mt-0.5 text-[12.5px] text-ink-3">
-                    <span className="code">{p.sku}</span>, per {p.unit}, {p.pack}
-                    {p.catchWeight && ", catch weight"}
-                  </div>
-                  <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-3">
-                    <div>
-                      <div className="display text-[20px] leading-none font-semibold text-brand">
-                        {money(p.price[tier])}
-                        <span className="ml-0.5 text-[12.5px] font-medium text-ink-3">/{priceUnit(p)}</span>
-                      </div>
-                      <div className={cx("mt-1 text-[12.5px] font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-3")}>
-                        {out ? "Out of stock" : `${units(avail, p.unit)} left`}
-                      </div>
+              return {
+                id: p.sku,
+                label: p.name,
+                className: "[&>div]:h-full",
+                node: (
+                  <article
+                    key={p.sku}
+                    className={cx(
+                      "relative flex flex-col rounded-2xl border bg-panel p-3 shadow-card transition-[border-color,box-shadow]",
+                      qty ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-line/70",
+                      out && "opacity-60",
+                    )}
+                  >
+                    <CategoryTile category={p.category} size="lg" />
+                    <div className="mt-3 flex items-start justify-between gap-2">
+                      <h3 className="text-[15px] leading-snug font-semibold">{p.name}</h3>
                     </div>
-                    <button className="btn btn-primary btn-sm ml-auto h-8 rounded-lg px-3" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
-                      <Plus size={14} strokeWidth={2.6} /> Add
-                    </button>
-                  </div>
-                  {qty > 0 && (
-                    <span className="absolute top-2 right-2 grid h-7 min-w-7 place-items-center rounded-full bg-ink px-2 text-[13px] font-bold text-white" aria-label={`${qty} in the order`}>
-                      {qty}
-                    </span>
-                  )}
-                </article>
-              );
+                    <div className="mt-0.5 text-[12.5px] text-ink-3">
+                      <span className="code">{p.sku}</span>, per {p.unit}, {p.pack}
+                      {p.catchWeight && ", catch weight"}
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-3">
+                      <div>
+                        <div className="display text-[20px] leading-none font-semibold text-brand">
+                          {money(p.price[tier])}
+                          <span className="ml-0.5 text-[12.5px] font-medium text-ink-3">/{priceUnit(p)}</span>
+                        </div>
+                        <div className={cx("mt-1 text-[12.5px] font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-3")}>
+                          {out ? "Out of stock" : `${units(avail, p.unit)} left`}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary btn-sm ml-auto h-8 rounded-lg px-3" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
+                        <Plus size={14} strokeWidth={2.6} /> Add
+                      </button>
+                    </div>
+                    {qty > 0 && (
+                      <span className="absolute top-2 right-2 grid h-7 min-w-7 place-items-center rounded-full bg-ink px-2 text-[13px] font-bold text-white" aria-label={`${qty} in the order`}>
+                        {qty}
+                      </span>
+                    )}
+                  </article>
+                ),
+              };
             })}
-          </div>
+          />
           {filtered.length === 0 && <p className="py-10 text-center text-[14px] text-ink-3">No products match “{q}”. Clear the search or pick another category.</p>}
         </div>
 
         {/* ---------- Current order ---------- */}
-        <aside ref={orderRef} className="scroll-mt-20 flex flex-col overflow-y-auto rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)] scroll-thin">
+        <aside
+          ref={orderRef}
+          className="scroll-mt-20 flex flex-col overflow-y-auto rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)] scroll-thin"
+        >
           <div className="space-y-4 px-5 pt-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="display text-[24px] font-semibold">Current order</h2>
@@ -410,7 +418,11 @@ export default function Counter() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="text-[14px] leading-snug font-semibold">{p.name}</div>
-                            <button className="-mt-1 -mr-1 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md text-ink-3 hover:bg-bad-bg hover:text-bad" onClick={() => setQty(l.sku, 0)} aria-label={`Remove ${p.name}`}>
+                            <button
+                              className="-mt-1 -mr-1 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md text-ink-3 hover:bg-bad-bg hover:text-bad"
+                              onClick={() => setQty(l.sku, 0)}
+                              aria-label={`Remove ${p.name}`}
+                            >
                               <Trash2 size={15} />
                             </button>
                           </div>

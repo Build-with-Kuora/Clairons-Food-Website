@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <PublicFrame page="contact">
-      <section className="lp-flutes">
-        <div className="mx-auto grid max-w-[1320px] gap-12 px-4 py-14 sm:px-6 lg:grid-cols-12 lg:py-20">
-          <div className="lg:col-span-5">
+      <section>
+        <div className="mx-auto max-w-[1320px] px-4 py-14 sm:px-6 lg:py-20">
+          <div className="max-w-[560px]">
             <h1 className="lp-display lp-h2">Talk to us</h1>
             <dl className="lp-label mt-8">
               <div className="lp-label-head px-5 py-3">
@@ -30,8 +30,12 @@ export default function ContactPage() {
             </dl>
             <p className="mt-3 text-[0.9rem] text-[var(--lp-ink-2)]">Address, mobile, Messenger and e-mail are placeholders until the real ones are in.</p>
           </div>
+        </div>
+      </section>
 
-          <div id="wholesale" className="scroll-mt-24 lg:col-span-7">
+      <section id="wholesale" className="lp-red-field scroll-mt-16">
+        <div className="mx-auto max-w-[1320px] px-4 py-14 sm:px-6 lg:py-20">
+          <div className="max-w-[760px]">
             <h2 className="lp-display lp-h2">Order wholesale</h2>
             <p className="lp-body mt-4 mb-8">Tell us about your business and what you need. We set up your account, prices and delivery day.</p>
             <WholesaleForm />

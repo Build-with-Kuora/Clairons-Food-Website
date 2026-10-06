@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AttentionList } from "@/components/AttentionList";
 import { CATEGORY_ICON, CategoryTile } from "@/components/CategoryTile";
+import { SortableBlocks } from "@/components/SortableBlocks";
 import { ProductGrid } from "@/components/ProductGrid";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { StaffToday } from "@/components/StaffToday";
@@ -78,135 +79,158 @@ function OwnerToday() {
   const low = active.filter((r) => r.available > 0 && r.available < r.product.reorderPoint);
   const healthy = active.length - out.length - low.length;
   const healthyPct = active.length ? Math.round((healthy / active.length) * 100) : 0;
-  const belowReorder = active
-    .filter((r) => r.available < r.product.reorderPoint)
-    .sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
+  const belowReorder = active.filter((r) => r.available < r.product.reorderPoint).sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
   const expiring = lots.filter((l) => l.qty > 0 && daysUntil(l.bestBy, now) <= 30).sort((a, b) => a.bestBy - b.bestBy);
   const held = lots.filter((l) => l.qty > 0 && l.status === "HOLD");
   const overCredit = clients.filter((c) => c.pastDue > 0 || (c.creditLimit > 0 && c.balance > c.creditLimit * 0.9));
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
-        <Stat
-          dark
-          icon={<Wallet size={20} />}
-          label="Sold today"
-          value={money0(soldToday)}
-          href="/sales"
-          foot={
-            <>
-              <Delta now={soldToday} prev={soldYesterday} onDark /> vs this time yesterday
-            </>
-          }
-        />
-        <Stat
-          icon={<PackageCheck size={20} />}
-          label="Stops delivered"
-          value={`${done} of ${stopsToday.length}`}
-          href="/dispatch"
-          foot={exceptions.length ? <Badge tone="bad">{plural(exceptions.length, "exception")}</Badge> : "No exceptions so far"}
-        />
-        <Stat icon={<Truck size={20} />} label="Trucks out" value={`${trucksOut} of ${routes.length}`} href="/dispatch" foot="Ref vans on the road now" />
-        <Stat icon={<PackageSearch size={20} />} label="Orders to pick" value={count(toPick)} href="/dispatch" foot="Scheduled or picking" />
-        <Stat
-          tone="bad"
-          icon={<AlertTriangle size={20} />}
-          label="Below reorder point"
-          value={plural(belowReorder.length, "product")}
-          href="/inventory?filter=low"
-          foot={out.length ? <Badge tone="bad">{count(out.length)} out of stock</Badge> : "None out of stock"}
-        />
-      </div>
+      <SortableBlocks
+        storageKey="coldline-owner-blocks"
+        className="flex flex-col gap-6"
+        blocks={[
+          {
+            id: "stats",
+            label: "Today's numbers",
+            node: (
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
+                <Stat
+                  dark
+                  icon={<Wallet size={20} />}
+                  label="Sold today"
+                  value={money0(soldToday)}
+                  href="/sales"
+                  foot={
+                    <>
+                      <Delta now={soldToday} prev={soldYesterday} onDark /> vs this time yesterday
+                    </>
+                  }
+                />
+                <Stat
+                  icon={<PackageCheck size={20} />}
+                  label="Stops delivered"
+                  value={`${done} of ${stopsToday.length}`}
+                  href="/dispatch"
+                  foot={exceptions.length ? <Badge tone="bad">{plural(exceptions.length, "exception")}</Badge> : "No exceptions so far"}
+                />
+                <Stat icon={<Truck size={20} />} label="Trucks out" value={`${trucksOut} of ${routes.length}`} href="/dispatch" foot="Ref vans on the road now" />
+                <Stat icon={<PackageSearch size={20} />} label="Orders to pick" value={count(toPick)} href="/dispatch" foot="Scheduled or picking" />
+                <Stat
+                  tone="bad"
+                  icon={<AlertTriangle size={20} />}
+                  label="Below reorder point"
+                  value={plural(belowReorder.length, "product")}
+                  href="/inventory?filter=low"
+                  foot={out.length ? <Badge tone="bad">{count(out.length)} out of stock</Badge> : "None out of stock"}
+                />
+              </div>
+            ),
+          },
+          {
+            id: "sales",
+            label: "Sales and deliveries",
+            node: (
+              <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <Panel
+                  title={
+                    <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                      Sales
+                      <span className="display text-[26px] font-semibold">{money0(periodTotal)}</span>
+                      <span className="flex items-center gap-1.5 font-sans text-[13px] font-normal text-ink-3">
+                        <Delta now={periodTotal} prev={prevTotal} /> vs the {days} days before
+                      </span>
+                    </span>
+                  }
+                  actions={<Segmented label="Period" options={[...PERIODS]} value={period} onChange={setPeriod} />}
+                  className="lg:col-span-2 xl:col-span-1"
+                >
+                  <AreaTrend data={daily} format={pesoK} height={330} label={`Sales, last ${days} days`} />
+                  <p className="mt-1 text-[12.5px] text-ink-3">Order value including fees. Deliveries count once delivered, walk-ins when paid.</p>
+                </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <Panel
-          title={
-            <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              Sales
-              <span className="display text-[26px] font-semibold">{money0(periodTotal)}</span>
-              <span className="flex items-center gap-1.5 font-sans text-[13px] font-normal text-ink-3">
-                <Delta now={periodTotal} prev={prevTotal} /> vs the {days} days before
-              </span>
-            </span>
-          }
-          actions={<Segmented label="Period" options={[...PERIODS]} value={period} onChange={setPeriod} />}
-          className="lg:col-span-2 xl:col-span-1"
-        >
-          <AreaTrend data={daily} format={pesoK} height={330} label={`Sales, last ${days} days`} />
-          <p className="mt-1 text-[12.5px] text-ink-3">Order value including fees. Deliveries count once delivered, walk-ins when paid.</p>
-        </Panel>
-
-        <RoutesSummary today={today} />
-        <StockHealth healthy={healthy} low={low.length} out={out.length} pct={healthyPct} expiring={expiring.length} />
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <RecentOrders className="lg:col-span-2 xl:col-span-1" />
-        <BestSeller now={now} />
-        <JustProduced now={now} />
-      </div>
-
-      <ProductGrid now={now} />
-
-      <RoutesPanel today={today} />
-
-      <section>
-        <h2 className="display mb-3 text-[22px] font-semibold">Needs attention</h2>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <AttentionList
-            icon={<AlertTriangle size={16} />}
-            tone="bad"
-            title="Delivery exceptions"
-            empty="All stops clean so far."
-            items={exceptions.map((d) => ({
-              key: d.id,
-              href: `/dispatch?stop=${d.id}`,
-              main: maps.client.get(d.clientId)?.name ?? "",
-              side: d.exception?.reason ?? "",
-            }))}
-          />
-          <AttentionList
-            icon={<TrendingDown size={16} />}
-            tone="warn"
-            title="Below reorder point"
-            empty="Every SKU is above its reorder point."
-            items={belowReorder.map((r) => ({
-              key: r.product.sku,
-              href: `/inventory?sku=${r.product.sku}`,
-              main: r.product.name,
-              side: `${units(r.available, r.product.unit)} left, reorder at ${r.product.reorderPoint}`,
-            }))}
-          />
-          <AttentionList
-            icon={<CalendarClock size={16} />}
-            tone="warn"
-            title="Best-by within 30 days"
-            empty="No short-dated lots."
-            items={expiring.map((l) => ({
-              key: l.id,
-              href: `/inventory?tab=lots`,
-              main: maps.product.get(l.sku)?.name ?? l.sku,
-              side: `${units(l.qty, maps.product.get(l.sku)?.unit ?? "unit")}, lot ${l.code}, ${daysUntil(l.bestBy, now)} days`,
-            }))}
-          />
-          <AttentionList
-            icon={<PauseCircle size={16} />}
-            tone="neutral"
-            title="Held lots and accounts"
-            empty="Nothing on hold."
-            items={[
-              ...held.map((l) => ({ key: l.id, href: `/inventory?sku=${l.sku}`, main: `${maps.product.get(l.sku)?.name}`, side: `Lot ${l.code} on QA hold` })),
-              ...overCredit.map((c) => ({
-                key: c.id,
-                href: `/clients?id=${c.id}`,
-                main: c.name,
-                side: c.pastDue > 0 ? `${money(c.pastDue)} past due` : `${Math.round((c.balance / c.creditLimit) * 100)}% of credit used`,
-              })),
-            ]}
-          />
-        </div>
-      </section>
+                <RoutesSummary today={today} />
+                <StockHealth healthy={healthy} low={low.length} out={out.length} pct={healthyPct} expiring={expiring.length} />
+              </div>
+            ),
+          },
+          {
+            id: "orders",
+            label: "Orders and products",
+            node: (
+              <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <RecentOrders className="lg:col-span-2 xl:col-span-1" />
+                <BestSeller now={now} />
+                <JustProduced now={now} />
+              </div>
+            ),
+          },
+          { id: "products", label: "Product groups", node: <ProductGrid now={now} /> },
+          { id: "routes", label: "Routes", node: <RoutesPanel today={today} /> },
+          {
+            id: "attention",
+            label: "Needs attention",
+            node: (
+              <section>
+                <h2 className="display mb-3 text-[22px] font-semibold">Needs attention</h2>
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                  <AttentionList
+                    icon={<AlertTriangle size={16} />}
+                    tone="bad"
+                    title="Delivery exceptions"
+                    empty="All stops clean so far."
+                    items={exceptions.map((d) => ({
+                      key: d.id,
+                      href: `/dispatch?stop=${d.id}`,
+                      main: maps.client.get(d.clientId)?.name ?? "",
+                      side: d.exception?.reason ?? "",
+                    }))}
+                  />
+                  <AttentionList
+                    icon={<TrendingDown size={16} />}
+                    tone="warn"
+                    title="Below reorder point"
+                    empty="Every SKU is above its reorder point."
+                    items={belowReorder.map((r) => ({
+                      key: r.product.sku,
+                      href: `/inventory?sku=${r.product.sku}`,
+                      main: r.product.name,
+                      side: `${units(r.available, r.product.unit)} left, reorder at ${r.product.reorderPoint}`,
+                    }))}
+                  />
+                  <AttentionList
+                    icon={<CalendarClock size={16} />}
+                    tone="warn"
+                    title="Best-by within 30 days"
+                    empty="No short-dated lots."
+                    items={expiring.map((l) => ({
+                      key: l.id,
+                      href: `/inventory?tab=lots`,
+                      main: maps.product.get(l.sku)?.name ?? l.sku,
+                      side: `${units(l.qty, maps.product.get(l.sku)?.unit ?? "unit")}, lot ${l.code}, ${daysUntil(l.bestBy, now)} days`,
+                    }))}
+                  />
+                  <AttentionList
+                    icon={<PauseCircle size={16} />}
+                    tone="neutral"
+                    title="Held lots and accounts"
+                    empty="Nothing on hold."
+                    items={[
+                      ...held.map((l) => ({ key: l.id, href: `/inventory?sku=${l.sku}`, main: `${maps.product.get(l.sku)?.name}`, side: `Lot ${l.code} on QA hold` })),
+                      ...overCredit.map((c) => ({
+                        key: c.id,
+                        href: `/clients?id=${c.id}`,
+                        main: c.name,
+                        side: c.pastDue > 0 ? `${money(c.pastDue)} past due` : `${Math.round((c.balance / c.creditLimit) * 100)}% of credit used`,
+                      })),
+                    ]}
+                  />
+                </div>
+              </section>
+            ),
+          },
+        ]}
+      />
       <p className="text-[13px] text-ink-3">
         Data refreshes every 30 seconds. Last reading {clock(now)}, {dateKey(now)}.
       </p>
@@ -249,14 +273,24 @@ function RoutesSummary({ today }: { today: string }) {
                 <span className="truncate font-semibold">{l.name}</span>
                 <span className="shrink-0 text-white/60">{l.state}</span>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1" role="img" aria-label={`${l.name}: ${l.list.filter((d) => d.status === "DELIVERED").length} of ${l.list.length} stops delivered`}>
+              <div
+                className="mt-1.5 flex flex-wrap items-center gap-1"
+                role="img"
+                aria-label={`${l.name}: ${l.list.filter((d) => d.status === "DELIVERED").length} of ${l.list.length} stops delivered`}
+              >
                 {l.list.length === 0 && <span className="text-[12px] text-white/50">No stops today</span>}
                 {l.list.map((d) => (
                   <span
                     key={d.id}
                     className={cx(
                       "h-3 w-3 rounded-full",
-                      d.status === "DELIVERED" ? "bg-brand" : d.status === "EXCEPTION" ? "bg-warn-bg ring-2 ring-brand" : d.status === "EN_ROUTE" || d.status === "ARRIVED" ? "bg-white" : "bg-white/25",
+                      d.status === "DELIVERED"
+                        ? "bg-brand"
+                        : d.status === "EXCEPTION"
+                          ? "bg-warn-bg ring-2 ring-brand"
+                          : d.status === "EN_ROUTE" || d.status === "ARRIVED"
+                            ? "bg-white"
+                            : "bg-white/25",
                     )}
                   />
                 ))}
@@ -441,7 +475,9 @@ function BestSeller({ now }: { now: number }) {
                 <div className="truncate text-[15.5px] font-semibold">{p.name}</div>
                 <div className="mt-0.5 text-[12.5px] text-ink-3">
                   Sold <span className="font-semibold text-ink-2">{count(top[1])}</span>
-                  <span className="mx-2">Free <span className="font-semibold text-ink-2">{count(row?.available ?? 0)}</span></span>
+                  <span className="mx-2">
+                    Free <span className="font-semibold text-ink-2">{count(row?.available ?? 0)}</span>
+                  </span>
                 </div>
               </div>
               <Link href={`/production?sku=${p.sku}`} className="btn btn-dark shrink-0 rounded-xl">

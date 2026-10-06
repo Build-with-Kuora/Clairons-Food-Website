@@ -1,5 +1,6 @@
 "use client";
 
+import { SortableGrid } from "@/components/SortableBlocks";
 import { Download, Package, Percent, Printer, ReceiptText, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -149,84 +150,118 @@ export default function Sales() {
         </div>
       </div>
 
-      <div className="mb-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Stat
-            dark
-            icon={<Wallet size={20} />}
-            label="Total sales"
-            value={money(sum.total)}
-            foot={
-              <>
-                <Delta now={sum.total} prev={before.total} onDark /> {plural(sum.count, "sale")}, VAT included
-              </>
-            }
-          />
-          <Stat
-            icon={<ReceiptText size={20} />}
-            label="VATable sales"
-            value={money(total.net)}
-            foot={
-              <>
-                <Delta now={total.net} prev={beforeTotal.net} /> {vsLabel}
-              </>
-            }
-          />
-          <Stat
-            icon={<Percent size={20} />}
-            label="VAT 12%"
-            value={money(total.vat)}
-            foot={
-              <>
-                <Delta now={total.vat} prev={beforeTotal.vat} /> Output VAT in the total
-              </>
-            }
-          />
-          <Stat
-            icon={<Package size={20} />}
-            label={`${capitalize(unitPlural(unit))} sold`}
-            value={count(sum.cases)}
-            foot={
-              <>
-                <Delta now={sum.cases} prev={before.cases} /> {plural(sum.rows.length, "product")}
-              </>
-            }
-          />
-        </div>
-
-        <Panel title="Sales by category" sub="Product sales, fees left out">
-          {topCats.length ? (
-            <div>
-              <div className="flex items-center gap-5">
-                <Rings items={topCats.map((c, i) => ({ label: c.category, value: c.amount, color: RING_COLORS[i] }))} size={150} label="Top categories by amount" />
-                <div className="min-w-0">
-                  <div className="display text-[30px] leading-none font-semibold">{pesoK(catTotal)}</div>
-                  <div className="mt-1 text-[13px] text-ink-3">
-                    Product sales across {plural(byCategory.length, "category", "categories")}
+      <SortableGrid
+        storageKey="coldline-sales-cards"
+        className="mb-5 grid gap-5 sm:grid-cols-2 xl:grid-flow-dense xl:grid-cols-3"
+        items={[
+          {
+            id: "total",
+            label: "Total sales",
+            node: (
+              <Stat
+                className="h-full"
+                dark
+                icon={<Wallet size={20} />}
+                label="Total sales"
+                value={money(sum.total)}
+                foot={
+                  <>
+                    <Delta now={sum.total} prev={before.total} onDark /> {plural(sum.count, "sale")}, VAT included
+                  </>
+                }
+              />
+            ),
+          },
+          {
+            id: "vatable",
+            label: "VATable sales",
+            node: (
+              <Stat
+                className="h-full"
+                icon={<ReceiptText size={20} />}
+                label="VATable sales"
+                value={money(total.net)}
+                foot={
+                  <>
+                    <Delta now={total.net} prev={beforeTotal.net} /> {vsLabel}
+                  </>
+                }
+              />
+            ),
+          },
+          {
+            id: "vat",
+            label: "VAT 12%",
+            node: (
+              <Stat
+                className="h-full"
+                icon={<Percent size={20} />}
+                label="VAT 12%"
+                value={money(total.vat)}
+                foot={
+                  <>
+                    <Delta now={total.vat} prev={beforeTotal.vat} /> Output VAT in the total
+                  </>
+                }
+              />
+            ),
+          },
+          {
+            id: "units",
+            label: "Units sold",
+            node: (
+              <Stat
+                className="h-full"
+                icon={<Package size={20} />}
+                label={`${capitalize(unitPlural(unit))} sold`}
+                value={count(sum.cases)}
+                foot={
+                  <>
+                    <Delta now={sum.cases} prev={before.cases} /> {plural(sum.rows.length, "product")}
+                  </>
+                }
+              />
+            ),
+          },
+          {
+            id: "category",
+            label: "Sales by category",
+            className: "sm:col-span-2 xl:col-span-1 xl:row-span-2",
+            node: (
+              <Panel className="h-full" title="Sales by category" sub="Product sales, fees left out">
+                {topCats.length ? (
+                  <div>
+                    <div className="flex items-center gap-5">
+                      <Rings items={topCats.map((c, i) => ({ label: c.category, value: c.amount, color: RING_COLORS[i] }))} size={150} label="Top categories by amount" />
+                      <div className="min-w-0">
+                        <div className="display text-[30px] leading-none font-semibold">{pesoK(catTotal)}</div>
+                        <div className="mt-1 text-[13px] text-ink-3">Product sales across {plural(byCategory.length, "category", "categories")}</div>
+                      </div>
+                    </div>
+                    <ul className="mt-5 space-y-2.5 text-[13.5px]">
+                      {topCats.map((c, i) => (
+                        <li key={c.category} className="flex items-center gap-2">
+                          <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: RING_COLORS[i] }} aria-hidden />
+                          <span className="min-w-0 flex-1 truncate text-ink-2">{c.category}</span>
+                          <span className="font-semibold">{pesoK(c.amount)}</span>
+                          <span className="w-10 text-right text-[12.5px] text-ink-3">{catTotal ? Math.round((c.amount / catTotal) * 100) : 0}%</span>
+                        </li>
+                      ))}
+                      {byCategory.length > topCats.length && (
+                        <li className="text-[12.5px] text-ink-3">
+                          {plural(byCategory.length - topCats.length, "more category", "more categories")}, {pesoK(catTotal - topCats.reduce((t, c) => t + c.amount, 0))}
+                        </li>
+                      )}
+                    </ul>
                   </div>
-                </div>
-              </div>
-              <ul className="mt-5 space-y-2.5 text-[13.5px]">
-                {topCats.map((c, i) => (
-                  <li key={c.category} className="flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: RING_COLORS[i] }} aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-ink-2">{c.category}</span>
-                    <span className="font-semibold">{pesoK(c.amount)}</span>
-                    <span className="w-10 text-right text-[12.5px] text-ink-3">{catTotal ? Math.round((c.amount / catTotal) * 100) : 0}%</span>
-                  </li>
-                ))}
-                {byCategory.length > topCats.length && (
-                  <li className="text-[12.5px] text-ink-3">
-                    {plural(byCategory.length - topCats.length, "more category", "more categories")}, {pesoK(catTotal - topCats.reduce((t, c) => t + c.amount, 0))}
-                  </li>
+                ) : (
+                  <Empty title="No sales in this range" />
                 )}
-              </ul>
-            </div>
-          ) : (
-            <Empty title="No sales in this range" />
-          )}
-        </Panel>
-      </div>
+              </Panel>
+            ),
+          },
+        ]}
+      />
 
       <div className="mb-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <Panel

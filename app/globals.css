@@ -216,6 +216,36 @@ body {
   }
 }
 
+/* Laptop scale: the staff app is drawn for a large monitor, so on desktop-width screens under 1920px
+   everything inside .app-zoom renders at 80%. Viewport units are divided by --ui-zoom where they size the frame. */
+:root {
+  --ui-zoom: 1;
+}
+@media (min-width: 1024px) and (max-width: 1919px) and (pointer: fine) {
+  :root {
+    --ui-zoom: 0.8;
+  }
+}
+.app-zoom {
+  zoom: var(--ui-zoom);
+}
+
+/* Touch screens (iPad): finger-sized controls. */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 2.75rem;
+  }
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  .input {
+    height: 2.75rem;
+  }
+  textarea.input {
+    height: auto;
+  }
+}
+
 /* 7. Utilities and print ------------------------------------------------- */
 .scroll-thin {
   scrollbar-width: thin;

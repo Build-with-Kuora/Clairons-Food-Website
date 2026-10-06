@@ -1,12 +1,11 @@
-import { Bike, ChefHat, Snowflake, Truck } from "lucide-react";
+import { Bike, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { PublicFrame } from "@/components/landing/PublicFrame";
 import { NextDeliveryStamp } from "@/components/landing/NextDeliveryStamp";
 import { money0 } from "@/lib/format";
-import { DROP_FEE, DROP_MIN, FUEL_FEE, SERVICE_AREAS, ZONES } from "@/lib/logic";
+import { DROP_FEE, DROP_MIN, FUEL_FEE, SERVICE_AREAS } from "@/lib/logic";
 import { ROUTES } from "@/lib/seed";
 
 
@@ -52,7 +51,6 @@ export default function LandingPage() {
   return (
     <PublicFrame page="home">
       <Hero />
-      <Marks />
       <Contents />
       <ColdChain />
       <Doors />
@@ -92,32 +90,6 @@ function Hero() {
         </div>
       </div>
     </section>
-  );
-}
-
-function Marks() {
-  return (
-    <div className="lp-rule-b">
-      <ul className="mx-auto grid max-w-[1320px] gap-x-8 gap-y-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
-        <Mark icon={<Snowflake size={24} strokeWidth={2.25} />} title="Keep frozen" text={`At ${ZONES.FRZ.setPointC}°C or colder`} />
-        <Mark icon={<Truck size={24} strokeWidth={2.25} />} title="Delivered Monday to Saturday" text="Between 8 am and 5 pm" />
-        <Mark icon={<ChefHat size={24} strokeWidth={2.25} />} title="Made by Clairon's" text="In our own kitchen" />
-      </ul>
-    </div>
-  );
-}
-
-function Mark({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  return (
-    <li className="flex items-center gap-3.5">
-      <span className="lp-mark" aria-hidden>
-        {icon}
-      </span>
-      <span className="leading-tight">
-        <span className="block font-bold">{title}</span>
-        <span className="block text-[0.95rem] text-[var(--lp-ink-2)]">{text}</span>
-      </span>
-    </li>
   );
 }
 
@@ -184,7 +156,7 @@ function ColdChain() {
     { verb: "Deliver", text: `Refrigerated vans set to ${ROUTES[0].setPointC}°C log the temperature at every stop. Riders take smaller orders.` },
   ];
   return (
-    <section id="delivery" className="lp-rule-t lp-flutes scroll-mt-20">
+    <section id="delivery" className="lp-red-field scroll-mt-20">
       <div className="mx-auto max-w-[1320px] px-4 py-16 sm:px-6 lg:py-24">
         <h2 className="lp-display lp-h2 max-w-[16ch]">Cold from our kitchen to your freezer</h2>
 
@@ -246,28 +218,30 @@ function ColdChain() {
 
 function Doors() {
   return (
-    <section className="lp-rule-t grid md:grid-cols-2">
-      <div className="px-4 py-14 sm:px-6 md:py-20 lg:pl-[max(1.5rem,calc((100vw-1320px)/2+1.5rem))]">
-        <h2 className="lp-display lp-h2">For home</h2>
-        <ul className="lp-body mt-6 space-y-2.5">
-          <li>Order a case or two from the online store.</li>
-          <li>Pay by GCash, card, or cash on delivery.</li>
-          <li>Follow your order from packed to delivered.</li>
-        </ul>
-        <Link href="/shop" className="lp-btn lp-btn-red mt-8">
-          Shop online
-        </Link>
-      </div>
-      <div className="lp-red-field px-4 py-14 sm:px-6 md:py-20 lg:pr-[max(1.5rem,calc((100vw-1320px)/2+1.5rem))]">
-        <h2 className="lp-display lp-h2">For your business</h2>
-        <ul className="lp-body mt-6 space-y-2.5">
-          <li>Carinderias, food carts, canteens, caterers and stores.</li>
-          <li>Wholesale price tiers, and terms for regular accounts.</li>
-          <li>A spot on our van route with your own delivery window.</li>
-        </ul>
-        <Link href="/contact#wholesale" className="lp-btn lp-btn-paper mt-8">
-          Order wholesale
-        </Link>
+    <section>
+      <div className="mx-auto grid max-w-[1320px] gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:gap-16 lg:py-24">
+        <div>
+          <h2 className="lp-display lp-h2">For home</h2>
+          <ul className="lp-body mt-6 space-y-2.5">
+            <li>Order a case or two from the online store.</li>
+            <li>Pay by GCash, card, or cash on delivery.</li>
+            <li>Follow your order from packed to delivered.</li>
+          </ul>
+          <Link href="/shop" className="lp-btn lp-btn-red mt-8">
+            Shop online
+          </Link>
+        </div>
+        <div>
+          <h2 className="lp-display lp-h2">For your business</h2>
+          <ul className="lp-body mt-6 space-y-2.5">
+            <li>Carinderias, food carts, canteens, caterers and stores.</li>
+            <li>Wholesale price tiers, and terms for regular accounts.</li>
+            <li>A spot on our van route with your own delivery window.</li>
+          </ul>
+          <Link href="/contact#wholesale" className="lp-btn lp-btn-ink mt-8">
+            Order wholesale
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -275,7 +249,7 @@ function Doors() {
 
 function About() {
   return (
-    <section id="about" className="lp-rule-t scroll-mt-20">
+    <section id="about" className="lp-red-field scroll-mt-20">
       <div className="mx-auto max-w-[1320px] px-4 py-16 sm:px-6 lg:py-24">
         <Photo note="Photo: the Clairon's kitchen or team at work, wide, about 21:9." className="aspect-[4/3] sm:aspect-[21/9]" />
         <div className="mt-12 grid gap-10 lg:grid-cols-12">

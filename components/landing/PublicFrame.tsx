@@ -1,17 +1,18 @@
-import { Archivo } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/Logo";
 import "@/app/landing/landing.css";
 
-const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], axes: ["wdth"] });
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"], weight: ["600", "700", "800"] });
 
 type Page = "home" | "contact";
 
 /** Header, footer and type for the public pages (landing and contact). */
 export function PublicFrame({ page, children }: { page: Page; children: ReactNode }) {
   return (
-    <div className={`lp ${archivo.variable} flex min-h-[100dvh] flex-col`}>
+    <div className={`lp ${inter.variable} ${manrope.variable} flex min-h-[100dvh] flex-col`}>
       <Header page={page} />
       <main className="flex-1">{children}</main>
       <Footer />
