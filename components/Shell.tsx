@@ -3,7 +3,7 @@
 import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, ReceiptText, RotateCcw, ScanBarcode, Search, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AUTH_KEY, ROLE_LABEL, canOpen, homeFor, useAuth, type Role } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { clock, dayLong } from "@/lib/format";
@@ -24,6 +24,15 @@ export const NAV = [
   { href: "/clients", label: "Customers", icon: Users },
   { href: "/production", label: "Production", icon: Factory },
 ];
+
+/** Screens with their own search box; the header search is hidden there so a screen never has two. */
+const OWN_SEARCH = ["/", "/counter", "/inventory", "/orders", "/clients"];
+
+/** A greeting for the time of day. The demo logins have no names, so this beats "Hello, Admin". */
+function greeting(now: number) {
+  const h = new Date(now).getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+}
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
 
@@ -62,10 +71,15 @@ function redirectFor(path: string, role: Role | undefined) {
   return null;
 }
 
-/** The ?next= page on /login, when the role may open it. */
+/**
+ * The ?next= page on /login, when the role may open it. The store's Log in button sends everyone
+ * back to the store, but admin, staff and riders log in to work, so they go to their own home instead.
+ */
 function nextFrom(role: Role) {
   const next = new URLSearchParams(window.location.search).get("next");
-  return next?.startsWith("/") && canOpen(role, next) ? next : null;
+  if (!next?.startsWith("/") || !canOpen(role, next)) return null;
+  if (role !== "customer" && (next === "/shop" || next.startsWith("/shop/"))) return null;
+  return next;
 }
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -78,6 +92,11 @@ export default function Shell({ children }: { children: ReactNode }) {
   const logOut = useAuth((s) => s.logOut);
   const router = useRouter();
   const [collapsed, setCollapsed] = useCollapsed();
+  // From tablet width up the page scrolls inside the rounded panel, so a new page starts at its top.
+  const scroller = useRef<HTMLElement>(null);
+  useEffect(() => {
+    scroller.current?.scrollTo(0, 0);
+  }, [path]);
   const tablet = useTablet();
   const compact = collapsed || tablet;
   const to = ready ? redirectFor(path, user?.role) : null;
@@ -126,14 +145,14 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   return (
     // The frame is the sidebar's black; the content sits on it as a light panel with a curved left edge.
-    <div className="app-zoom flex min-h-[calc(100vh/var(--ui-zoom))] bg-page md:bg-side">
-      <aside className={cx("sticky top-0 hidden h-[calc(100vh/var(--ui-zoom))] shrink-0 flex-col bg-side text-side-ink transition-[width] duration-200 md:flex", compact ? "w-[92px]" : "w-[264px]")}>
+    <div className="app-frame flex min-h-screen bg-page md:bg-side">
+      <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col bg-side text-side-ink transition-[width] duration-200 md:flex", compact ? "w-[92px]" : "w-[264px]")}>
         <div className={cx("flex items-center gap-2 border-b border-white/10 py-5", compact ? "flex-col px-3" : "justify-between px-5")}>
           <Link href="/" className="block rounded-xl bg-white px-2.5 py-2" aria-label="Clairon's Food Coldline, go to the dashboard">
             <Logo height={compact ? 22 : 38} />
           </Link>
           <button
-            className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white max-lg:hidden"
+            className="grid h-11 w-11 cursor-pointer place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white max-lg:hidden"
             onClick={() => setCollapsed(!compact)}
             aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
             aria-pressed={collapsed}
@@ -142,8 +161,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <div className={cx("pt-6 pb-2 text-[13px] font-semibold tracking-[0.08em] text-side-ink-2 uppercase", compact ? "text-center" : "px-7")}>Menu</div>
-        <nav aria-label="Main" className="flex flex-col gap-0.5 overflow-y-auto px-3 scroll-thin">
+        <nav aria-label="Main" className="flex flex-col gap-1 overflow-y-auto px-3 pt-5 scroll-thin">
           {tabs.map((n) => {
             const active = isActive(path, n.href);
             return (
@@ -153,9 +171,9 @@ export default function Shell({ children }: { children: ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 title={compact ? n.label : undefined}
                 className={cx(
-                  "flex h-12 items-center gap-3.5 rounded-xl text-[16.5px] font-medium transition-colors focus-visible:outline-white",
+                  "flex h-13 items-center gap-3.5 rounded-xl text-lead font-semibold transition-colors focus-visible:outline-white",
                   compact ? "justify-center" : "px-4",
-                  active ? "text-brand" : "text-side-ink-2 hover:bg-white/5 hover:text-white",
+                  active ? "bg-brand text-white" : "text-side-ink-2 hover:bg-white/10 hover:text-white",
                 )}
               >
                 <n.icon size={22} strokeWidth={active ? 2.2 : 1.8} aria-hidden />
@@ -165,59 +183,64 @@ export default function Shell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto">
-          <div className={cx("flex items-center gap-3 border-t border-white/10 py-4", compact ? "flex-col px-3" : "px-5")}>
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-[16px] font-bold text-white uppercase" aria-hidden title={user?.email}>
+        <div className="mt-auto border-t border-white/10 px-3 py-4">
+          <div className={cx("flex items-center gap-3", compact ? "justify-center" : "px-2")}>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-body font-bold text-white uppercase" aria-hidden title={user?.email}>
               {user?.email.charAt(0)}
             </span>
             {!compact && (
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[15px] font-semibold" title={user?.email}>
+                <div className="truncate text-body font-semibold" title={user?.email}>
                   {user?.email}
                 </div>
-                <div className="text-[13px] text-side-ink-2">{user && ROLE_LABEL[user.role]}</div>
+                <div className="text-small text-side-ink-2">{user && ROLE_LABEL[user.role]}</div>
               </div>
             )}
-            <button
-              className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white"
-              onClick={logOut}
-              aria-label="Log out"
-              title="Log out"
-            >
-              <LogOut size={18} />
-            </button>
           </div>
+          <button
+            className={cx(
+              "mt-3 flex h-11 w-full cursor-pointer items-center gap-3 rounded-xl text-body font-semibold text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white",
+              compact ? "justify-center" : "px-4",
+            )}
+            onClick={logOut}
+            title={compact ? "Log out" : undefined}
+          >
+            <LogOut size={20} aria-hidden />
+            {compact ? <span className="sr-only">Log out</span> : "Log out"}
+          </button>
           {user?.role === "admin" && !compact && (
             <button
-              className="mx-5 mb-4 -mt-1 flex cursor-pointer items-center gap-1.5 text-[12.5px] text-side-ink-2 hover:text-white"
+              className="flex h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-4 text-small text-side-ink-2 transition-colors hover:bg-white/10 hover:text-white"
               onClick={() => {
                 reset();
                 toast("Demo data reset to this morning");
               }}
             >
-              <RotateCcw size={13} /> Reset demo data
+              <RotateCcw size={18} aria-hidden /> Reset demo data
             </button>
           )}
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col bg-page md:rounded-l-[36px]">
-        <header className="sticky top-0 z-30 border-b border-line bg-panel md:rounded-tl-[36px]">
+      {/* From tablet width up, the rounded panel stays put and only its content scrolls, so both curved
+          corners stay in view. Phones scroll the whole page as usual. */}
+      <div className="flex min-w-0 flex-1 flex-col bg-page md:h-screen md:overflow-hidden md:rounded-l-[36px]">
+        <header className="sticky top-0 z-30 shrink-0 border-b border-line bg-panel md:static md:rounded-tl-[36px]">
           <div className="flex min-h-[72px] items-center justify-between gap-4 px-4 md:min-h-[96px] md:px-9">
             <div className="flex min-w-0 items-center gap-3 py-2">
               <Logo height={30} className="md:hidden" />
               {home ? (
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="min-w-0 leading-tight">
-                    <div className="display truncate text-[24px] font-semibold md:text-[34px]">Hello, {user ? ROLE_LABEL[user.role] : "there"}</div>
-                    <div className="text-[13.5px] text-ink-3" suppressHydrationWarning>
+                    <h1 className="display truncate text-heading font-semibold md:text-figure">{greeting(now)}</h1>
+                    <div className="text-small text-ink-3" suppressHydrationWarning>
                       {dayLong(now)}, {clock(now)}
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="min-w-0 leading-tight">
-                  <nav aria-label="Breadcrumb" className="hidden text-[13px] text-ink-3 sm:block">
+                  <nav aria-label="Breadcrumb" className="hidden text-caption text-ink-3 sm:block">
                     <Link href="/" className="hover:text-ink">
                       Home
                     </Link>
@@ -226,29 +249,30 @@ export default function Shell({ children }: { children: ReactNode }) {
                     </span>
                     <span className="text-ink-2">{here?.label}</span>
                   </nav>
-                  <div className="display truncate text-[22px] font-semibold md:text-[28px]">{here?.label}</div>
+                  <h1 className="display truncate text-title font-semibold md:text-heading">{here?.label}</h1>
                 </div>
               )}
             </div>
 
-            <form onSubmit={search} role="search" className="relative mx-4 hidden max-w-[520px] flex-1 xl:block">
+            {/* Screens with their own search box skip this one, so there is never a second search on the same screen. */}
+            {!OWN_SEARCH.includes(path) && <form onSubmit={search} role="search" className="relative mx-4 hidden max-w-[520px] flex-1 xl:block">
               <Search size={20} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-3" aria-hidden />
-              <input name="q" className="input h-12 rounded-xl border-line bg-sunk/60 pl-12 text-[15px]" placeholder="Search products by name or SKU" aria-label="Search products" />
-            </form>
+              <input name="q" className="input h-12 bg-sunk/60 pl-12" placeholder="Search products by name or code" aria-label="Search products" />
+            </form>}
 
             <div className="flex shrink-0 items-center gap-4">
               {!home && (
                 <div className="hidden text-right leading-tight md:block xl:hidden 2xl:block">
-                  <div className="text-[14px] font-semibold whitespace-nowrap" suppressHydrationWarning>
+                  <div className="text-small font-semibold whitespace-nowrap" suppressHydrationWarning>
                     {dayLong(now)}
                   </div>
-                  <div className="text-[13px] text-ink-3" suppressHydrationWarning>
+                  <div className="text-caption text-ink-3" suppressHydrationWarning>
                     {clock(now)}
                   </div>
                 </div>
               )}
               {canSell && path !== "/counter" && (
-                <Link href="/counter" className="flex h-11 items-center gap-2.5 rounded-xl border border-line bg-sunk/60 pr-2 pl-4 text-[15px] font-semibold transition-colors hover:border-line-2 hover:bg-sunk md:h-12 md:pl-5">
+                <Link href="/counter" className="flex h-11 items-center gap-2.5 rounded-xl border border-line bg-sunk/60 pr-2 pl-4 text-body font-semibold transition-colors hover:border-line-2 hover:bg-sunk md:h-12 md:pl-5">
                   <span className="hidden sm:inline">New order</span>
                   <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-white" aria-hidden>
                     <Plus size={17} strokeWidth={2.6} />
@@ -259,7 +283,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] md:px-9 md:pt-7 md:pb-9">{show ? children : <Boot />}</main>
+        <main ref={scroller} className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] scroll-thin md:overflow-y-auto md:px-9 md:pt-7 md:pb-9">{show ? children : <Boot />}</main>
       </div>
       <BottomNav />
       <Toaster aboveNav />
@@ -293,7 +317,7 @@ function useCollapsed() {
 }
 
 function Boot() {
-  return <div className="p-10 text-[14px] text-ink-3">Loading this morning&rsquo;s stock and routes…</div>;
+  return <div className="p-10 text-lead text-ink-2">Loading this morning&rsquo;s stock and routes…</div>;
 }
 
 /** iPad portrait and similar: wide enough for a sidebar, too narrow for the full one, so it shows as an icon rail. */

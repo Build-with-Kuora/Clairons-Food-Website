@@ -587,7 +587,7 @@ export function buildSeed(now = Date.now()): Data {
         evs.push({ status: "EXCEPTION", at: s.at!, by: rt.driver, note: "Partial refusal" });
         extra.exception = {
           at: s.at!,
-          reason: "Temperature excursion",
+          reason: "Too warm on arrival",
           note: `Box warmed past −15°C after the rear door stayed open at the prior stop. Receiver refused ${refused} cs ${ic.name.toLowerCase()} as soft; rest accepted. Refused cases returning to dock for QA.`,
         };
         extra.pod = { ...pod(c, s.at!, o.total, o.payMethod), productTempC: -9.2, shorts: [{ sku: ic.sku, qty: refused, reason: "Refused, soft on arrival" }] };

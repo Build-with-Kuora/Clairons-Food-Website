@@ -29,16 +29,16 @@ export function Invoice({
   const v = vatSplit(order.total);
   const cancelled = order.status === "CANCELLED";
   return (
-    <div className="print-area relative bg-white p-6 text-[13.5px] text-ink">
+    <div className="print-area relative bg-white p-6 text-small text-ink">
       {cancelled && (
         <div className="pointer-events-none absolute inset-x-0 top-40 flex justify-center" aria-hidden>
-          <span className="-rotate-12 rounded border-4 border-bad px-4 py-1 text-[40px] font-bold tracking-[0.2em] text-bad opacity-60">CANCELLED</span>
+          <span className="-rotate-12 rounded border-4 border-bad px-4 py-1 text-hero font-bold tracking-[0.2em] text-bad opacity-60">CANCELLED</span>
         </div>
       )}
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b-2 border-ink pb-4">
         <div className="flex items-start gap-3">
           <Logo height={40} />
-          <div className="text-[12.5px] leading-snug">
+          <div className="text-caption leading-snug">
             <div className="font-semibold">{seller.registeredName}</div>
             <div className="text-ink-2">{seller.address}</div>
             <div className="text-ink-2">VAT Reg. TIN {seller.tin}</div>
@@ -48,25 +48,25 @@ export function Invoice({
           </div>
         </div>
         <div className="text-right">
-          <div className="display text-[26px] leading-none font-semibold">Sales invoice</div>
-          <div className="code mt-1 text-[15px] font-semibold">No. {invoiceNumber(order.invoiceNo)}</div>
-          <div className="text-[12.5px] text-ink-3">
+          <div className="display text-heading leading-none font-semibold">Sales invoice</div>
+          <div className="code mt-1 text-body font-semibold">No. {invoiceNumber(order.invoiceNo)}</div>
+          <div className="text-caption text-ink-3">
             {dateTime(order.createdAt)}, order {order.number}
           </div>
-          {cancelled && <div className="text-[12.5px] font-semibold text-bad">Cancelled</div>}
+          {cancelled && <div className="text-caption font-semibold text-bad">Cancelled</div>}
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 border-b border-line py-3">
         <div>
-          <div className="text-[12px] text-ink-3">Bill to</div>
+          <div className="text-caption text-ink-3">Bill to</div>
           <div className="font-semibold">{buyerName(order, client)}</div>
           {client.address && <div>{client.address}</div>}
           {client.city && <div>{client.city}</div>}
           {client.tin && <div>TIN {client.tin}</div>}
         </div>
         <div>
-          <div className="text-[12px] text-ink-3">{order.fulfillment === "PICKUP" ? "Picked up" : "Ship to"}</div>
+          <div className="text-caption text-ink-3">{order.fulfillment === "PICKUP" ? "Picked up" : "Ship to"}</div>
           {order.fulfillment === "PICKUP" ? (
             <div className="font-semibold">Walk-in, at the counter</div>
           ) : (
@@ -89,16 +89,16 @@ export function Invoice({
           )}
         </div>
         <div>
-          <div className="text-[12px] text-ink-3">Terms</div>
+          <div className="text-caption text-ink-3">Terms</div>
           <div className="font-semibold">{isWalkIn(client) ? "Paid at the counter" : `${TERMS_LABEL[client.terms]}, price tier ${client.tier}`}</div>
           <div>Paid by: {PAY_LABEL[order.payMethod]}</div>
           {order.clientPo && <div>Client PO {order.clientPo}</div>}
         </div>
       </div>
 
-      <table className="mt-2 w-full text-[13px]">
+      <table className="mt-2 w-full text-caption">
         <thead>
-          <tr className="border-b border-line text-left text-[12px] text-ink-3">
+          <tr className="border-b border-line text-left text-caption text-ink-3">
             <th className="py-1.5 pr-2 font-semibold">Item</th>
             <th className="py-1.5 pr-2 font-semibold">Lots (FEFO)</th>
             <th className="py-1.5 pr-2 text-right font-semibold">Qty</th>
@@ -129,7 +129,7 @@ export function Invoice({
       </table>
 
       <div className="mt-3 flex items-start justify-between gap-6">
-        <div className="text-[12.5px] text-ink-3">
+        <div className="text-caption text-ink-3">
           {units(cases, unit)}, about {Math.round(kg)} kg. Keep frozen at −18°C or colder.
           <br />
           Claims for shortage or temperature must be noted on the delivery receipt.
@@ -139,7 +139,7 @@ export function Invoice({
             </div>
           )}
         </div>
-        <dl className="w-60 shrink-0 text-[13.5px]">
+        <dl className="w-60 shrink-0 text-small">
           <div className="flex justify-between py-0.5">
             <dt>Subtotal</dt>
             <dd>{money(order.subtotal)}</dd>
@@ -156,7 +156,7 @@ export function Invoice({
               <dd>{money(order.fuel)}</dd>
             </div>
           )}
-          <div className="mt-1 border-t border-line pt-1 text-[12.5px] text-ink-3">
+          <div className="mt-1 border-t border-line pt-1 text-caption text-ink-3">
             <div className="flex justify-between py-0.5">
               <dt>VATable sales</dt>
               <dd>{money(v.net)}</dd>
@@ -174,15 +174,15 @@ export function Invoice({
               <dd>{money(v.vat)}</dd>
             </div>
           </div>
-          <div className="mt-1 flex justify-between border-t-2 border-ink pt-1.5 text-[16px] font-bold">
+          <div className="mt-1 flex justify-between border-t-2 border-ink pt-1.5 text-body font-bold">
             <dt>Total</dt>
             <dd>{money(order.total)}</dd>
           </div>
-          <div className="mt-0.5 text-right text-[12.5px] text-ink-3">{order.paid ? "Paid" : order.payMethod === "COD" ? "Driver collects on delivery" : "Charged to account"}</div>
+          <div className="mt-0.5 text-right text-caption text-ink-3">{order.paid ? "Paid" : order.payMethod === "COD" ? "Driver collects on delivery" : "Charged to account"}</div>
         </dl>
       </div>
 
-      <div className="mt-4 border-t border-line pt-2 text-[11.5px] leading-snug text-ink-3">
+      <div className="mt-4 border-t border-line pt-2 text-caption leading-snug text-ink-3">
         <div>
           BIR Permit to Use No. {seller.permitNo}, issued {seller.permitDate}. Series {invoiceNumber(seller.seriesFrom)} to {invoiceNumber(seller.seriesTo)}.
         </div>

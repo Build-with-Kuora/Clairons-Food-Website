@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Tip, barPath, niceMax, useWidth } from "./charts";
 
 /** Smooth path through points (Catmull-Rom as cubic Béziers), so a trend reads as a line, not a staircase. */
@@ -31,10 +31,9 @@ export function AreaTrend({
   format: (n: number) => string;
   label?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
-  const pad = { l: 56, r: 14, t: 16, b: 30 };
+  const pad = { l: 64, r: 14, t: 16, b: 34 };
   const iw = w - pad.l - pad.r;
   const ih = height - pad.t - pad.b;
   const step = niceMax(Math.max(...data.map((d) => d.value), 1) / 4);
@@ -69,7 +68,7 @@ export function AreaTrend({
         {[0, 1, 2, 3, 4].map((k) => (
           <g key={k}>
             <line x1={pad.l} x2={w - pad.r} y1={y(k * step)} y2={y(k * step)} stroke="var(--color-line)" strokeDasharray={k === 0 ? undefined : "2 5"} />
-            <text x={pad.l - 10} y={y(k * step) + 4} textAnchor="end" fontSize={12} fill="var(--color-ink-3)">
+            <text x={pad.l - 10} y={y(k * step) + 4} textAnchor="end" fontSize={14} fill="var(--color-ink-3)">
               {format(k * step)}
             </text>
           </g>
@@ -80,7 +79,7 @@ export function AreaTrend({
         </g>
         {data.map((d, i) =>
           i % every === 0 || i === data.length - 1 ? (
-            <text key={i} x={x(i)} y={height - 8} textAnchor="middle" fontSize={12} fill={hover === i ? "var(--color-ink)" : "var(--color-ink-3)"} fontWeight={hover === i ? 600 : 400}>
+            <text key={i} x={x(i)} y={height - 8} textAnchor="middle" fontSize={14} fill={hover === i ? "var(--color-ink)" : "var(--color-ink-3)"} fontWeight={hover === i ? 600 : 400}>
               {d.label}
             </text>
           ) : null,
@@ -103,80 +102,6 @@ export function AreaTrend({
   );
 }
 
-/** A ring split into parts, with something in the middle. Parts carry their own color. */
-export function Donut({
-  parts,
-  size = 168,
-  thickness = 22,
-  children,
-  label,
-}: {
-  parts: { value: number; color: string; label: string }[];
-  size?: number;
-  thickness?: number;
-  children?: ReactNode;
-  label: string;
-}) {
-  const r = (size - thickness) / 2;
-  const c = 2 * Math.PI * r;
-  const total = parts.reduce((s, p) => s + p.value, 0);
-  const gap = parts.filter((p) => p.value > 0).length > 1 ? 3 : 0;
-  const starts = parts.reduce<number[]>((acc, p, i) => [...acc, i === 0 ? 0 : acc[i - 1] + (parts[i - 1].value / (total || 1)) * c], []);
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-sunk)" strokeWidth={thickness} />
-        {total > 0 &&
-          parts.map((p, i) =>
-            p.value > 0 ? (
-              <circle
-                key={p.label}
-                cx={size / 2}
-                cy={size / 2}
-                r={r}
-                fill="none"
-                stroke={p.color}
-                strokeWidth={thickness}
-                strokeDasharray={`${Math.max(0, (p.value / total) * c - gap)} ${c}`}
-                strokeDashoffset={-starts[i]}
-              />
-            ) : null,
-          )}
-      </svg>
-      {children && <div className="absolute inset-0 grid place-items-center text-center">{children}</div>}
-    </div>
-  );
-}
-
-/** Concentric arcs, one per item, each as long as its share of the largest. For a handful of categories. */
-export function Rings({ items, size = 190, label, children }: { items: { value: number; color: string; label: string }[]; size?: number; label: string; children?: ReactNode }) {
-  const thickness = 11;
-  const gap = 6;
-  const max = Math.max(...items.map((i) => i.value), 1);
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label} className="-rotate-90">
-        {items.map((it, i) => {
-          const r = size / 2 - thickness / 2 - i * (thickness + gap);
-          if (r <= thickness) return null;
-          const c = 2 * Math.PI * r;
-          // Three quarters of a turn is the longest arc.
-          const full = c * 0.75;
-          return (
-            <g key={it.label}>
-              <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-sunk)" strokeWidth={thickness} strokeDasharray={`${full} ${c}`} strokeLinecap="round" />
-              {it.value > 0 && (
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={it.color} strokeWidth={thickness} strokeDasharray={`${(it.value / max) * full} ${c}`} strokeLinecap="round" />
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      {children && <div className="absolute inset-0 grid place-items-center text-center">{children}</div>}
-    </div>
-  );
-}
-
 /** Two series side by side per period (e.g. walk-in and delivery), with a shared tooltip. */
 export function PairedBars({
   data,
@@ -189,10 +114,9 @@ export function PairedBars({
   height?: number;
   format: (n: number) => string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
-  const pad = { l: 56, r: 6, t: 14, b: 28 };
+  const pad = { l: 64, r: 6, t: 14, b: 32 };
   const iw = w - pad.l - pad.r;
   const ih = height - pad.t - pad.b;
   const step = niceMax(Math.max(...data.flatMap((d) => [d.a, d.b]), 1) / 4);
@@ -208,7 +132,7 @@ export function PairedBars({
         {[0, 1, 2, 3, 4].map((k) => (
           <g key={k}>
             <line x1={pad.l} x2={w - pad.r} y1={y(k * step)} y2={y(k * step)} stroke="var(--color-line)" strokeDasharray={k === 0 ? undefined : "2 5"} />
-            <text x={pad.l - 10} y={y(k * step) + 4} textAnchor="end" fontSize={12} fill="var(--color-ink-3)">
+            <text x={pad.l - 10} y={y(k * step) + 4} textAnchor="end" fontSize={14} fill="var(--color-ink-3)">
               {format(k * step)}
             </text>
           </g>
@@ -222,7 +146,7 @@ export function PairedBars({
               {d.a > 0 && <path d={barPath(mid - bw - 1.5, y(d.a), bw, pad.t + ih - y(d.a))} fill="var(--color-brand)" opacity={dim} />}
               {d.b > 0 && <path d={barPath(mid + 1.5, y(d.b), bw, pad.t + ih - y(d.b))} fill="var(--color-ink)" opacity={dim} />}
               {(i % every === 0 || i === data.length - 1) && (
-                <text x={mid} y={height - 8} textAnchor="middle" fontSize={12} fill="var(--color-ink-3)">
+                <text x={mid} y={height - 8} textAnchor="middle" fontSize={14} fill="var(--color-ink-3)">
                   {d.label}
                 </text>
               )}

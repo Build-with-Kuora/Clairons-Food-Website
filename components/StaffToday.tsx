@@ -3,7 +3,7 @@
 import { AlertTriangle, CalendarClock, Factory, PackageCheck, PackageSearch, PauseCircle, Snowflake, Truck } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
-import { clock, dateTime, daysUntil, startOfDay, units } from "@/lib/format";
+import { clock, dateTime, daysUntil, plural, startOfDay, units } from "@/lib/format";
 import { useMaps, useStock, useToday } from "@/lib/hooks";
 import { STATUS_LABEL, carrierOf, isFreezing, readyAt, runKey, toMake } from "@/lib/logic";
 import { useStore } from "@/lib/store";
@@ -44,30 +44,30 @@ export function StaffToday() {
         sub="What needs doing in the building and on the road."
         actions={
           <Link href="/production" className="btn btn-ghost">
-            <Factory size={16} /> Record batch
+            <Factory size={20} aria-hidden /> Record a batch
           </Link>
         }
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <Stat dark icon={<PackageSearch size={20} />} label="To pick and load" value={String(toLoad.length)} href="/dispatch" foot="Stops leaving today" />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
+        <Stat dark icon={<PackageSearch size={22} />} label="To pack and load" value={String(toLoad.length)} href="/dispatch" foot="Deliveries leaving today" />
         <Stat
-          icon={<PackageCheck size={20} />}
-          label="Stops delivered"
+          icon={<PackageCheck size={22} />}
+          label="Deliveries done"
           value={`${done} of ${stopsToday.length}`}
           href="/dispatch"
           foot={exceptions.length ? <Badge tone="bad">{exceptions.length} with a problem</Badge> : "No problems"}
         />
-        <Stat icon={<Truck size={20} />} label="Trucks out" value={`${trucksOut} of ${routes.length}`} href="/dispatch" foot="Ref vans on the road now" />
-        <Stat icon={<Snowflake size={20} />} label="Move to freezer" value={String(frozen.length)} href="/inventory?tab=lots" foot={`${blast.length - frozen.length} lots still blast freezing`} />
+        <Stat icon={<Truck size={22} />} label="Vans out" value={`${trucksOut} of ${routes.length}`} href="/dispatch" foot="Refrigerated vans on the road now" />
+        <Stat icon={<Snowflake size={22} />} label="Move to freezer" value={String(frozen.length)} href="/inventory?tab=lots" foot={`${plural(blast.length - frozen.length, "batch", "batches")} still freezing`} />
       </div>
 
-      <div className="mb-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mb-6 grid gap-5 lg:grid-cols-2">
         <AttentionList
-          icon={<PackageSearch size={16} />}
+          icon={<PackageSearch size={20} />}
           tone="accent"
-          title="Pick and load"
-          empty="Every stop for today has left."
+          title="Pack and load"
+          empty="Every delivery for today has left."
           items={toLoad.map((d) => ({
             key: d.id,
             href: `/dispatch?stop=${d.id}`,
@@ -76,9 +76,9 @@ export function StaffToday() {
           }))}
         />
         <AttentionList
-          icon={<Snowflake size={16} />}
+          icon={<Snowflake size={20} />}
           tone="warn"
-          title="Move out of blast freezer"
+          title="In the blast freezer"
           empty="Nothing frozen and waiting."
           items={blast.map((l) => {
             const at = readyAt(l);
@@ -86,15 +86,15 @@ export function StaffToday() {
               key: l.id,
               href: `/inventory?sku=${l.sku}`,
               main: name(l.sku),
-              side: `${units(l.qty, unit(l.sku))}, lot ${l.code}, ${at <= now ? "frozen, move to freezer" : `ready ${startOfDay(at) === startOfDay(now) ? clock(at) : dateTime(at)}`}`,
+              side: `${units(l.qty, unit(l.sku))}, ${at <= now ? "frozen, move it to the freezer now" : `ready at ${startOfDay(at) === startOfDay(now) ? clock(at) : dateTime(at)}`} (batch ${l.code})`,
             };
           })}
         />
         <AttentionList
-          icon={<Factory size={16} />}
+          icon={<Factory size={20} />}
           tone="warn"
           title="To make"
-          empty="Every product is above its reorder point."
+          empty="Every product has enough stock."
           items={make.map(({ row, qty }) => ({
             key: row.product.sku,
             href: `/production?sku=${row.product.sku}`,
@@ -103,10 +103,10 @@ export function StaffToday() {
           }))}
         />
         <AttentionList
-          icon={<AlertTriangle size={16} />}
+          icon={<AlertTriangle size={20} />}
           tone="bad"
           title="Delivery problems"
-          empty="All stops clean so far."
+          empty="All deliveries are fine so far."
           items={exceptions.map((d) => ({
             key: d.id,
             href: `/dispatch?stop=${d.id}`,
@@ -115,33 +115,32 @@ export function StaffToday() {
           }))}
         />
         <AttentionList
-          icon={<CalendarClock size={16} />}
+          icon={<CalendarClock size={20} />}
           tone="warn"
-          title="Sell first"
-          empty="No lots within 30 days of best-by."
+          title="Sell first, expiring soon"
+          empty="Nothing is close to its best-by date."
           items={expiring.map((l) => ({
             key: l.id,
             href: `/inventory?sku=${l.sku}`,
             main: name(l.sku),
-            side: `${units(l.qty, unit(l.sku))}, lot ${l.code}, best-by in ${daysUntil(l.bestBy, now)} days`,
+            side: `${units(l.qty, unit(l.sku))}, ${plural(daysUntil(l.bestBy, now), "day")} left (batch ${l.code})`,
           }))}
         />
         <AttentionList
-          icon={<PauseCircle size={16} />}
+          icon={<PauseCircle size={20} />}
           tone="neutral"
-          title="QA hold"
-          empty="No lots on hold."
+          title="On hold (quality check)"
+          empty="Nothing on hold."
           items={held.map((l) => ({
             key: l.id,
             href: `/inventory?sku=${l.sku}`,
             main: name(l.sku),
-            side: `Lot ${l.code}${l.holdReason ? `, ${l.holdReason}` : ""}`,
+            side: `Batch ${l.code}${l.holdReason ? `, ${l.holdReason}` : ""}`,
           }))}
         />
       </div>
 
       <RoutesPanel today={today} />
-      <p className="mt-6 text-[13px] text-ink-3">Data refreshes every 30 seconds. Last reading {clock(now)}.</p>
     </div>
   );
 }

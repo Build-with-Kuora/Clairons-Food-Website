@@ -3,7 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clock, tempBare } from "@/lib/format";
+import { clock, temp } from "@/lib/format";
 import { useMaps } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
@@ -22,8 +22,11 @@ export function RoutesPanel({ today }: { today: string }) {
   return (
     <Panel
       title="Routes"
-      className="mb-5"
-      actions={<Link href="/dispatch" className="btn btn-quiet btn-sm">Dispatch board <ArrowUpRight size={14} /></Link>}
+      actions={
+        <Link href="/dispatch" className="btn btn-ghost btn-sm">
+          Open Delivery <ArrowUpRight size={16} aria-hidden />
+        </Link>
+      }
       bodyClass="divide-y divide-line"
     >
       {routes.map((r) => {
@@ -31,15 +34,15 @@ export function RoutesPanel({ today }: { today: string }) {
         const run = runs[runKey(r.id, today)];
         const last = run?.temps.at(-1);
         return (
-          <div key={r.id} className="grid gap-3 px-4 py-3 md:grid-cols-[200px_1fr]">
+          <div key={r.id} className="grid gap-3 px-5 py-4 sm:px-6 md:grid-cols-[220px_1fr]">
             <div>
-              <div className="display text-[19px] leading-tight font-semibold">{r.name}</div>
-              <div className="text-[13px] text-ink-3">
+              <div className="display text-lead leading-tight font-semibold">{r.name}</div>
+              <div className="text-small text-ink-2">
                 {r.truck}, {r.driver}
               </div>
               {last && (
-                <div className={cx("mt-1 text-[13px] font-semibold", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
-                  Box {tempBare(last.c)}C <span className="font-normal text-ink-3">at {clock(last.at)}</span>
+                <div className={cx("mt-1 text-small font-semibold", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
+                  Van temperature {temp(last.c)} <span className="font-normal text-ink-3">at {clock(last.at)}</span>
                 </div>
               )}
             </div>

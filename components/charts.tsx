@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useRef, useState } from "react";
 import { clock, tempBare } from "@/lib/format";
 import type { TempReading } from "@/lib/types";
 
-export function useWidth(ref: RefObject<HTMLElement | null>, fallback = 600) {
+/**
+ * A ref callback for a chart's box, and the box's width kept up to date. A callback ref attaches the observer
+ * the moment the element appears, including when a chart starts as an empty state and its box swaps later.
+ */
+export function useWidth(fallback = 600) {
   const [w, setW] = useState(fallback);
-  useEffect(() => {
-    if (!ref.current) return;
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!el) return;
+    // Measure now, so the first paint already fits the box instead of starting at the fallback width.
+    setW(Math.max(120, Math.round(el.getBoundingClientRect().width)));
     const ro = new ResizeObserver(([e]) => setW(Math.max(120, Math.round(e.contentRect.width))));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, [ref]);
-  return w;
+    ro.observe(el);
+    observer.current = ro;
+  }, []);
+  return [ref, w] as const;
 }
 
 export function niceMax(v: number) {
@@ -32,7 +41,7 @@ export function Tip({ x, y, children, width }: { x: number; y: number; children:
   const left = Math.min(Math.max(x, 70), width - 70);
   return (
     <div
-      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-line bg-white px-2.5 py-1.5 text-[13px] whitespace-nowrap shadow-md"
+      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-lg border border-line bg-white px-3 py-2 text-small whitespace-nowrap shadow-md"
       style={{ left, top: y - 8 }}
     >
       {children}
@@ -51,10 +60,9 @@ export function DailyBars({
   format: (n: number) => string;
   highlightLast?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
-  const pad = { l: 52, r: 6, t: 12, b: 26 };
+  const pad = { l: 60, r: 6, t: 12, b: 30 };
   const iw = w - pad.l - pad.r;
   const ih = height - pad.t - pad.b;
   const step = niceMax(Math.max(...data.map((d) => d.value), 1) / 4);
@@ -70,7 +78,7 @@ export function DailyBars({
         {ticks.map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} stroke="var(--color-line)" strokeDasharray={t === 0 ? undefined : "2 4"} />
-            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize={11.5} fill="var(--color-ink-3)">
+            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize={14} fill="var(--color-ink-3)">
               {format(t)}
             </text>
           </g>
@@ -89,7 +97,7 @@ export function DailyBars({
                   opacity={hover === null || hover === i ? 1 : 0.55}
                 />
               )}
-              <text x={x + bw / 2} y={height - 8} textAnchor="middle" fontSize={11.5} fill={last ? "var(--color-ink)" : "var(--color-ink-3)"} fontWeight={last ? 600 : 400}>
+              <text x={x + bw / 2} y={height - 8} textAnchor="middle" fontSize={14} fill={last ? "var(--color-ink)" : "var(--color-ink-3)"} fontWeight={last ? 600 : 400}>
                 {d.label}
               </text>
             </g>
@@ -126,16 +134,15 @@ export function TempTrace({
   start?: number;
   end?: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
   if (!temps.length)
     return (
-      <div ref={ref} className="flex h-[120px] items-center justify-center rounded-md border border-dashed border-line text-[14px] text-ink-3">
+      <div ref={ref} className="flex h-[120px] items-center justify-center rounded-md border border-dashed border-line text-small text-ink-3">
         No ref van readings yet. The log starts when the load goes on the truck.
       </div>
     );
-  const pad = { l: 44, r: 12, t: marks.length ? 36 : 14, b: 24 };
+  const pad = { l: 52, r: 12, t: marks.length ? 40 : 14, b: 28 };
   const iw = w - pad.l - pad.r;
   const ih = height - pad.t - pad.b;
   const t0 = start ?? temps[0].at;
@@ -179,17 +186,17 @@ export function TempTrace({
         {ticks.map((v) => (
           <g key={v}>
             <line x1={pad.l} x2={w - pad.r} y1={y(v)} y2={y(v)} stroke="var(--color-line)" strokeDasharray={v === limit ? undefined : "2 4"} />
-            <text x={pad.l - 8} y={y(v) + 4} textAnchor="end" fontSize={11.5} fill="var(--color-ink-3)">
+            <text x={pad.l - 8} y={y(v) + 4} textAnchor="end" fontSize={14} fill="var(--color-ink-3)">
               {tempBare(v, 0)}
             </text>
           </g>
         ))}
         <line x1={pad.l} x2={w - pad.r} y1={y(limit)} y2={y(limit)} stroke="var(--color-bad)" strokeWidth={1.25} />
-        <text x={pad.l + 6} y={y(limit) - 6} fontSize={11.5} fill="var(--color-bad)" fontWeight={600} stroke="var(--color-panel)" strokeWidth={3} paintOrder="stroke">
+        <text x={pad.l + 6} y={y(limit) - 6} fontSize={14} fill="var(--color-bad)" fontWeight={600} stroke="var(--color-panel)" strokeWidth={3} paintOrder="stroke">
           {tempBare(limit, 0)}C limit
         </text>
         {hours.map((t) => (
-          <text key={t} x={x(t)} y={height - 6} textAnchor="middle" fontSize={11.5} fill="var(--color-ink-3)">
+          <text key={t} x={x(t)} y={height - 6} textAnchor="middle" fontSize={14} fill="var(--color-ink-3)">
             {new Date(t).toLocaleTimeString("en-US", { hour: "numeric" })}
           </text>
         ))}
@@ -199,7 +206,7 @@ export function TempTrace({
           return (
             <g key={i}>
               <line x1={x(m.at)} x2={x(m.at)} y1={pad.t - 4 - row * 14} y2={pad.t + ih} stroke="var(--color-ink-3)" strokeDasharray="1 3" />
-              <text x={x(m.at)} y={pad.t - 9 - row * 14} textAnchor={x(m.at) > w - 70 ? "end" : x(m.at) < pad.l + 40 ? "start" : "middle"} fontSize={11.5} fill="var(--color-ink-2)" fontWeight={600}>
+              <text x={x(m.at)} y={pad.t - 9 - row * 16} textAnchor={x(m.at) > w - 70 ? "end" : x(m.at) < pad.l + 40 ? "start" : "middle"} fontSize={14} fill="var(--color-ink-2)" fontWeight={600}>
                 {m.label}
               </text>
             </g>

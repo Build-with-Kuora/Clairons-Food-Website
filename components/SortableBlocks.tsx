@@ -1,19 +1,13 @@
 "use client";
 
 import { GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
-import { MotionConfig, Reorder, motion, useDragControls } from "motion/react";
+import { Reorder, motion, useDragControls } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "./ui";
 
 export type Block = { id: string; label: string; node: ReactNode };
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((id) => b.includes(id));
-
-/** The page is scaled with CSS zoom on laptops (--ui-zoom); drag coordinates must be scaled back to match. */
-function uiZoom() {
-  const z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ui-zoom"));
-  return z > 0 ? z : 1;
-}
 
 /**
  * A stack of blocks the user can rearrange. Each block keeps its own content and natural height; only the
@@ -50,7 +44,7 @@ export function SortableBlocks({ storageKey, blocks, className }: { storageKey: 
   const moved = order.some((id, i) => id !== ids[i]);
 
   return (
-    <MotionConfig transformPagePoint={(p) => ({ x: p.x / uiZoom(), y: p.y / uiZoom() })}>
+    <>
       <div className="mb-3 flex items-center justify-end gap-2">
         {editing && moved && (
           <button className="btn btn-quiet btn-sm" onClick={() => save(ids)}>
@@ -71,7 +65,7 @@ export function SortableBlocks({ storageKey, blocks, className }: { storageKey: 
           ) : null;
         })}
       </Reorder.Group>
-    </MotionConfig>
+    </>
   );
 }
 
@@ -92,7 +86,7 @@ function Item({ id, label, editing, children }: { id: string; label: string; edi
     >
       {editing && (
         <button
-          className="absolute top-2 left-1/2 z-10 flex h-7 -translate-x-1/2 cursor-grab touch-none items-center gap-1 rounded-full bg-ink px-3 text-[12px] font-semibold text-white active:cursor-grabbing"
+          className="absolute top-2 left-1/2 z-10 flex h-10 -translate-x-1/2 cursor-grab touch-none items-center gap-1 rounded-full bg-ink px-3 text-caption font-semibold text-white active:cursor-grabbing"
           onPointerDown={(e) => controls.start(e)}
           aria-label={`Drag to move ${label}`}
         >
@@ -168,7 +162,7 @@ export function SortableGrid({ storageKey, items, className }: { storageKey: str
   const moved = order.length > 0;
 
   return (
-    <MotionConfig transformPagePoint={(p) => ({ x: p.x / uiZoom(), y: p.y / uiZoom() })}>
+    <>
       <div className="mb-3 flex items-center justify-end gap-2">
         {editing && moved && (
           <button className="btn btn-quiet btn-sm" onClick={() => save([])}>
@@ -202,6 +196,6 @@ export function SortableGrid({ storageKey, items, className }: { storageKey: str
           </motion.div>
         ))}
       </div>
-    </MotionConfig>
+    </>
   );
 }

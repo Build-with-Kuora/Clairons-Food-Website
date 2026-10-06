@@ -70,7 +70,7 @@ export function SignaturePad({ onChange, height = 150 }: { onChange: (v?: string
           aria-label="Signature pad. Sign with finger or mouse."
         />
         <div className="pointer-events-none absolute right-4 bottom-8 left-4 border-b border-dashed border-line-2" />
-        {empty && <span className="pointer-events-none absolute bottom-2 left-4 text-[12.5px] text-ink-3">Receiver signs here</span>}
+        {empty && <span className="pointer-events-none absolute bottom-2 left-4 text-caption text-ink-3">Receiver signs here</span>}
       </div>
       <button
         type="button"
@@ -122,7 +122,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
     onDone();
   }
 
-  const inputCls = big ? "input h-12 text-[17px]" : "input";
+  const inputCls = big ? "input h-12 text-lead" : "input";
   return (
     <div className="space-y-4">
       <div>
@@ -135,23 +135,23 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
               <li key={l.sku} className={cx("px-3 py-2", short && "bg-warn-bg/50")}>
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className={cx("leading-snug font-semibold", big ? "text-[15.5px]" : "text-[14px]")}>{l.name}</div>
+                    <div className={cx("leading-snug font-semibold", big ? "text-body" : "text-small")}>{l.name}</div>
                     <div className="code text-ink-3">{l.sku}</div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button type="button" className={cx("btn btn-ghost px-0", big ? "h-11 w-11" : "btn-sm w-8")} onClick={() => setQty({ ...qty, [l.sku]: Math.max(0, q - 1) })} aria-label="One fewer">
+                    <button type="button" className={cx("btn btn-ghost px-0", big ? "h-12 w-12" : "h-11 w-11")} onClick={() => setQty({ ...qty, [l.sku]: Math.max(0, q - 1) })} aria-label="One fewer">
                       −
                     </button>
-                    <span className={cx("w-14 text-center font-semibold", big ? "text-[17px]" : "text-[14px]")}>
+                    <span className={cx("w-14 text-center font-semibold", big ? "text-lead" : "text-small")}>
                       {q}/{l.qty}
                     </span>
-                    <button type="button" className={cx("btn btn-ghost px-0", big ? "h-11 w-11" : "btn-sm w-8")} onClick={() => setQty({ ...qty, [l.sku]: Math.min(l.qty, q + 1) })} aria-label="One more">
+                    <button type="button" className={cx("btn btn-ghost px-0", big ? "h-12 w-12" : "h-11 w-11")} onClick={() => setQty({ ...qty, [l.sku]: Math.min(l.qty, q + 1) })} aria-label="One more">
                       +
                     </button>
                   </div>
                 </div>
                 {short && (
-                  <select className="input mt-2 h-8 text-[13px]" value={reasons[l.sku] ?? SHORT_REASONS[0]} onChange={(e) => setReasons({ ...reasons, [l.sku]: e.target.value })} aria-label="Why short">
+                  <select className="input mt-2" value={reasons[l.sku] ?? SHORT_REASONS[0]} onChange={(e) => setReasons({ ...reasons, [l.sku]: e.target.value })} aria-label="Why some came back">
                     {SHORT_REASONS.map((r) => (
                       <option key={r}>{r}</option>
                     ))}
@@ -161,7 +161,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
             );
           })}
         </ul>
-        {shorts.length > 0 && <p className="mt-1 text-[12.5px] text-warn">Returned stock goes back on the truck and into stock at the dock. The account is credited.</p>}
+        {shorts.length > 0 && <p className="mt-1 text-caption text-warn">Returned stock goes back on the truck and into stock at the dock. The account is credited.</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -172,7 +172,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
           <input className={inputCls} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name on site" />
         </Field>
       </div>
-      {warm && <p className="-mt-2 text-[13px] font-semibold text-bad">Warmer than −15°C. Note it below and expect the receiver to refuse soft product.</p>}
+      {warm && <p className="-mt-2 text-caption font-semibold text-bad">Warmer than −15°C. Note it below and expect the receiver to refuse soft product.</p>}
 
       {isCod && (
         <Field label={`Collect on delivery, ${money(order.total)} due`}>
@@ -199,12 +199,12 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
           Complete stop
         </button>
       </div>
-      {!ready && <p className="text-[12.5px] text-ink-3">Needs the receiver&rsquo;s name and signature.</p>}
+      {!ready && <p className="text-caption text-ink-3">Needs the receiver&rsquo;s name and signature.</p>}
     </div>
   );
 }
 
-const EXCEPTION_REASONS = ["Client closed", "Refused delivery", "Temperature excursion", "Damaged load", "Can't access dock", "Truck breakdown", "Other"];
+const EXCEPTION_REASONS = ["Client closed", "Refused delivery", "Too warm on arrival", "Damaged load", "Can't access dock", "Truck breakdown", "Other"];
 
 export function ExceptionForm({ delivery, by, onDone, onCancel }: { delivery: Delivery; by: string; onDone: () => void; onCancel: () => void }) {
   const report = useStore((s) => s.reportException);
@@ -231,7 +231,7 @@ export function ExceptionForm({ delivery, by, onDone, onCancel }: { delivery: De
           className="btn btn-danger"
           onClick={() => {
             report(delivery.id, reason, note, by);
-            toast(`Exception logged: ${reason}`, "warn");
+            toast(`Problem reported: ${reason}`, "warn");
             onDone();
           }}
         >

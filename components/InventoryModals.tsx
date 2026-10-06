@@ -44,10 +44,10 @@ export function AdjustModal({ lot, onClose }: { lot: Lot | null; onClose: () => 
         </>
       }
     >
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-md border border-line bg-white p-0.5">
+      <div className="mb-4 grid grid-cols-2 gap-2">
         {(["COUNT", "WASTE"] as const).map((m) => (
-          <button key={m} onClick={() => setMode(m)} className={`h-8 cursor-pointer rounded text-[13.5px] font-semibold ${mode === m ? "bg-ink text-white" : "text-ink-2"}`}>
-            {m === "COUNT" ? "Cycle count" : "Write off damage"}
+          <button key={m} onClick={() => setMode(m)} aria-pressed={mode === m} className="chip justify-center">
+            {m === "COUNT" ? "Correct the count" : "Throw out damaged"}
           </button>
         ))}
       </div>
@@ -55,7 +55,7 @@ export function AdjustModal({ lot, onClose }: { lot: Lot | null; onClose: () => 
         <Field label={mode === "COUNT" ? `${capitalize(unitPlural(unit))} counted in bin` : `${capitalize(unitPlural(unit))} to write off`} hint={`System shows ${units(lot.qty, unit)} in ${lot.bin}.`}>
           <input className="input" inputMode="numeric" value={val} onChange={(e) => setVal(e.target.value.replace(/\D/g, ""))} autoFocus />
         </Field>
-        <div className="pt-6 text-[14px]">
+        <div className="pt-6 text-small">
           Change: <span className={`font-semibold ${delta < 0 ? "text-bad" : delta > 0 ? "text-good" : ""}`}>{delta > 0 ? "+" : ""}{delta} {Math.abs(delta) === 1 ? unit : unitPlural(unit)}</span>
         </div>
         <Field label="Reason" className="col-span-2">
@@ -97,7 +97,7 @@ export function MoveModal({ lot, onClose }: { lot: Lot | null; onClose: () => vo
         </>
       }
     >
-      <p className="mb-3 text-[14px] text-ink-2">
+      <p className="mb-3 text-small text-ink-2">
         Now in <span className="code font-medium text-ink">{lot.bin}</span>, {ZONES[zoneOfBin(lot.bin)].name}.
       </p>
       <Field label="New bin" hint={/^[BDFC]-\d{2}-[A-Z]\d$/.test(target) ? `${ZONES[zoneOfBin(target)].name}` : "Format: zone letter, aisle, rack and level. F-03-A2"}>
@@ -137,8 +137,8 @@ export function HoldModal({ lot, onClose }: { lot: Lot | null; onClose: () => vo
         </>
       }
     >
-      {releasing && lot.holdReason && <p className="mb-3 rounded-md bg-sunk p-2.5 text-[13.5px] text-ink-2">{lot.holdReason}</p>}
-      <Field label={releasing ? "QA finding" : "Why is this lot on hold?"}>
+      {releasing && lot.holdReason && <p className="mb-3 rounded-md bg-sunk p-2.5 text-small text-ink-2">{lot.holdReason}</p>}
+      <Field label={releasing ? "What the quality check found" : "Why is this batch on hold?"}>
         <textarea
           className="input"
           rows={3}

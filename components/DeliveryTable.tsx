@@ -46,10 +46,10 @@ export function DeliveryTable({ stops, selectedId, onSelect }: { stops: Delivery
                 </td>
                 <td>
                   <div className="font-semibold">{c?.name}</div>
-                  <div className="text-[12.5px] text-ink-3">
+                  <div className="text-caption text-ink-3">
                     {c?.city}, {o?.number}
                   </div>
-                  {d.note && <div className="max-w-[280px] truncate text-[12.5px] text-ink-2">Note: {d.note}</div>}
+                  {d.note && <div className="max-w-[280px] truncate text-caption text-ink-2">Note: {d.note}</div>}
                 </td>
                 <td className="r font-semibold">{o ? money(o.total) : "–"}</td>
                 <td>

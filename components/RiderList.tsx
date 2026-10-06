@@ -46,7 +46,7 @@ export function RiderList() {
                   <tr key={r.id} className={cx(!r.active && "text-ink-3")}>
                     <td>
                       <div className="font-semibold">{r.name}</div>
-                      <div className="text-[12.5px] text-ink-3">{r.phone || "No phone"}</div>
+                      <div className="text-caption text-ink-3">{r.phone || "No phone"}</div>
                     </td>
                     <td className="text-ink-2">{r.bike || "–"}</td>
                     <td className="r font-semibold">{n || "–"}</td>
@@ -110,11 +110,11 @@ function RiderForm({ rider, onClose }: { rider?: Rider; onClose: () => void }) {
         <Field label="Motorbike and plate">
           <input className="input" value={v.bike} onChange={set("bike")} placeholder="Honda Click, NBC 4512" />
         </Field>
-        <label className="flex cursor-pointer items-center gap-2 text-[14px]">
+        <label className="flex cursor-pointer items-center gap-2 text-small">
           <input type="checkbox" checked={v.active} onChange={set("active")} className="accent-ink" />
           On the roster (can be given stops)
         </label>
-        {error && <p className="text-[13.5px] font-semibold text-bad">{error}</p>}
+        {error && <p className="text-small font-semibold text-bad">{error}</p>}
       </form>
     </Modal>
   );

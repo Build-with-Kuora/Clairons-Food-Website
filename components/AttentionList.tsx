@@ -1,6 +1,10 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Badge, Panel, cx } from "./ui";
+
+/** Items shown before "Show all", so the lists stay short and line up. */
+const SHOWN = 5;
 
 /** A short list of things to deal with, each linking to where it gets fixed. Used on both home pages. */
 export function AttentionList({
@@ -16,6 +20,8 @@ export function AttentionList({
   items: { key: string; href: string; main: string; side: string }[];
   empty: string;
 }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, SHOWN);
   return (
     <Panel
       title={
@@ -25,21 +31,31 @@ export function AttentionList({
         </span>
       }
       actions={items.length ? <Badge tone={tone}>{items.length}</Badge> : undefined}
-      bodyClass="max-h-[260px] overflow-y-auto scroll-thin"
+      bodyClass=""
     >
       {items.length === 0 ? (
-        <p className="px-4 py-4 text-[14px] text-ink-3">{empty}</p>
+        <p className="px-5 py-5 text-body text-ink-2 sm:px-6">{empty}</p>
       ) : (
-        <ul className="divide-y divide-line/70">
-          {items.map((it) => (
+        <ul className="divide-y divide-line">
+          {shown.map((it) => (
             <li key={it.key}>
-              <Link href={it.href} className="block px-4 py-2 hover:bg-sunk">
-                <div className="truncate text-[14px] font-semibold">{it.main}</div>
-                <div className="truncate text-[13px] text-ink-3">{it.side}</div>
+              <Link href={it.href} className="flex items-center gap-3 px-5 py-3.5 hover:bg-sunk sm:px-6">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-body font-semibold">{it.main}</span>
+                  <span className="mt-0.5 block text-small text-ink-2">{it.side}</span>
+                </span>
+                <ChevronRight size={20} className="shrink-0 text-ink-3" aria-hidden />
               </Link>
             </li>
           ))}
         </ul>
+      )}
+      {items.length > SHOWN && (
+        <div className="border-t border-line px-5 py-3 sm:px-6">
+          <button className="btn btn-ghost btn-sm w-full" onClick={() => setAll((v) => !v)}>
+            {all ? "Show fewer" : `Show all ${items.length}`}
+          </button>
+        </div>
       )}
     </Panel>
   );

@@ -37,11 +37,11 @@
   --color-side-ink: #ffffff;
   --color-side-ink-2: #a3a5ab;
 
-  /* Text: ink for primary, ink-2 for secondary, ink-3 for hints (still ≥4.5:1 on panel) */
+  /* Text: ink for primary, ink-2 for secondary, ink-3 for hints (about 7:1 on panel, so hints stay readable) */
   --color-ink: var(--brand-ink);
   --color-ink-hover: #2c2f35;
-  --color-ink-2: #43474e;
-  --color-ink-3: #62676f;
+  --color-ink-2: #3d4148;
+  --color-ink-3: #555a62;
 
   /* Brand accent: logo red. Primary actions, the active tab, key numbers, the leading chart series.
      Never for status: problems use --color-bad, which pairs with an icon or label. */
@@ -71,6 +71,26 @@
 
   /* Cards lift off the page with a soft shadow instead of a heavy border */
   --shadow-card: 0 1px 2px rgb(20 21 24 / 0.04), 0 6px 18px -10px rgb(20 21 24 / 0.1);
+
+  /* Type scale. Most people using the app are older, so nothing goes below 14px and body text is 16px.
+     Sizes are in rem, so a bigger browser text setting makes the whole app bigger.
+     Use these (text-caption, text-body…) instead of one-off pixel sizes; change a size here, not in a page. */
+  --text-caption: 0.875rem; /* 14px: table headers, badges, footnotes. The floor. */
+  --text-caption--line-height: 1.35;
+  --text-small: 0.9375rem; /* 15px: secondary lines under a name, helper text */
+  --text-small--line-height: 1.4;
+  --text-body: 1rem; /* 16px: body, tables, inputs, buttons */
+  --text-body--line-height: 1.45;
+  --text-lead: 1.125rem; /* 18px: product names on cards, emphasised lines */
+  --text-lead--line-height: 1.35;
+  --text-title: 1.375rem; /* 22px: panel titles */
+  --text-title--line-height: 1.2;
+  --text-heading: 1.75rem; /* 28px: page titles, modal titles, money in a panel title */
+  --text-heading--line-height: 1.1;
+  --text-figure: 2.25rem; /* 36px: the big number on a figure card */
+  --text-figure--line-height: 1;
+  --text-hero: 2.75rem; /* 44px: one headline number per screen at most */
+  --text-hero--line-height: 1;
 }
 
 /* 3. Fonts: variables come from next/font in app/layout.tsx */
@@ -89,8 +109,8 @@ body {
 
 body {
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.45;
+  font-size: var(--text-body);
+  line-height: 1.5;
   font-feature-settings: "tnum" 1, "lnum" 1;
   caret-color: var(--color-brand);
 }
@@ -107,9 +127,10 @@ body {
 
 /* 5. Components ---------------------------------------------------------- */
 @layer components {
-  /* Buttons */
+  /* Buttons. 44px tall by default so they are easy to hit; disabled buttons go grey rather than see-through,
+     so their label stays readable. */
   .btn {
-    @apply inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-3.5 text-[14px] font-semibold whitespace-nowrap transition-colors select-none disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 text-body font-semibold whitespace-nowrap transition-colors select-none active:translate-y-px disabled:cursor-not-allowed disabled:border-line disabled:bg-sunk disabled:text-ink-3 disabled:active:translate-y-0;
   }
   .btn-primary {
     @apply border-brand bg-brand text-white hover:border-brand-hover hover:bg-brand-hover;
@@ -118,49 +139,63 @@ body {
     @apply border-ink bg-ink text-white hover:border-ink-hover hover:bg-ink-hover;
   }
   .btn-ghost {
-    @apply border-line bg-panel text-ink hover:border-line-2 hover:bg-sunk;
+    @apply border-line-2 bg-panel text-ink hover:bg-sunk;
   }
   .btn-quiet {
     @apply border-transparent bg-transparent text-ink-2 hover:bg-sunk hover:text-ink;
   }
   .btn-danger {
-    @apply border-bad/30 bg-panel text-bad hover:bg-bad-bg;
+    @apply border-bad/40 bg-panel text-bad hover:bg-bad-bg;
   }
   .btn-sm {
-    @apply h-7 gap-1 rounded-md px-2.5 text-[13px];
+    @apply h-10 gap-1.5 rounded-lg px-3 text-small;
   }
   .btn-lg {
-    @apply h-12 rounded-xl px-5 text-[16px];
+    @apply h-14 rounded-xl px-6 text-lead;
+  }
+
+  /* Pill choices: filters, periods, categories. One look everywhere; the chosen one is black. */
+  .chip {
+    @apply inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line-2 bg-panel px-4 text-small font-semibold whitespace-nowrap text-ink-2 transition-colors hover:bg-sunk hover:text-ink;
+  }
+  .chip[aria-pressed="true"],
+  .chip[aria-selected="true"],
+  .chip-on {
+    @apply border-ink bg-ink text-white hover:bg-ink-hover hover:text-white;
   }
 
   /* Form fields */
   .input {
-    @apply h-9 w-full rounded-lg border border-line bg-panel px-3 text-[14px] text-ink placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none;
+    @apply h-11 w-full rounded-xl border border-line-2 bg-panel px-3.5 text-body text-ink placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none;
   }
   textarea.input {
-    @apply h-auto py-2;
+    @apply h-auto py-2.5;
   }
   .field-label {
-    @apply mb-1 block text-[13px] font-medium text-ink-2;
+    @apply mb-1.5 block text-small font-semibold text-ink-2;
   }
 
   /* Type helpers */
   .code {
-    @apply font-mono text-[12.5px] tracking-tight;
+    @apply font-mono text-small tracking-tight;
   }
   .display {
     @apply font-display tracking-[-0.01em];
   }
+  /* A secondary line under a name or figure */
+  .hint {
+    @apply text-small text-ink-3;
+  }
 
-  /* Data tables */
+  /* Data tables: body-size rows with room to breathe, headers in readable dark grey */
   .tbl {
-    @apply w-full border-collapse text-[14px];
+    @apply w-full border-collapse text-body;
   }
   .tbl th {
-    @apply sticky top-0 z-[1] border-b border-line bg-panel px-3 py-2.5 text-left text-[12.5px] font-medium text-ink-3;
+    @apply sticky top-0 z-[1] border-b border-line-2 bg-panel px-4 py-3 text-left text-caption font-semibold text-ink-2;
   }
   .tbl td {
-    @apply border-b border-line/80 px-3 py-2.5 align-middle;
+    @apply border-b border-line px-4 py-3.5 align-middle;
   }
   .tbl tbody tr {
     @apply transition-colors;
@@ -216,33 +251,12 @@ body {
   }
 }
 
-/* Laptop scale: the staff app is drawn for a large monitor, so on desktop-width screens under 1920px
-   everything inside .app-zoom renders at 80%. Viewport units are divided by --ui-zoom where they size the frame. */
-:root {
-  --ui-zoom: 1;
-}
-@media (min-width: 1024px) and (max-width: 1919px) and (pointer: fine) {
-  :root {
-    --ui-zoom: 0.8;
-  }
-}
-.app-zoom {
-  zoom: var(--ui-zoom);
-}
-
-/* Touch screens (iPad): finger-sized controls. */
-@media (pointer: coarse) {
-  .btn {
-    min-height: 2.75rem;
-  }
-  .btn-sm {
-    min-height: 2.5rem;
-  }
-  .input {
-    height: 2.75rem;
-  }
-  textarea.input {
-    height: auto;
+/* Overall size of the staff app. Every size is in rem, so this one value scales text, buttons and spacing
+   evenly (crisp, unlike browser zoom). Laptops and desktops get a slightly smaller base (14px body);
+   phones and tablets use full size. Scoped to the app frame, so the public pages are not affected. */
+@media (min-width: 1024px) {
+  html:has(.app-frame) {
+    font-size: 87.5%;
   }
 }
 

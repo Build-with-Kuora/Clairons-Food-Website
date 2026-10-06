@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowRight, ChevronLeft, ChevronRight, Download, Ellipsis, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
+import { Download, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { CategoryTile } from "@/components/CategoryTile";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { ProductForm } from "@/components/ProductForm";
-import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
-import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, plural, temp, tempBare, unitPlural, units } from "@/lib/format";
+import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Pager, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
+import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, plural, temp, unitPlural, units } from "@/lib/format";
 import { useIsAdmin } from "@/lib/auth";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
@@ -28,11 +28,14 @@ const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"
   RELEASE: "good",
 };
 
+/** A stock change with its sign: "+12", "−5" (a real minus sign), or a dash for no change. */
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "–");
+
 const MOVE_LABEL: Record<MoveType, string> = {
   PRODUCE: "Produced",
   SHIP: "Shipped",
   PICKUP: "Walk-in",
-  ADJUST: "Count adj.",
+  ADJUST: "Count corrected",
   WASTE: "Written off",
   TRANSFER: "Moved",
   RETURN: "Returned",
@@ -65,22 +68,21 @@ function InventoryPage() {
   const held = lots.filter((l) => l.qty > 0 && l.status === "HOLD");
 
   const active = all.filter((r) => r.product.active);
-  const categories = new Set(active.map((r) => r.product.category));
   const out = active.filter((r) => r.available <= 0);
 
   return (
     <div className="mx-auto max-w-[1500px]">
       <PageHead
-        title="Inventory summary"
-        sub={`${all.length} SKUs, ${units(totalCases, commonUnit(products))} on hand, ${money0(value)} at cost.`}
+        sub={`${plural(active.length, "product")}, ${units(totalCases, commonUnit(products))} in storage, worth ${money0(value)} at cost.`}
         actions={
           <>
             <Link href="/production" className="btn btn-ghost">
-              <Factory size={16} /> Record batch
+              <Factory size={20} aria-hidden /> What to make
+              {low.length > 0 && <span className="rounded-full bg-warn-bg px-2 text-caption text-warn">{low.length}</span>}
             </Link>
             {admin && (
               <button className="btn btn-primary" onClick={() => setAdding(true)}>
-                <Plus size={16} /> Add product
+                <Plus size={20} aria-hidden /> Add product
               </button>
             )}
           </>
@@ -88,39 +90,29 @@ function InventoryPage() {
       />
       {adding && <ProductForm onClose={() => setAdding(false)} />}
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <SummaryCard title="Categories" tone="ink" value={`Total ${count(categories.size)}`} note="Sold now" />
-        <SummaryCard title="Total products" tone="brand" value={`Total ${count(active.length)}`} note={`${units(totalCases, commonUnit(products))} on hand`} />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 sm:gap-5">
+        <SummaryCard title="Products in stock" tone="ink" value={count(active.length - out.length)} note={`of ${plural(active.length, "product")} on sale`} />
         <SummaryCard
-          title="Low stock"
+          title="Running low"
           tone="bad"
-          value={`Total ${count(low.filter((r) => r.product.active).length)}`}
+          value={count(low.filter((r) => r.product.active).length)}
           note={out.length ? `${count(out.length)} out of stock` : "None out of stock"}
           href="/inventory?filter=low"
           onClick={() => setTab("stock")}
         />
       </div>
 
-      <div className="flex items-end gap-3">
-        <div className="min-w-0 flex-1">
-          <Tabs<Tab>
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              { id: "stock", label: "Stock", count: all.length },
-              { id: "lots", label: "Lots and dating", count: shortDated.length + held.length || undefined },
-              { id: "moves", label: "Movements" },
-              { id: "products", label: "Products" },
-            ]}
-          />
-        </div>
-        <Link href="/production" className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line text-[14.5px] font-semibold whitespace-nowrap text-ink-3 hover:text-ink">
-          To make
-          {low.length > 0 && <span className="rounded bg-warn-bg px-1.5 text-[12px] text-warn">{low.length}</span>}
-          <ArrowRight size={14} aria-hidden />
-        </Link>
-      </div>
-      <div className="mt-4">
+      <Tabs<Tab>
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "stock", label: "Stock" },
+          { id: "lots", label: "Batches and best-by dates", count: shortDated.length + held.length || undefined },
+          { id: "moves", label: "Stock history" },
+          { id: "products", label: "Products and prices" },
+        ]}
+      />
+      <div className="mt-5">
         {tab === "stock" && <StockTab rows={all} onOpen={setOpenSku} />}
         {tab === "lots" && <LotsTab onOpen={setOpenSku} />}
         {tab === "moves" && <MovesTab />}
@@ -134,18 +126,19 @@ function InventoryPage() {
   );
 }
 
-/** One of the three cards over the items table: a colored title, the count, and a note. */
-function SummaryCard({ title, tone, value, note, href, onClick }: { title: string; tone: "ink" | "brand" | "bad"; value: string; note: string; href?: string; onClick?: () => void }) {
+/** One of the two cards over the items table: a colored title, the count, and a note. */
+function SummaryCard({ title, tone, value, note, href, onClick }: { title: string; tone: "ink" | "bad"; value: string; note: string; href?: string; onClick?: () => void }) {
   const body = (
     <>
-      <div className={cx("display text-[26px] leading-tight font-semibold", tone === "brand" ? "text-brand" : tone === "bad" ? "text-bad" : "text-ink")}>{title}</div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <span className="text-[19px] text-ink-2">{value}</span>
-        <span className="text-[13.5px] text-ink-3">{note}</span>
+      <div className={cx("text-lead font-semibold", tone === "bad" ? "text-bad" : "text-ink")}>{title}</div>
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="display text-figure leading-none font-semibold">{value}</span>
+        <span className="text-body text-ink-2">{note}</span>
       </div>
+      {href && <span className="mt-3 block text-small font-semibold text-brand">Show these products</span>}
     </>
   );
-  const cls = "block rounded-2xl border border-line/70 bg-panel p-5 shadow-card";
+  const cls = "block rounded-2xl border border-line/70 bg-panel p-5 shadow-card sm:p-6";
   return href ? (
     <Link href={href} onClick={onClick} className={cx(cls, "transition-colors hover:border-line-2")}>
       {body}
@@ -165,7 +158,7 @@ function stockStatus(r: StockRow): StockStatus {
 
 const STATUS_PILL: Record<StockStatus, { label: string; dot: string; text: string }> = {
   in: { label: "In stock", dot: "bg-good", text: "text-good" },
-  low: { label: "Low stock", dot: "bg-warn", text: "text-warn" },
+  low: { label: "Running low", dot: "bg-warn", text: "text-warn" },
   out: { label: "Out of stock", dot: "bg-bad", text: "text-bad" },
   hold: { label: "On hold", dot: "bg-bad", text: "text-bad" },
   freezing: { label: "Freezing", dot: "bg-accent", text: "text-accent" },
@@ -175,15 +168,17 @@ type StatusFilter = "" | "in" | "below" | "out" | "hold";
 
 const PAGE = 10;
 
+/** Stock history rows per page. */
+const HISTORY_PAGE = 20;
+
 function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) => void }) {
   const admin = useIsAdmin();
   const [q, setQ] = useState(() => useUi.getState().inventorySearch || queryParam("q") || "");
   const [zone, setZone] = useState<ZoneId | "">("");
   const [cat, setCat] = useState<Category | "">("");
-  // The dashboard's "Below reorder point" card links here with ?filter=low.
+  // The dashboard's "Running low" card links here with ?filter=low.
   const [status, setStatus] = useState<StatusFilter>(() => (queryParam("filter") === "low" ? "below" : ""));
   const [page, setPage] = useState(0);
-  const [menu, setMenu] = useState<string | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const now = useNow();
   const cats = [...new Set(rows.map((r) => r.product.category))];
@@ -227,34 +222,34 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
 
   return (
     <Panel
-      title="Inventory items"
+      title="Stock"
       sub={`${plural(list.length, "product")}${list.length !== rows.length ? ` of ${rows.length}` : ""}`}
       bodyClass=""
       actions={
-        <button className="btn btn-primary btn-sm h-9 px-3" onClick={exportCsv} disabled={!list.length}>
-          <Download size={15} /> Export
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!list.length}>
+          <Download size={18} aria-hidden /> Download list
         </button>
       }
     >
-      <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
-        <div className="relative min-w-[220px] flex-1 md:max-w-[340px]">
-          <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" />
-          <input className="input pl-8" placeholder="Search SKU or product" value={q} onChange={(e) => {
+      <div className="flex flex-wrap items-center gap-3 px-5 pb-5 sm:px-6">
+        <div className="relative min-w-[240px] flex-1 md:max-w-[380px]">
+          <Search size={20} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
+          <input className="input pl-11" placeholder="Search by product name" value={q} onChange={(e) => {
               setQ(e.target.value);
               first();
             }} aria-label="Search inventory" />
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <ListFilter size={16} className="text-ink-3" aria-hidden />
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+          <ListFilter size={20} className="text-ink-3" aria-hidden />
           <select className="input w-auto" value={status} onChange={(e) => {
               setStatus(e.target.value as StatusFilter);
               first();
             }} aria-label="Status">
-            <option value="">All statuses</option>
+            <option value="">Any stock level</option>
             <option value="in">In stock</option>
-            <option value="below">Below reorder point</option>
+            <option value="below">Running low</option>
             <option value="out">Out of stock</option>
-            <option value="hold">With held stock</option>
+            <option value="hold">On hold</option>
           </select>
           <select className="input w-auto" value={cat} onChange={(e) => {
               setCat(e.target.value as Category | "");
@@ -268,8 +263,8 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
           <select className="input w-auto" value={zone} onChange={(e) => {
               setZone(e.target.value as ZoneId | "");
               first();
-            }} aria-label="Zone">
-            <option value="">All zones</option>
+            }} aria-label="Storage area">
+            <option value="">All storage areas</option>
             {ZONE_ORDER.map((z) => (
               <option key={z} value={z}>
                 {ZONES[z].name}
@@ -279,19 +274,17 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
         </div>
       </div>
       <div className="overflow-x-auto border-t border-line scroll-thin">
-        <table className="tbl min-w-[1040px]">
+        <table className="tbl min-w-[860px]">
           <thead>
             <tr>
-              <th className="pl-5">Product name</th>
-              <th>Category</th>
-              <th>SKU</th>
-              <th className="r">On hand</th>
-              <th className="r">Reserved</th>
-              <th className="r">Free to sell</th>
-              <th className="r">Unit price</th>
-              <th className="r">Stock value</th>
+              <th className="pl-5 sm:pl-6">Product</th>
+              <th className="r">Available</th>
+              <th className="r">In storage</th>
+              <th className="r">Price</th>
               <th>Status</th>
-              <th className="r pr-5">Action</th>
+              <th className="r pr-5 sm:pr-6">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -299,71 +292,42 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
               const s = STATUS_PILL[stockStatus(r)];
               return (
                 <tr key={r.product.sku} className="clickable" onClick={() => onOpen(r.product.sku)}>
-                  <td className="pl-5">
+                  <td className="pl-5 sm:pl-6">
                     <div className="flex items-center gap-3">
-                      <CategoryTile category={r.product.category} size="sm" />
+                      <CategoryTile category={r.product.category} size="md" />
                       <div className="min-w-0">
                         <div className="font-semibold">
                           {r.product.name} {!r.product.active && <Badge>Inactive</Badge>}
                         </div>
-                        <div className="text-[12.5px] text-ink-3">
-                          Per {r.product.unit}, {r.product.pack}
+                        <div className="hint">
+                          {r.product.category}, per {r.product.unit} ({r.product.pack})
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="text-ink-2">{r.product.category}</td>
-                  <td className="code text-ink-2">{r.product.sku}</td>
-                  <td className="r font-semibold">{r.onHand}</td>
-                  <td className="r text-ink-2">{r.reserved || "–"}</td>
-                  <td className={cx("r font-semibold", r.available < r.product.reorderPoint && "text-warn", r.available <= 0 && "text-bad")}>{r.available}</td>
-                  <td className="r text-ink-2 whitespace-nowrap">
+                  <td className={cx("r text-lead font-semibold", r.available < r.product.reorderPoint && "text-warn", r.available <= 0 && "text-bad")}>{r.available}</td>
+                  <td className="r text-ink-2">{r.onHand}</td>
+                  <td className="r whitespace-nowrap text-ink-2">
                     {money0(r.product.price.C)}
-                    <span className="text-[12px] text-ink-3">/{priceUnit(r.product)}</span>
+                    <span className="text-small">/{priceUnit(r.product)}</span>
                   </td>
-                  <td className="r text-ink-2">{money0(r.value)}</td>
                   <td>
-                    <span className={cx("inline-flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap", s.text)}>
-                      <span className={cx("h-2 w-2 rounded-full", s.dot)} aria-hidden />
+                    <span className={cx("inline-flex items-center gap-2 text-small font-semibold whitespace-nowrap", s.text)}>
+                      <span className={cx("h-2.5 w-2.5 rounded-full", s.dot)} aria-hidden />
                       {s.label}
                     </span>
                   </td>
-                  <td className="r relative pr-5" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className="btn btn-quiet btn-sm px-2"
-                      onClick={() => setMenu(menu === r.product.sku ? null : r.product.sku)}
-                      aria-haspopup="menu"
-                      aria-expanded={menu === r.product.sku}
-                      aria-label={`Actions for ${r.product.name}`}
-                    >
-                      <Ellipsis size={18} />
-                    </button>
-                    {menu === r.product.sku && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setMenu(null)} aria-hidden />
-                        <div role="menu" className="rise absolute top-full right-4 z-20 w-44 rounded-xl border border-line bg-panel p-1 text-left shadow-lg">
-                          <MenuItem
-                            onClick={() => {
-                              setMenu(null);
-                              onOpen(r.product.sku);
-                            }}
-                          >
-                            Open details
-                          </MenuItem>
-                          <MenuItem href={`/production?sku=${r.product.sku}`}>Record a batch</MenuItem>
-                          {admin && (
-                            <MenuItem
-                              onClick={() => {
-                                setMenu(null);
-                                setEditing(r.product);
-                              }}
-                            >
-                              Edit product
-                            </MenuItem>
-                          )}
-                        </div>
-                      </>
-                    )}
+                  <td className="r pr-5 whitespace-nowrap sm:pr-6" onClick={(e) => e.stopPropagation()}>
+                    <span className="inline-flex gap-2">
+                      <button className="btn btn-ghost btn-sm" onClick={() => onOpen(r.product.sku)}>
+                        Open
+                      </button>
+                      {admin && (
+                        <button className="btn btn-quiet btn-sm" onClick={() => setEditing(r.product)}>
+                          <Pencil size={16} aria-hidden /> Edit
+                        </button>
+                      )}
+                    </span>
                   </td>
                 </tr>
               );
@@ -372,37 +336,12 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
         </table>
         {list.length === 0 && <Empty title="No products match these filters">Clear the search or set the filters back to all.</Empty>}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
-        <div className="flex gap-2">
-          <button className="btn btn-ghost btn-sm h-8" onClick={() => setPage(at - 1)} disabled={at === 0}>
-            <ChevronLeft size={15} /> Previous
-          </button>
-          <button className="btn btn-ghost btn-sm h-8" onClick={() => setPage(at + 1)} disabled={at >= pages - 1}>
-            Next <ChevronRight size={15} />
-          </button>
-        </div>
-        <span className="text-[13px] text-ink-2">
-          Page {at + 1} of {pages}
-        </span>
-      </div>
-      <p className="border-t border-line px-5 py-2.5 text-[12.5px] text-ink-3">
-        Counts are in each product&rsquo;s selling unit. Reserved = on orders not yet loaded. Unit price is the list price (tier C); stock value is at cost. Open a product for lots, best-by dates and adjustments.
+      <Pager page={at} pages={pages} onChange={setPage} />
+      <p className="border-t border-line px-5 py-3 hint sm:px-6">
+        Counted in each product&rsquo;s selling unit. &ldquo;Available&rdquo; is what is in storage minus what is set aside for orders. Open a product to see its batches, best-by dates and to correct a count.
       </p>
       {editing && <ProductForm key={editing.sku} product={editing} onClose={() => setEditing(null)} />}
     </Panel>
-  );
-}
-
-function MenuItem({ children, onClick, href }: { children: ReactNode; onClick?: () => void; href?: string }) {
-  const cls = "flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-[14px] font-medium text-ink hover:bg-sunk";
-  return href ? (
-    <Link role="menuitem" href={href} className={cls}>
-      {children}
-    </Link>
-  ) : (
-    <button role="menuitem" className={cls} onClick={onClick}>
-      {children}
-    </button>
   );
 }
 
@@ -426,10 +365,10 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
       title={p.name}
       sub={
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="code">{p.sku}</span>
           <span>
             Sold per {p.unit}, {p.pack}
           </span>
+          <span className="text-ink-3">Code {p.sku}</span>
           <ZoneTag zone={p.zone} />
           {!p.active && <Badge>Inactive</Badge>}
         </span>
@@ -438,44 +377,44 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
         <>
           {p.active && (
             <Link href={`/production?sku=${p.sku}`} className="btn btn-primary">
-              <Factory size={16} /> Make a batch
+              <Factory size={20} aria-hidden /> Make a batch
             </Link>
           )}
           {admin && (
             <button className="btn btn-ghost" onClick={() => setEditing(true)}>
-              <Pencil size={15} /> Edit product
+              <Pencil size={18} aria-hidden /> Edit product
             </button>
           )}
-          <span className="ml-auto text-[13px] text-ink-3">Home bin {p.bin}, shelf life {p.shelfDays} days</span>
+          <span className="ml-auto hint">Kept in bin {p.bin}, lasts {p.shelfDays} days</span>
         </>
       }
     >
-      <div className="grid grid-cols-5 overflow-hidden rounded-lg border border-line">
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-line sm:grid-cols-3">
         {[
-          ["On hand", row.onHand],
-          ["Reserved", row.reserved],
-          ["Held", row.held],
-          ["Freezing", row.freezing],
-          ["Free to sell", row.available],
-        ].map(([l, v], i) => (
-          <div key={l} className={cx("px-3 py-2", i > 0 && "border-l border-line")}>
-            <div className="text-[12.5px] text-ink-3">{l}</div>
-            <div className={cx("display text-[28px] leading-none font-semibold", l === "Held" && Number(v) > 0 && "text-bad")}>{v}</div>
+          ["Available", row.available],
+          ["In storage", row.onHand],
+          ["Set aside for orders", row.reserved],
+          ["On hold", row.held],
+          ["Still freezing", row.freezing],
+        ].map(([l, v]) => (
+          <div key={l} className="border-line px-4 py-3 not-last:border-b sm:border-r">
+            <div className="text-small text-ink-2">{l}</div>
+            <div className={cx("display mt-1 text-heading leading-none font-semibold", l === "On hold" && Number(v) > 0 && "text-bad")}>{v}</div>
           </div>
         ))}
       </div>
-      <div className="mt-2 flex items-center gap-3 text-[13px] text-ink-3">
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-small text-ink-2">
         <LevelBar value={row.available} reorder={p.reorderPoint} par={p.par} width={180} />
-        In {unitPlural(p.unit)}. Reorder at {p.reorderPoint}, par {p.par}
+        In {unitPlural(p.unit)}. Make more under {p.reorderPoint}; aim for {p.par}.
       </div>
 
-      <h3 className="display mt-6 mb-2 text-[19px] font-semibold">Lots, oldest best-by first</h3>
+      <h3 className="display mt-7 mb-3 text-title font-semibold">Batches, oldest best-by first</h3>
       <div className="overflow-x-auto rounded-lg border border-line scroll-thin">
         <table className="tbl min-w-[600px]">
           <thead>
             <tr>
-              <th>Lot</th>
-              <th>Bin</th>
+              <th>Batch</th>
+              <th>Where</th>
               <th>Made</th>
               <th>Best-by</th>
               <th className="r">{capitalize(unitPlural(p.unit))}</th>
@@ -488,27 +427,27 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
               return (
                 <tr key={l.id} className={l.status === "HOLD" ? "bg-bad-bg/40" : undefined}>
                   <td>
-                    <div className="code font-medium">{l.code}</div>
-                    {l.status === "HOLD" || isFreezing(l) ? <LotBadge lot={l} now={now} /> : reserved[l.id] ? <span className="text-[12.5px] text-ink-3">{reserved[l.id]} reserved</span> : null}
+                    <div className="code font-medium whitespace-nowrap">{l.code}</div>
+                    {l.status === "HOLD" || isFreezing(l) ? <LotBadge lot={l} now={now} /> : reserved[l.id] ? <span className="hint">{reserved[l.id]} set aside</span> : null}
                   </td>
                   <td>
                     <div className="code">{l.bin}</div>
-                    <div className="text-[12px] text-ink-3">{ZONES[zoneOfBin(l.bin)].name}</div>
+                    <div className="hint">{ZONES[zoneOfBin(l.bin)].name}</div>
                   </td>
                   <td>
                     <div>{day(l.madeAt)}</div>
-                    <div className={cx("text-[12.5px]", l.coreTempC > coreLimitC(p.zone) ? "font-semibold text-bad" : "text-ink-3")}>core {temp(l.coreTempC)}</div>
+                    <div className={cx("text-small", l.coreTempC > coreLimitC(p.zone) ? "font-semibold text-bad" : "text-ink-3")}>inside temp {temp(l.coreTempC)}</div>
                   </td>
                   <td className={cx(d <= 30 && "font-semibold text-warn")}>
                     {day(l.bestBy)}
-                    <div className="text-[12.5px] font-normal text-ink-3">{d < 0 ? "Expired" : `${d} days`}</div>
+                    <div className="text-small font-normal text-ink-3">{d < 0 ? "Expired" : `${d} days left`}</div>
                   </td>
                   <td className="r font-semibold">{l.qty}</td>
                   <td className="r whitespace-nowrap">
-                    <span className="inline-flex gap-0.5">
-                      <button className="btn btn-quiet btn-sm px-2" onClick={() => setAdjusting(l)}>Adjust</button>
-                      <button className="btn btn-quiet btn-sm px-2" onClick={() => setMoving(l)}>Move</button>
-                      <button className={cx("btn btn-sm px-2", l.status === "HOLD" ? "btn-ghost" : "btn-quiet")} onClick={() => setHolding(l)}>{l.status === "HOLD" ? "Release" : "Hold"}</button>
+                    <span className="inline-flex gap-1">
+                      <button className="btn btn-ghost btn-sm" onClick={() => setAdjusting(l)}>Correct count</button>
+                      <button className="btn btn-quiet btn-sm" onClick={() => setMoving(l)}>Move</button>
+                      <button className={cx("btn btn-sm", l.status === "HOLD" ? "btn-ghost" : "btn-quiet")} onClick={() => setHolding(l)}>{l.status === "HOLD" ? "Release" : "Hold"}</button>
                     </span>
                   </td>
                 </tr>
@@ -516,19 +455,19 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
             })}
           </tbody>
         </table>
-        {row.lots.length === 0 && <Empty title="No stock on hand">Record a production batch to create the first lot.</Empty>}
+        {row.lots.length === 0 && <Empty title="None in storage">Record a production batch to add stock.</Empty>}
       </div>
       {row.lots.filter((l) => l.holdReason).map((l) => (
-        <p key={l.id} className="mt-2 rounded-md border border-bad/25 bg-bad-bg p-2.5 text-[13px] text-bad">
-          <span className="font-semibold">Lot {l.code}:</span> {l.holdReason}
+        <p key={l.id} className="mt-2 rounded-xl border border-bad/25 bg-bad-bg p-3 text-small text-bad">
+          <span className="font-semibold">Batch {l.code} on hold:</span> {l.holdReason}
         </p>
       ))}
 
-      <h3 className="display mt-6 mb-2 text-[19px] font-semibold">Pricing</h3>
+      <h3 className="display mt-7 mb-3 text-title font-semibold">Prices</h3>
       <table className="tbl rounded-lg border border-line">
         <thead>
           <tr>
-            <th>Tier</th>
+            <th>Price list</th>
             <th className="r">Price /{unit}</th>
             <th className="r">Price per {p.unit}</th>
             <th className="r">Margin</th>
@@ -544,7 +483,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
           {(["A", "B", "C"] as const).map((t) => (
             <tr key={t}>
               <td>
-                Tier {t} <span className="text-[12.5px] text-ink-3">{t === "A" ? "contract" : t === "B" ? "standard" : "list"}</span>
+                {t === "A" ? "Contract" : t === "B" ? "Standard" : "Walk-in and online"} <span className="hint">({t})</span>
               </td>
               <td className="r font-semibold">{money(p.price[t])}</td>
               <td className="r">{money(p.catchWeight ? p.price[t] * p.caseKg : p.price[t])}</td>
@@ -553,19 +492,19 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
           ))}
         </tbody>
       </table>
-      {p.catchWeight && <p className="mt-1.5 text-[12.5px] text-ink-3">Catch weight: invoiced at actual weight from the pick scale. Price per {p.unit} assumes {p.caseKg} kg.</p>}
+      {p.catchWeight && <p className="mt-2 hint">Sold by weight: charged on the actual weight from the scale. The price per {p.unit} assumes {p.caseKg} kg.</p>}
 
-      <h3 className="display mt-6 mb-2 text-[19px] font-semibold">Recent movements</h3>
-      <ul className="divide-y divide-line rounded-lg border border-line">
+      <h3 className="display mt-7 mb-3 text-title font-semibold">Recent stock history</h3>
+      <ul className="divide-y divide-line rounded-xl border border-line">
         {moves.map((m) => (
-          <li key={m.id} className="flex items-center gap-3 px-3 py-2 text-[13.5px]">
-            <Badge tone={MOVE_TONE[m.type]} className="w-[88px] justify-center">{MOVE_LABEL[m.type]}</Badge>
+          <li key={m.id} className="flex items-center gap-3 px-4 py-3 text-body">
+            <Badge tone={MOVE_TONE[m.type]} className="w-[104px] justify-center">{MOVE_LABEL[m.type]}</Badge>
             <span className="min-w-0 flex-1 truncate">
               {m.ref && <span className="code mr-1.5">{m.ref}</span>}
-              <span className="text-ink-3">{m.note ?? (m.lotCode ? `Lot ${m.lotCode}` : "")}</span>
+              <span className="text-ink-2">{m.note ?? (m.lotCode ? `Batch ${m.lotCode}` : "")}</span>
             </span>
-            <span className={cx("w-12 text-right font-semibold", m.qty > 0 ? "text-good" : m.qty < 0 ? "text-ink" : "text-ink-3")}>{m.qty > 0 ? `+${m.qty}` : m.qty || "–"}</span>
-            <span className="w-[110px] text-right text-[12.5px] text-ink-3">{dateTime(m.at)}</span>
+            <span className={cx("w-12 text-right font-semibold", m.qty > 0 ? "text-good" : m.qty < 0 ? "text-ink" : "text-ink-3")}>{signed(m.qty)}</span>
+            <span className="w-[130px] text-right text-small text-ink-3">{dateTime(m.at)}</span>
           </li>
         ))}
       </ul>
@@ -590,31 +529,31 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
     .sort((a, b) => a.bestBy - b.bestBy);
   return (
     <Panel bodyClass="">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line p-4 sm:px-6">
         {(
           [
-            ["all", "All lots"],
-            ["short", "Best-by within 30 days"],
-            ["hold", "On QA hold"],
+            ["all", "All batches"],
+            ["short", "Expiring within 30 days"],
+            ["hold", "On hold"],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} onClick={() => setFilter(k)} className={cx("h-8 cursor-pointer rounded-full border px-3 text-[13.5px] font-semibold", filter === k ? "border-ink bg-ink text-white" : "border-line bg-white text-ink-2")}>
+          <button key={k} onClick={() => setFilter(k)} aria-pressed={filter === k} className="chip">
             {l}
           </button>
         ))}
-        <span className="ml-auto text-[13px] text-ink-3">Sorted first-expired, first-out. This is the order pickers pull in.</span>
+        <span className="hint lg:ml-auto">Oldest best-by date first. Sell them in this order.</span>
       </div>
       <div className="overflow-x-auto scroll-thin">
         <table className="tbl min-w-[980px]">
           <thead>
             <tr>
               <th>Best-by</th>
-              <th>Lot</th>
               <th>Product</th>
-              <th>Bin</th>
+              <th>Batch</th>
+              <th>Where</th>
               <th>Made</th>
-              <th className="r">Qty</th>
-              <th className="r">Reserved</th>
+              <th className="r">Quantity</th>
+              <th className="r">Set aside</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -626,22 +565,17 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                 <tr key={l.id} className="clickable" onClick={() => onOpen(l.sku)}>
                   <td className={cx(d <= 14 ? "font-semibold text-bad" : d <= 30 ? "font-semibold text-warn" : "")}>
                     {day(l.bestBy)}
-                    <span className="ml-1.5 text-[12.5px] font-normal text-ink-3">{d < 0 ? "expired" : `${d} d`}</span>
+                    <div className="text-small font-normal text-ink-3">{d < 0 ? "Expired" : `${d} days left`}</div>
                   </td>
-                  <td className="code font-medium">{l.code}</td>
-                  <td>
-                    <div className="font-semibold">{p?.name}</div>
-                    <div className="code text-ink-3">{l.sku}</div>
-                  </td>
+                  <td className="font-semibold">{p?.name}</td>
+                  <td className="code font-medium whitespace-nowrap">{l.code}</td>
                   <td>
                     <span className="code">{l.bin}</span>
-                    <div className="text-[12px] text-ink-3">{ZONES[zoneOfBin(l.bin)].name}</div>
+                    <div className="hint">{ZONES[zoneOfBin(l.bin)].name}</div>
                   </td>
-                  <td className="text-ink-2">
-                    {day(l.madeAt)} <span className="text-[12.5px] text-ink-3">core {tempBare(l.coreTempC)}C</span>
-                  </td>
+                  <td className="whitespace-nowrap text-ink-2">{day(l.madeAt)}</td>
                   <td className="r font-semibold whitespace-nowrap">
-                    {l.qty} <span className="text-[12.5px] font-normal text-ink-3">{p?.unit}</span>
+                    {l.qty} <span className="text-small font-normal text-ink-3">{l.qty === 1 ? p?.unit : unitPlural(p?.unit ?? "unit")}</span>
                   </td>
                   <td className="r text-ink-2">{reserved[l.id] || "–"}</td>
                   <td><LotBadge lot={l} now={now} /></td>
@@ -650,7 +584,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
             })}
           </tbody>
         </table>
-        {list.length === 0 && <Empty title="Nothing here">No lots match this filter right now.</Empty>}
+        {list.length === 0 && <Empty title="Nothing here">No batches match this filter right now.</Empty>}
       </div>
     </Panel>
   );
@@ -661,58 +595,77 @@ function MovesTab() {
   const maps = useMaps();
   const [type, setType] = useState<MoveType | "">("");
   const [q, setQ] = useState("");
-  const list = movements
-    .filter((m) => (!type || m.type === type) && (!q || m.sku.toLowerCase().includes(q.toLowerCase()) || (m.ref ?? "").toLowerCase().includes(q.toLowerCase()) || (m.lotCode ?? "").includes(q)))
-    .slice(0, 250);
+  const [page, setPage] = useState(0);
+  const list = movements.filter((m) => (!type || m.type === type) && (!q || m.sku.toLowerCase().includes(q.toLowerCase()) || (m.ref ?? "").toLowerCase().includes(q.toLowerCase()) || (m.lotCode ?? "").includes(q)));
+  const pages = Math.max(1, Math.ceil(list.length / HISTORY_PAGE));
+  const at = Math.min(page, pages - 1);
+  const shown = list.slice(at * HISTORY_PAGE, at * HISTORY_PAGE + HISTORY_PAGE);
   return (
     <Panel bodyClass="">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
-        <input className="input max-w-[280px]" placeholder="SKU, lot or order number" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="input w-auto" value={type} onChange={(e) => setType(e.target.value as MoveType | "")}>
-          <option value="">All movement types</option>
+      <div className="flex flex-wrap items-center gap-3 border-b border-line p-4 sm:px-6">
+        <input
+          className="input max-w-[320px]"
+          placeholder="Product code, batch or order number"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(0);
+          }}
+          aria-label="Search stock history"
+        />
+        <select
+          className="input w-auto"
+          value={type}
+          onChange={(e) => {
+            setType(e.target.value as MoveType | "");
+            setPage(0);
+          }}
+          aria-label="Kind of change"
+        >
+          <option value="">All kinds of change</option>
           {(Object.keys(MOVE_LABEL) as MoveType[]).map((t) => (
             <option key={t} value={t}>
               {MOVE_LABEL[t]}
             </option>
           ))}
         </select>
-        <span className="ml-auto text-[13px] text-ink-3">Showing {list.length} of {count(movements.length)}</span>
+        <span className="hint lg:ml-auto">{count(list.length)} of {count(movements.length)} changes, newest first</span>
       </div>
-      <div className="max-h-[70vh] overflow-auto scroll-thin">
+      <div className="overflow-x-auto scroll-thin">
         <table className="tbl min-w-[960px]">
           <thead>
             <tr>
               <th>When</th>
-              <th>Type</th>
+              <th>What</th>
               <th>Product</th>
-              <th>Lot</th>
-              <th className="r">Qty</th>
-              <th>Reference</th>
+              <th>Batch</th>
+              <th className="r">Change</th>
+              <th>Order or batch no.</th>
               <th>By</th>
               <th>Note</th>
             </tr>
           </thead>
           <tbody>
-            {list.map((m) => (
+            {shown.map((m) => (
               <tr key={m.id}>
                 <td className="whitespace-nowrap text-ink-2">{dateTime(m.at)}</td>
                 <td>
                   <Badge tone={MOVE_TONE[m.type]}>{MOVE_LABEL[m.type]}</Badge>
                 </td>
                 <td>
-                  <div className="max-w-[260px] truncate font-semibold">{maps.product.get(m.sku)?.name}</div>
-                  <div className="code text-ink-3">{m.sku}</div>
+                  <div className="max-w-[280px] font-semibold">{maps.product.get(m.sku)?.name}</div>
                 </td>
                 <td className="code">{m.lotCode ?? "–"}</td>
-                <td className={cx("r font-semibold", m.qty > 0 && "text-good")}>{m.qty > 0 ? `+${m.qty}` : m.qty || "–"}</td>
+                <td className={cx("r font-semibold", m.qty > 0 && "text-good")}>{signed(m.qty)}</td>
                 <td className="code">{m.ref ?? "–"}</td>
                 <td className="text-ink-2">{m.by}</td>
-                <td className="max-w-[260px] truncate text-ink-3">{m.note ?? ""}</td>
+                <td className="max-w-[280px] text-ink-2">{m.note ?? ""}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <Pager page={at} pages={pages} onChange={setPage} />
     </Panel>
   );
 }
@@ -726,65 +679,67 @@ function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
   const inactive = products.filter((p) => !p.active).length;
   return (
     <Panel bodyClass="">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+      <div className="flex flex-wrap items-center gap-3 border-b border-line p-4 sm:px-6">
         {admin && (
           <button className="btn btn-primary" onClick={() => setEditing("new")}>
-            <Plus size={16} /> Add product
+            <Plus size={20} aria-hidden /> Add product
           </button>
         )}
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-3 text-[14px]">
-          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-ink" />
-          Show inactive ({inactive})
+        <label className="flex h-11 cursor-pointer items-center gap-3 rounded-xl border border-line-2 bg-white px-4 text-body">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="h-5 w-5 accent-ink" />
+          Show products no longer sold ({inactive})
         </label>
-        <span className="ml-auto text-[13px] text-ink-3">
-          {admin ? "Inactive products keep their stock and history but can’t be ordered or produced." : "Only the owner can add or edit products and prices."}
+        <span className="hint lg:ml-auto">
+          {admin ? "Products no longer sold keep their stock and history but can’t be ordered or made." : "Only the owner can add or change products and prices."}
         </span>
       </div>
       <div className="overflow-x-auto scroll-thin">
         <table className="tbl min-w-[900px]">
           <thead>
             <tr>
-              <th>SKU</th>
               <th>Product</th>
-              <th>Selling unit</th>
-              <th className="r">List price</th>
-              <th className="r">Reorder at</th>
-              <th className="r">Par</th>
+              <th>Sold per</th>
+              <th className="r">Price</th>
+              <th className="r">Make more under</th>
+              <th className="r">Fill back up to</th>
               <th>Status</th>
-              <th></th>
+              <th>
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {list.map((p) => (
               <tr key={p.sku} className={cx("clickable", !p.active && "text-ink-3")} onClick={() => onOpen(p.sku)}>
-                <td className="code text-ink-2">{p.sku}</td>
                 <td>
                   <div className="font-semibold">{p.name}</div>
-                  <div className="text-[13px] text-ink-3">{p.category}</div>
+                  <div className="hint">
+                    {p.category}, code {p.sku}
+                  </div>
                 </td>
                 <td>
                   <div className="font-semibold">{p.unit}</div>
-                  <div className="text-[13px] text-ink-3">
+                  <div className="hint">
                     {p.pack}, {p.caseKg} kg
                   </div>
                 </td>
                 <td className="r whitespace-nowrap">
                   <span className="font-semibold">{money(p.price.C)}</span>
-                  <span className="text-[12.5px] text-ink-3">/{priceUnit(p)}</span>
+                  <span className="text-small text-ink-3">/{priceUnit(p)}</span>
                 </td>
                 <td className="r">{p.reorderPoint}</td>
                 <td className="r">{p.par}</td>
-                <td>{p.active ? <Badge tone="good">Active</Badge> : <Badge>Inactive</Badge>}</td>
+                <td>{p.active ? <Badge tone="good">On sale</Badge> : <Badge>No longer sold</Badge>}</td>
                 <td className="r">
                   {admin && (
                     <button
-                      className="btn btn-quiet btn-sm px-2"
+                      className="btn btn-quiet btn-sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditing(p);
                       }}
                     >
-                      <Pencil size={14} /> Edit
+                      <Pencil size={16} aria-hidden /> Edit
                     </button>
                   )}
                 </td>

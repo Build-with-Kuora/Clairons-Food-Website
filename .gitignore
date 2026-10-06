@@ -42,3 +42,7 @@ next-env.d.ts
 
 # local browser checks
 .playwright-mcp/
+
+# impeccable: per-machine hook cache and question logs (local paths and session ids)
+/.impeccable/hook.cache.json
+/.impeccable/questions/

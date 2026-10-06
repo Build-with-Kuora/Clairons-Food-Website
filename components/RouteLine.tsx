@@ -41,7 +41,7 @@ export function RouteLine({
             <span className={cx("h-1.5 w-1.5 rounded-full", departed ? "bg-white" : "bg-ink")} />
           </span>
         </div>
-        <div className="mt-1 text-center text-[12.5px] leading-tight">
+        <div className="mt-1 text-center text-caption leading-tight">
           <div className="font-semibold">Dock</div>
           <div className="text-ink-3">{run?.departedAt ? `Out ${clock(run.departedAt)}` : run ? `Departs ${clock(run.plannedDepart)}` : "Not planned"}</div>
         </div>
@@ -55,11 +55,11 @@ export function RouteLine({
         const deliveredAt = d.pod?.at ?? d.exception?.at;
         const sub =
           d.status === "DELIVERED" ? `Done ${clock(deliveredAt!)}` :
-          d.status === "EXCEPTION" ? "Exception" :
-          d.status === "ARRIVED" ? "On site" :
-          d.eta ? `ETA ${clock(d.eta)}` :
-          d.status === "LOADED" ? "On truck" :
-          d.status === "PICKING" ? "Picking" : "Not picked";
+          d.status === "EXCEPTION" ? "Problem" :
+          d.status === "ARRIVED" ? "Arrived" :
+          d.eta ? `Expected ${clock(d.eta)}` :
+          d.status === "LOADED" ? "Loaded" :
+          d.status === "PICKING" ? "Being packed" : "Not packed yet";
         return (
           <button
             key={d.id}
@@ -85,7 +85,7 @@ export function RouteLine({
                 {d.status === "ARRIVED" && <span className="ping-ring absolute h-5 w-5 rounded-full bg-accent" />}
                 <span
                   className={cx(
-                    "relative grid h-5 w-5 place-items-center rounded-full border-2 text-[11px] font-bold",
+                    "relative grid h-5 w-5 place-items-center rounded-full border-2 text-caption font-bold",
                     d.status === "DELIVERED" && "border-ink bg-ink text-white",
                     d.status === "EXCEPTION" && "border-bad bg-bad text-white",
                     d.status === "ARRIVED" && "border-accent bg-accent text-white",
@@ -98,7 +98,7 @@ export function RouteLine({
                 </span>
               </span>
             </div>
-            <div className="mt-1 w-full px-1 text-center text-[12.5px] leading-tight">
+            <div className="mt-1 w-full px-1 text-center text-caption leading-tight">
               <div className={cx("truncate font-semibold", selected ? "text-ink" : "text-ink group-hover:underline")}>
                 <span className="text-ink-3">{d.seq}</span> {c ? shortName(c.name) : "?"}
               </div>

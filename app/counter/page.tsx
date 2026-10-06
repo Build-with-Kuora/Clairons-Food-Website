@@ -8,9 +8,9 @@ import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Field, Kbd, Modal, cx } from "@/components/ui";
 import { useIsAdmin } from "@/lib/auth";
-import { dayLong, dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
-import { useMaps, useNow, useStock } from "@/lib/hooks";
-import { DROP_MIN, PAY_LABEL, TERMS_LABEL, WALK_IN, WALK_IN_ID, allocateFEFO, buyerName, casePrice, deliveryDays, isWalkIn, orderTotals, priceLines, priceUnit, vatSplit } from "@/lib/logic";
+import { dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
+import { useMaps, useStock } from "@/lib/hooks";
+import { DROP_MIN, PAY_LABEL, TERMS_LABEL, WALK_IN, WALK_IN_ID, buyerName, casePrice, deliveryDays, isWalkIn, orderTotals, priceLines, priceUnit, vatSplit } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Order, PayMethod } from "@/lib/types";
 
@@ -33,12 +33,10 @@ export default function Counter() {
   const clients = useStore((s) => s.clients);
   const orders = useStore((s) => s.orders);
   const deliveries = useStore((s) => s.deliveries);
-  const lots = useStore((s) => s.lots);
   const placeOrder = useStore((s) => s.placeOrder);
   const toast = useUi((s) => s.toast);
   const maps = useMaps();
-  const now = useNow(60_000);
-  const { rows, reserved } = useStock();
+  const { rows } = useStock();
 
   // A client handed over from the Customers page arrives through the UI store and starts a delivery order.
   const [handoff] = useState(() => useUi.getState().counterClientId ?? "");
@@ -56,6 +54,7 @@ export default function Counter() {
   const [override, setOverride] = useState(false);
   const admin = useIsAdmin();
   const [extras, setExtras] = useState(false);
+  const [cleared, setCleared] = useState<{ cart: { sku: string; qty: number }[]; buyer: string } | null>(null);
   const [done, setDone] = useState<Order | null>(null);
   const [sending, setSending] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -177,6 +176,13 @@ export default function Counter() {
     toast(`${res.order.number} ${fulfillment === "PICKUP" ? "paid" : "placed"} for ${buyerName(res.order, client)}`);
   }
 
+  /** Clear the order, but keep what was in it for a few seconds so a mis-tap can be undone. */
+  function clearOrder() {
+    setCleared({ cart, buyer });
+    reset();
+    window.setTimeout(() => setCleared(null), 8000);
+  }
+
   function reset() {
     setDone(null);
     setCart([]);
@@ -194,47 +200,33 @@ export default function Counter() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         {/* ---------- Catalog ---------- */}
         <div className="min-w-0">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="text-[14px] text-ink-3" suppressHydrationWarning>
-                {dayLong(now)}
-              </div>
-              <h1 className="display text-[32px] leading-tight font-semibold">Point of sale</h1>
-            </div>
-            <div className="relative w-full max-w-[420px]">
-              <Search size={17} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" />
+          <div className="mb-5">
+            <div className="relative w-full max-w-[560px]">
+              <Search size={20} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-3" aria-hidden />
               <input
                 ref={searchRef}
-                className="input h-11 rounded-xl pr-10 pl-10 text-[15px]"
-                placeholder="Search name or SKU, or “DM-1001 4” + Enter"
+                className="input h-13 pr-12 pl-12 text-lead"
+                placeholder="Search for a product"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onSearchKey}
                 aria-label="Search products"
               />
-              <span className="absolute top-1/2 right-3 -translate-y-1/2">
+              <span className="absolute top-1/2 right-3 hidden -translate-y-1/2 lg:block">
                 <Kbd>/</Kbd>
               </span>
             </div>
           </div>
 
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="display text-[21px] font-semibold">Products</h2>
-            <span className="text-[13px] text-ink-3">
-              {filtered.length} of {products.length}, prices at {anonymous || !client ? "list (tier C)" : `tier ${tier}`}
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="display text-title font-semibold">Products</h2>
+            <span className="text-small text-ink-2">
+              {filtered.length} of {products.length} shown{!anonymous && picked ? `, prices for ${picked.name}` : ""}
             </span>
           </div>
-          <div className="mb-5 flex gap-2 overflow-x-auto pb-1 scroll-thin" role="group" aria-label="Category">
+          <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Category">
             {CATS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCat(c)}
-                aria-pressed={cat === c}
-                className={cx(
-                  "h-9 shrink-0 cursor-pointer rounded-full px-4 text-[14px] font-semibold transition-colors",
-                  cat === c ? "bg-brand text-white" : "bg-panel text-ink-2 shadow-card hover:text-ink",
-                )}
-              >
+              <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c} className="chip">
                 {c}
               </button>
             ))}
@@ -242,7 +234,7 @@ export default function Counter() {
 
           <SortableGrid
             storageKey="coldline-pos-products"
-            className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4"
+            className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
             items={filtered.map((p) => {
               const avail = rows.get(p.sku)?.available ?? 0;
               const qty = inCart.get(p.sku) ?? 0;
@@ -255,56 +247,53 @@ export default function Counter() {
                   <article
                     key={p.sku}
                     className={cx(
-                      "relative flex flex-col rounded-2xl border bg-panel p-3 shadow-card transition-[border-color,box-shadow]",
-                      qty ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-line/70",
-                      out && "opacity-60",
+                      "relative flex flex-col rounded-2xl border-2 bg-panel p-4 shadow-card transition-[border-color,box-shadow]",
+                      qty ? "border-brand" : "border-transparent",
                     )}
                   >
-                    <CategoryTile category={p.category} size="lg" />
-                    <div className="mt-3 flex items-start justify-between gap-2">
-                      <h3 className="text-[15px] leading-snug font-semibold">{p.name}</h3>
+                    <div className={cx("flex items-start gap-3", qty > 0 && "pr-24")}>
+                      <CategoryTile category={p.category} size="md" />
+                      <h3 className="min-w-0 text-lead leading-snug font-semibold">{p.name}</h3>
                     </div>
-                    <div className="mt-0.5 text-[12.5px] text-ink-3">
-                      <span className="code">{p.sku}</span>, per {p.unit}, {p.pack}
-                      {p.catchWeight && ", catch weight"}
+                    <div className="mt-1 text-small text-ink-2">
+                      Per {p.unit}, {p.pack}
+                      {p.catchWeight && ", sold by weight"}
                     </div>
-                    <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-3">
-                      <div>
-                        <div className="display text-[20px] leading-none font-semibold text-brand">
+                    <div className="mt-auto pt-4">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                        <div className="display text-heading leading-none font-semibold">
                           {money(p.price[tier])}
-                          <span className="ml-0.5 text-[12.5px] font-medium text-ink-3">/{priceUnit(p)}</span>
+                          <span className="ml-1 font-sans text-small font-medium text-ink-2">/{priceUnit(p)}</span>
                         </div>
-                        <div className={cx("mt-1 text-[12.5px] font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-3")}>
+                        <div className={cx("text-small font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-2")}>
                           {out ? "Out of stock" : `${units(avail, p.unit)} left`}
                         </div>
                       </div>
-                      <button className="btn btn-primary btn-sm ml-auto h-8 rounded-lg px-3" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
-                        <Plus size={14} strokeWidth={2.6} /> Add
+                      <button className="btn btn-primary mt-3 w-full" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
+                        <Plus size={20} strokeWidth={2.6} aria-hidden /> {out ? "Out of stock" : qty ? "Add one more" : "Add to order"}
                       </button>
                     </div>
                     {qty > 0 && (
-                      <span className="absolute top-2 right-2 grid h-7 min-w-7 place-items-center rounded-full bg-ink px-2 text-[13px] font-bold text-white" aria-label={`${qty} in the order`}>
-                        {qty}
-                      </span>
+                      <span className="absolute top-3 right-3 flex h-8 items-center rounded-full bg-ink px-3 text-small font-bold text-white">{qty} in order</span>
                     )}
                   </article>
                 ),
               };
             })}
           />
-          {filtered.length === 0 && <p className="py-10 text-center text-[14px] text-ink-3">No products match “{q}”. Clear the search or pick another category.</p>}
+          {filtered.length === 0 && <p className="py-10 text-center text-body text-ink-2">No products match “{q}”. Clear the search or pick another category.</p>}
         </div>
 
         {/* ---------- Current order ---------- */}
         <aside
           ref={orderRef}
-          className="scroll-mt-20 flex flex-col overflow-y-auto rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)] scroll-thin"
+          className="scroll-mt-20 flex flex-col overflow-y-auto rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-6 xl:max-h-[calc(100vh-10rem)] scroll-thin"
         >
           <div className="space-y-4 px-5 pt-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="display text-[24px] font-semibold">Current order</h2>
-              <button className="btn btn-quiet btn-sm px-2" onClick={reset} disabled={!cart.length && !buyer} aria-label="Clear the order">
-                <X size={17} />
+              <h2 className="display text-heading font-semibold">Current order</h2>
+              <button className="btn btn-ghost btn-sm" onClick={clearOrder} disabled={!cart.length && !buyer}>
+                <X size={18} aria-hidden /> Clear
               </button>
             </div>
 
@@ -321,11 +310,11 @@ export default function Counter() {
                   aria-checked={mode === m}
                   onClick={() => switchMode(m)}
                   className={cx(
-                    "flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border text-[14.5px] font-semibold transition-colors",
-                    mode === m ? "border-brand bg-brand text-white" : "border-line text-ink-2 hover:border-line-2 hover:text-ink",
+                    "flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-body font-semibold transition-colors",
+                    mode === m ? "border-brand bg-brand text-white" : "border-line-2 text-ink-2 hover:text-ink",
                   )}
                 >
-                  <Icon size={16} aria-hidden /> {label}
+                  <Icon size={20} aria-hidden /> {label}
                 </button>
               ))}
             </div>
@@ -364,20 +353,20 @@ export default function Counter() {
             )}
 
             {picked && (
-              <div className="text-[13px]">
+              <div className="text-small">
                 <div className="flex flex-wrap gap-1.5">
-                  <Badge>Tier {picked.tier}</Badge>
+                  <Badge>Price list {picked.tier}</Badge>
                   <Badge tone={picked.terms === "COD" ? "warn" : "neutral"}>{TERMS_LABEL[picked.terms]}</Badge>
                   {mode === "DELIVERY" && <Badge>{maps.route.get(picked.routeId)?.name}</Badge>}
                   {mode === "DELIVERY" && <Badge>{picked.window}</Badge>}
                 </div>
                 {picked.creditLimit > 0 && (
                   <div className="mt-2.5">
-                    <div className="flex justify-between text-ink-3">
-                      <span>Balance {money0(picked.balance)}</span>
-                      <span>Limit {money0(picked.creditLimit)}</span>
+                    <div className="flex justify-between text-ink-2">
+                      <span>Owes {money0(picked.balance)}</span>
+                      <span>Credit limit {money0(picked.creditLimit)}</span>
                     </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-sunk">
+                    <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-sunk">
                       <div
                         className={cx("h-full rounded-full", creditAfter > picked.creditLimit ? "bg-bad" : picked.balance / picked.creditLimit > 0.8 ? "bg-warn" : "bg-ink-2")}
                         style={{ width: `${Math.min(100, (creditAfter / picked.creditLimit) * 100)}%` }}
@@ -393,23 +382,38 @@ export default function Counter() {
                       toast(`Loaded ${lastOrder.lines.length} lines from ${lastOrder.number}`);
                     }}
                   >
-                    <History size={14} /> Repeat last order ({lastOrder.number}, {money0(lastOrder.total)})
+                    <History size={18} aria-hidden /> Repeat last order ({lastOrder.number}, {money0(lastOrder.total)})
                   </button>
                 )}
               </div>
             )}
           </div>
 
-          <div className="mt-4 min-h-[140px] shrink-0 border-y border-line bg-sunk/50 px-3 py-3 scroll-thin">
+          <div className="mt-4 shrink-0 border-y border-line bg-sunk/50 px-3 py-3">
             {cart.length === 0 ? (
-              <p className="px-3 py-8 text-center text-[14px] text-ink-3">Add products from the left, or type a SKU and press Enter.</p>
+              cleared && cleared.cart.length > 0 ? (
+                <div className="flex flex-wrap items-center justify-center gap-3 px-3 py-6 text-center">
+                  <span className="text-body text-ink-2">Order cleared.</span>
+                  <button
+                    className="btn btn-dark btn-sm"
+                    onClick={() => {
+                      setCart(cleared.cart);
+                      setBuyer(cleared.buyer);
+                      setCleared(null);
+                    }}
+                  >
+                    Undo
+                  </button>
+                </div>
+              ) : (
+                <p className="px-3 py-8 text-center text-body text-ink-2">Nothing in the order yet. Tap &ldquo;Add to order&rdquo; on a product.</p>
+              )
             ) : (
               <ul className="space-y-2">
                 {cart.map((l) => {
                   const p = maps.product.get(l.sku)!;
                   const pl = priced.find((x) => x.sku === l.sku);
                   const avail = rows.get(l.sku)?.available ?? 0;
-                  const allocs = allocateFEFO(lots, l.sku, Math.min(l.qty, avail), reserved) ?? [];
                   const short = l.qty > avail;
                   return (
                     <li key={l.sku} className="rounded-xl bg-panel p-3 shadow-card">
@@ -417,40 +421,38 @@ export default function Counter() {
                         <CategoryTile category={p.category} size="md" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="text-[14px] leading-snug font-semibold">{p.name}</div>
+                            <div className="text-body leading-snug font-semibold">{p.name}</div>
                             <button
-                              className="-mt-1 -mr-1 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md text-ink-3 hover:bg-bad-bg hover:text-bad"
+                              className="-mt-1 -mr-1 flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-small font-semibold text-ink-2 hover:bg-bad-bg hover:text-bad"
                               onClick={() => setQty(l.sku, 0)}
                               aria-label={`Remove ${p.name}`}
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={18} aria-hidden /> Remove
                             </button>
                           </div>
-                          <div className="text-[12.5px] text-ink-3">
+                          <div className="text-small text-ink-2">
                             {money(p.price[tier])}/{priceUnit(p)}
                             {p.catchWeight && `, about ${p.caseKg * l.qty} kg`}
                           </div>
                           <div className="mt-2 flex items-center justify-between gap-2">
-                            <div className="text-[15px] font-semibold text-brand">{money(pl?.lineTotal ?? casePrice(p, tier) * l.qty)}</div>
-                            <div className="flex items-center rounded-full border border-line bg-white">
-                              <button className="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, -1)} aria-label={`One less ${p.unit}`}>
-                                <Minus size={14} />
+                            <div className="text-lead font-semibold">{money(pl?.lineTotal ?? casePrice(p, tier) * l.qty)}</div>
+                            <div className="flex items-center rounded-full border border-line-2 bg-white">
+                              <button className="grid h-11 w-11 cursor-pointer place-items-center rounded-full text-ink hover:bg-sunk" onClick={() => add(l.sku, -1)} aria-label={`One less ${p.unit}`}>
+                                <Minus size={18} />
                               </button>
                               <input
-                                className="h-8 w-10 text-center text-[14px] font-semibold focus:outline-none"
+                                className="h-11 w-12 text-center text-lead font-semibold focus:outline-none"
                                 value={l.qty}
                                 inputMode="numeric"
                                 onChange={(e) => setQty(l.sku, parseInt(e.target.value.replace(/\D/g, "") || "0", 10))}
                                 aria-label={`Number of ${unitPlural(p.unit)}`}
                               />
-                              <button className="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, 1)} aria-label={`One more ${p.unit}`}>
-                                <Plus size={14} />
+                              <button className="grid h-11 w-11 cursor-pointer place-items-center rounded-full text-ink hover:bg-sunk" onClick={() => add(l.sku, 1)} aria-label={`One more ${p.unit}`}>
+                                <Plus size={18} />
                               </button>
                             </div>
                           </div>
-                          <div className="code mt-1 truncate text-[11.5px] text-ink-3" title="Lots this line will pull, oldest best-by first">
-                            {short ? <span className="font-sans text-[12.5px] font-semibold text-bad">Only {units(avail, p.unit)} free</span> : allocs.map((a) => `${a.lotCode}×${a.qty}`).join("  ")}
-                          </div>
+                          {short && <div className="mt-1.5 text-small font-semibold text-bad">Only {units(avail, p.unit)} left in stock</div>}
                         </div>
                       </div>
                     </li>
@@ -474,7 +476,7 @@ export default function Counter() {
                 </Field>
                 {extras || clientPo || notes ? (
                   <div className="grid grid-cols-2 gap-2">
-                    <Field label="Customer PO">
+                    <Field label="Purchase order no.">
                       <input className="input" value={clientPo} onChange={(e) => setClientPo(e.target.value)} placeholder="Optional" autoFocus={extras && !clientPo} />
                     </Field>
                     <Field label="Note for driver">
@@ -482,14 +484,14 @@ export default function Counter() {
                     </Field>
                   </div>
                 ) : (
-                  <button className="btn btn-quiet btn-sm -ml-2.5" onClick={() => setExtras(true)}>
-                    Add customer PO or driver note
+                  <button className="btn btn-quiet btn-sm -ml-3" onClick={() => setExtras(true)}>
+                    Add a purchase order number or driver note
                   </button>
                 )}
               </div>
             )}
 
-            <dl className="space-y-1 text-[14px]">
+            <dl className="space-y-1.5 text-body">
               <div className="flex justify-between">
                 <dt className="text-ink-2">Items</dt>
                 <dd>
@@ -499,30 +501,35 @@ export default function Counter() {
               {totals.dropFee > 0 && (
                 <div className="flex justify-between gap-2">
                   <dt className="text-ink-2">
-                    Small-drop fee <span className="text-[12.5px] text-ink-3">(add {money0(DROP_MIN - subtotal)} to waive)</span>
+                    Small order fee <span className="text-small text-ink-3">(add {money0(DROP_MIN - subtotal)} more to skip it)</span>
                   </dt>
                   <dd>{money(totals.dropFee)}</dd>
                 </div>
               )}
               {totals.fuel > 0 && (
                 <div className="flex justify-between">
-                  <dt className="text-ink-2">Fuel surcharge</dt>
+                  <dt className="text-ink-2">Fuel fee</dt>
                   <dd>{money(totals.fuel)}</dd>
                 </div>
               )}
-              <div className="flex justify-between text-ink-3">
-                <dt>VAT 12% included</dt>
+              <div className="flex justify-between text-ink-2">
+                <dt>Includes 12% VAT</dt>
                 <dd>{money(vat)}</dd>
-              </div>
-              <div className="flex items-baseline justify-between border-t border-dashed border-line pt-2">
-                <dt className="font-semibold">Total</dt>
-                <dd className="display text-[30px] leading-none font-semibold">{money(totals.total)}</dd>
               </div>
             </dl>
 
+          </div>
+
+          {/* Total, payment and Checkout stay in view together at the bottom of the panel however long the
+              order gets, so the cashier always sees how the customer is paying before charging. */}
+          <div className="sticky bottom-0 space-y-4 border-t border-line bg-panel px-5 pt-4 pb-5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-lead font-semibold">Total</span>
+              <span className="display text-figure leading-none font-semibold">{money(totals.total)}</span>
+            </div>
             <div>
-              <div className="mb-2 text-[14px] font-semibold">Payment</div>
-              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment">
+              <div className="mb-2 text-body font-semibold">Payment</div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Payment">
                 {payOptions.map((p) => {
                   const Icon = PAY_ICON[p];
                   return (
@@ -533,40 +540,36 @@ export default function Counter() {
                       onClick={() => setPayChoice(p)}
                       disabled={!client}
                       className={cx(
-                        "flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                        pay === p ? "border-ink bg-ink text-white" : "border-line text-ink-2 hover:border-line-2 hover:text-ink",
+                        "flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 px-2 text-body font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:border-line disabled:bg-sunk disabled:text-ink-3",
+                        pay === p ? "border-ink bg-ink text-white" : "border-line-2 text-ink-2 hover:text-ink",
                       )}
                     >
-                      <Icon size={15} aria-hidden /> {PAY_LABEL[p]}
+                      <Icon size={18} aria-hidden /> {PAY_LABEL[p]}
                     </button>
                   );
                 })}
               </div>
             </div>
-
             {creditProblem && (
-              <div className="rounded-xl border border-warn/30 bg-warn-bg p-3 text-[13px] text-warn">
+              <div className="rounded-xl border border-warn/30 bg-warn-bg p-4 text-small text-warn">
                 <div className="flex gap-2 font-semibold">
-                  <AlertTriangle size={15} className="mt-0.5 shrink-0" /> Credit hold: {creditProblem}
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden /> Over the credit limit: {creditProblem}
                 </div>
                 {admin ? (
-                  <label className="mt-1.5 ml-6 flex cursor-pointer items-center gap-2 text-ink">
-                    <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="accent-ink" />
+                  <label className="mt-2 ml-6 flex min-h-11 cursor-pointer items-center gap-3 text-ink">
+                    <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="h-5 w-5 accent-ink" />
                     Manager approved this order
                   </label>
                 ) : (
-                  <p className="mt-1 ml-6 text-ink-2">Only the owner can approve an order past a credit hold.</p>
+                  <p className="mt-1 ml-6 text-ink-2">Only the owner can approve an order over the credit limit.</p>
                 )}
               </div>
             )}
-          </div>
-
-          {/* Checkout stays in view at the bottom of the panel however long the order gets. */}
-          <div className="sticky bottom-0 border-t border-line bg-panel px-5 pt-3 pb-5">
             <button className="btn btn-primary btn-lg w-full" disabled={!canPlace} onClick={submit}>
               {mode === "WALK_IN" ? `Checkout ${money(totals.total)}` : `Place order for ${dayShort(keyToTs(date)).split(",")[0]}, ${money(totals.total)}`}
             </button>
-            {mode === "DELIVERY" && !client && cart.length > 0 && <p className="mt-2 text-[12.5px] text-ink-3">Choose the customer account to price and place this order.</p>}
+            {cart.length === 0 && <p className="mt-2 text-center hint">Add products to check out.</p>}
+            {mode === "DELIVERY" && !client && cart.length > 0 && <p className="mt-2 hint">Choose the customer account to price and place this order.</p>}
           </div>
         </aside>
       </div>
@@ -574,7 +577,7 @@ export default function Counter() {
       {/* Below xl the order sits under the products, so phones and tablets get a shortcut to it. */}
       {cart.length > 0 && (
         <button
-          className="btn btn-dark fixed inset-x-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 h-12 justify-between rounded-xl px-4 text-[15px] shadow-lg lg:bottom-4 xl:hidden"
+          className="btn btn-dark fixed inset-x-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 h-12 justify-between rounded-xl px-4 text-body shadow-lg lg:bottom-4 xl:hidden"
           onClick={() => orderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
         >
           <span>View order, {units(items, "item")}</span>
@@ -590,10 +593,10 @@ export default function Counter() {
         footer={
           <>
             <button className="btn btn-ghost" onClick={() => window.print()}>
-              <Printer size={16} /> Print
+              <Printer size={18} aria-hidden /> Print
             </button>
             <button className="btn btn-ghost" onClick={() => setSending(true)}>
-              <Send size={16} /> Send receipt
+              <Send size={18} aria-hidden /> Send receipt
             </button>
             <button className="btn btn-primary" onClick={reset}>
               Start next order
@@ -633,7 +636,7 @@ function AccountPicker({
 }) {
   return (
     <Field label={label}>
-      <select className="input h-10 text-[15px]" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{empty}</option>
         {[...new Set(accounts.map((c) => c.routeId))].map((rid) => (
           <optgroup key={rid} label={routeName(rid) ?? "Other"}>

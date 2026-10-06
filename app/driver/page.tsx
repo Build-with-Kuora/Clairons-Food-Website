@@ -6,7 +6,7 @@ import { ExceptionForm, PodForm } from "@/components/Pod";
 import { Logo } from "@/components/Logo";
 import { StatusPill, cx } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { clock, dateKey, tempBare, units } from "@/lib/format";
+import { clock, dateKey, temp, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
@@ -47,17 +47,17 @@ export default function Driver() {
   if (!route && !rider) {
     return (
       <Frame>
-        <h1 className="display mt-6 text-[30px] font-semibold">Who are you driving as?</h1>
-        <p className="mt-1 text-[15px] text-ink-2">Pick your van route or your name to see today&rsquo;s stops.</p>
-        <h2 className="mt-5 text-[14px] font-semibold text-ink-3">Ref vans</h2>
+        <h1 className="display mt-6 text-figure font-semibold">Who are you driving as?</h1>
+        <p className="mt-1 text-body text-ink-2">Pick your van route or your name to see today&rsquo;s stops.</p>
+        <h2 className="mt-5 text-small font-semibold text-ink-3">Ref vans</h2>
         <ul className="mt-2 space-y-3">
           {routes.map((r) => {
             const n = deliveries.filter((d) => d.routeId === r.id && !d.riderId && d.date === today).length;
             return (
               <li key={r.id}>
                 <button onClick={() => chooseRoute(r.id)} className="w-full cursor-pointer rounded-xl border border-line bg-panel p-4 text-left hover:border-ink-3">
-                  <div className="display text-[22px] font-semibold">{r.name}</div>
-                  <div className="text-[15px] text-ink-2">
+                  <div className="display text-title font-semibold">{r.name}</div>
+                  <div className="text-body text-ink-2">
                     {r.truck}, {r.driver}, {n} stops
                   </div>
                 </button>
@@ -65,7 +65,7 @@ export default function Driver() {
             );
           })}
         </ul>
-        <h2 className="mt-6 text-[14px] font-semibold text-ink-3">Motorbike riders</h2>
+        <h2 className="mt-6 text-small font-semibold text-ink-3">Motorbike riders</h2>
         <ul className="mt-2 mb-10 space-y-3">
           {riders
             .filter((r) => r.active)
@@ -74,8 +74,8 @@ export default function Driver() {
               return (
                 <li key={r.id}>
                   <button onClick={() => chooseRoute(r.id)} className="w-full cursor-pointer rounded-xl border border-line bg-panel p-4 text-left hover:border-ink-3">
-                    <div className="display text-[22px] font-semibold">{r.name}</div>
-                    <div className="text-[15px] text-ink-2">
+                    <div className="display text-title font-semibold">{r.name}</div>
+                    <div className="text-body text-ink-2">
                       {r.bike}, {n} stops
                     </div>
                   </button>
@@ -106,19 +106,19 @@ export default function Driver() {
           <ChevronLeft size={16} /> Routes
         </button>
         {route && box && (
-          <span className={cx("flex items-center gap-1 text-[15px] font-semibold", box.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink")}>
-            <Thermometer size={16} /> Box {tempBare(box.c)}C
+          <span className={cx("flex items-center gap-1 text-body font-semibold", box.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink")}>
+            <Thermometer size={18} aria-hidden /> Van temperature {temp(box.c)}
           </span>
         )}
       </div>
-      <h1 className="display text-[28px] leading-tight font-semibold">{route ? route.name : rider!.name}</h1>
-      <p className="text-[15px] text-ink-2">
+      <h1 className="display text-heading leading-tight font-semibold">{route ? route.name : rider!.name}</h1>
+      <p className="text-body text-ink-2">
         {route ? route.truck : rider!.bike}. {done.length} of {stops.length} stops done.
       </p>
 
       {rider && loaded > 0 && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
-          <p className="text-[15px]">{loaded === 1 ? "1 stop is packed and waiting for you." : `${loaded} stops are packed and waiting for you.`}</p>
+          <p className="text-body">{loaded === 1 ? "1 stop is packed and waiting for you." : `${loaded} stops are packed and waiting for you.`}</p>
           <button
             className="btn btn-primary btn-lg mt-3 w-full"
             onClick={() => {
@@ -133,7 +133,7 @@ export default function Driver() {
 
       {route && !run?.departedAt && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
-          <p className="text-[15px]">
+          <p className="text-body">
             {loaded} of {stops.length} stops are loaded. {stops.length - loaded > 0 && "The rest are still being picked."}
           </p>
           <button
@@ -151,20 +151,20 @@ export default function Driver() {
 
       {current && c && o && mode === "list" && (
         <div className="mt-4 overflow-hidden rounded-xl border-2 border-ink bg-white">
-          <div className="bg-ink px-4 py-2 text-[14px] font-semibold text-white">
-            {current.status === "ARRIVED" ? "You are here" : `Next stop, ${current.eta ? `ETA ${clock(current.eta)}` : "en route"}`}
+          <div className="bg-ink px-4 py-2 text-small font-semibold text-white">
+            {current.status === "ARRIVED" ? "You are here" : `Next stop, ${current.eta ? `expected ${clock(current.eta)}` : "en route"}`}
           </div>
           <div className="p-4">
-            <div className="text-[13px] text-ink-3">Stop {current.seq}</div>
-            <div className="display text-[26px] leading-tight font-semibold">{c.name}</div>
-            <div className="mt-1 flex items-start gap-1.5 text-[16px]">
+            <div className="text-caption text-ink-3">Stop {current.seq}</div>
+            <div className="display text-heading leading-tight font-semibold">{c.name}</div>
+            <div className="mt-1 flex items-start gap-1.5 text-body">
               <MapPin size={18} className="mt-0.5 shrink-0 text-ink-3" />
               {c.address}, {c.city}
             </div>
-            <div className="mt-1 text-[15px] text-ink-2">Window {c.window}. {units(o.lines.reduce((s, l) => s + l.qty, 0), commonUnit(o.lines.map((l) => maps.product.get(l.sku))))}.</div>
-            {current.note && <p className="mt-3 rounded-lg border-2 border-ink p-3 text-[15px]"><span className="font-semibold">From dispatch:</span> {current.note}</p>}
-            <p className="mt-3 rounded-lg bg-sunk p-3 text-[15px]">{c.dockNote}</p>
-            {o.payMethod === "COD" && !o.paid && <p className="mt-2 rounded-lg bg-warn-bg p-3 text-[15px] font-semibold text-warn">Collect payment before unloading.</p>}
+            <div className="mt-1 text-body text-ink-2">Window {c.window}. {units(o.lines.reduce((s, l) => s + l.qty, 0), commonUnit(o.lines.map((l) => maps.product.get(l.sku))))}.</div>
+            {current.note && <p className="mt-3 rounded-lg border-2 border-ink p-3 text-body"><span className="font-semibold">From dispatch:</span> {current.note}</p>}
+            <p className="mt-3 rounded-lg bg-sunk p-3 text-body">{c.dockNote}</p>
+            {o.payMethod === "COD" && !o.paid && <p className="mt-2 rounded-lg bg-warn-bg p-3 text-body font-semibold text-warn">Collect payment before unloading.</p>}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <a className="btn btn-ghost btn-lg" href={`tel:${c.phone.replace(/\D/g, "")}`}>
                 <Phone size={18} /> Call
@@ -191,43 +191,43 @@ export default function Driver() {
 
       {current && c && o && mode === "pod" && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
-          <h2 className="display mb-3 text-[24px] font-semibold">{c.name}</h2>
+          <h2 className="display mb-3 text-heading font-semibold">{c.name}</h2>
           <PodForm big delivery={current} order={o} by={me} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
         </div>
       )}
 
       {current && c && mode === "problem" && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-4">
-          <h2 className="display mb-3 text-[24px] font-semibold">Problem at {c.name}</h2>
+          <h2 className="display mb-3 text-heading font-semibold">Problem at {c.name}</h2>
           <ExceptionForm delivery={current} by={me} onDone={() => setMode("list")} onCancel={() => setMode("list")} />
         </div>
       )}
 
       {!current && (run?.departedAt || (rider && stops.length > 0 && loaded === 0)) && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-5 text-center">
-          <div className="display text-[24px] font-semibold">{done.length === stops.length ? "Route complete" : "No stop in progress"}</div>
-          <p className="mt-1 text-[15px] text-ink-2">{done.length === stops.length ? route ? "Head back to the dock and plug in the ref van." : "Head back to the dock." : "Ask dispatch to release your next stop."}</p>
+          <div className="display text-heading font-semibold">{done.length === stops.length ? "Route complete" : "No stop in progress"}</div>
+          <p className="mt-1 text-body text-ink-2">{done.length === stops.length ? route ? "Head back to the dock and plug in the ref van." : "Head back to the dock." : "Ask dispatch to release your next stop."}</p>
         </div>
       )}
 
-      <h2 className="mt-6 mb-2 text-[15px] font-semibold text-ink-2">All stops</h2>
+      <h2 className="mt-6 mb-2 text-body font-semibold text-ink-2">All stops</h2>
       <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-panel">
         {stops.map((d) => {
           const cl = maps.client.get(d.clientId)!;
           const at = d.pod?.at ?? d.exception?.at;
           return (
             <li key={d.id} className={cx("flex items-center gap-3 px-4 py-3", current?.id === d.id && "bg-accent-bg/60")}>
-              <span className="display w-6 text-[20px] font-semibold text-ink-3">{d.seq}</span>
+              <span className="display w-6 text-title font-semibold text-ink-3">{d.seq}</span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[15.5px] font-semibold">{cl.name}</div>
-                <div className="text-[13.5px] text-ink-3">{at ? `Done ${clock(at)}` : cl.window}</div>
+                <div className="truncate text-body font-semibold">{cl.name}</div>
+                <div className="text-small text-ink-3">{at ? `Done ${clock(at)}` : cl.window}</div>
               </div>
               <StatusPill status={d.status} />
             </li>
           );
         })}
       </ol>
-      <p className="mt-4 mb-10 text-center text-[13px] text-ink-3">Updates sync to the dispatch board as you go.</p>
+      <p className="mt-4 mb-10 text-center text-caption text-ink-3">Updates sync to the dispatch board as you go.</p>
     </Frame>
   );
 }
@@ -240,7 +240,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 py-2.5">
           <Logo height={26} />
 
-          <span className="text-[14px] text-ink-3">Driver</span>
+          <span className="text-small text-ink-3">Driver</span>
           <button className="btn btn-quiet btn-sm ml-auto" onClick={logOut}>
             <LogOut size={14} aria-hidden /> Log out
           </button>

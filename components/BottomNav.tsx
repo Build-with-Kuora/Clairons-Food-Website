@@ -55,30 +55,30 @@ export function BottomNav() {
             className="rise fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 mx-2 mb-2 rounded-2xl border border-line bg-panel p-2 shadow-lg"
           >
             <div className="flex items-center justify-between px-2 pt-1 pb-2">
-              <span className="text-[13px] font-semibold tracking-[0.06em] text-ink-3 uppercase">{menuLabel}</span>
-              <button className="btn btn-quiet btn-sm px-2" onClick={() => setOpen(false)} aria-label="Close">
-                <X size={16} />
+              <span className="text-lead font-semibold">{menuLabel}</span>
+              <button className="btn btn-quiet btn-sm" onClick={() => setOpen(false)}>
+                <X size={20} aria-hidden /> Close
               </button>
             </div>
             {menu.map((s) => (
               <Link
                 key={s.href}
                 href={s.href}
-                className={cx("flex items-center gap-3 rounded-xl px-3 py-2.5", isActive(path, s.href) ? "bg-brand text-white" : "hover:bg-sunk")}
+                className={cx("flex min-h-14 items-center gap-3 rounded-xl px-3 py-2.5", isActive(path, s.href) ? "bg-brand text-white" : "hover:bg-sunk")}
               >
                 <s.icon size={20} aria-hidden />
                 <span className="leading-tight">
-                  <span className="block text-[15px] font-semibold">{s.label}</span>
-                  <span className={cx("block text-[13px]", isActive(path, s.href) ? "text-white/70" : "text-ink-3")}>{s.sub}</span>
+                  <span className="block text-body font-semibold">{s.label}</span>
+                  <span className={cx("block text-small", isActive(path, s.href) ? "text-white/85" : "text-ink-2")}>{s.sub}</span>
                 </span>
               </Link>
             ))}
             <div className="my-1 border-t border-line" />
-            <button onClick={logOut} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-sunk">
+            <button onClick={logOut} className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-sunk">
               <LogOut size={20} aria-hidden />
               <span className="leading-tight">
-                <span className="block text-[15px] font-semibold">Log out</span>
-                <span className="block truncate text-[13px] text-ink-3">{user?.email}</span>
+                <span className="block text-body font-semibold">Log out</span>
+                <span className="block truncate text-small text-ink-2">{user?.email}</span>
               </span>
             </button>
           </div>
@@ -96,7 +96,7 @@ export function BottomNav() {
           <span className={cx("-mt-5 flex h-12 w-12 items-center justify-center rounded-full border-4 border-panel shadow-md", path === "/" ? "bg-brand text-white" : "bg-ink text-white")}>
             <LayoutDashboard size={22} aria-hidden />
           </span>
-          <span className={cx("text-[12px] font-semibold", path === "/" ? "text-ink" : "text-ink-3")}>Home</span>
+          <span className={cx("text-caption font-semibold", path === "/" ? "text-ink" : "text-ink-2")}>Home</span>
         </Link>
         {SIDE_RIGHT.map((n) => (
           <Tab key={n.href} href={n.href} label={n.label} icon={n.icon} active={isActive(path, n.href)} />
@@ -105,10 +105,10 @@ export function BottomNav() {
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-haspopup="dialog"
-          className={cx("flex h-16 cursor-pointer flex-col items-center justify-center gap-1", salesActive || open ? "text-ink" : "text-ink-3")}
+          className={cx("flex h-16 cursor-pointer flex-col items-center justify-center gap-1", salesActive || open ? "text-ink" : "text-ink-2")}
         >
-          <Wallet size={20} aria-hidden className={salesActive ? "text-brand" : undefined} />
-          <span className="text-[12px] font-semibold">{menuLabel}</span>
+          <Wallet size={22} aria-hidden className={salesActive ? "text-brand" : undefined} />
+          <span className="text-caption font-semibold">{menuLabel}</span>
         </button>
       </nav>
     </div>
@@ -117,9 +117,9 @@ export function BottomNav() {
 
 function Tab({ href, label, icon: Icon, active }: { href: string; label: string; icon: typeof Boxes; active: boolean }) {
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} className={cx("flex h-16 flex-col items-center justify-center gap-1", active ? "text-ink" : "text-ink-3")}>
-      <Icon size={20} aria-hidden className={active ? "text-brand" : undefined} />
-      <span className="text-[12px] font-semibold">{label}</span>
+    <Link href={href} aria-current={active ? "page" : undefined} className={cx("flex h-16 flex-col items-center justify-center gap-1", active ? "text-ink" : "text-ink-2")}>
+      <Icon size={22} aria-hidden className={active ? "text-brand" : undefined} />
+      <span className="text-caption font-semibold">{label}</span>
     </Link>
   );
 }
