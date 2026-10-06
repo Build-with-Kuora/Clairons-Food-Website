@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Dashboard } from "./Dashboard";
 import { Boot, BootedContext } from "./Shell";
 
-const APP_TITLE = "Coldline | Clairon's Foods";
+const APP_TITLE = "Clairon's Food";
 
 /**
  * Picks what / shows. Logins live in the browser, so the server always sends the landing page. Until the

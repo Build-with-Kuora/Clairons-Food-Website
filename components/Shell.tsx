@@ -166,7 +166,7 @@ export default function Shell({ children }: { children: ReactNode }) {
     <div className="app-frame flex min-h-screen bg-page md:bg-side">
       <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col bg-side text-side-ink transition-[width] duration-200 md:flex", compact ? "w-[92px]" : "w-[264px]")}>
         <div className={cx("flex items-center gap-2 border-b border-white/10 py-5", compact ? "flex-col px-3" : "justify-between px-5")}>
-          <Link href="/" className="block rounded-xl bg-white px-2.5 py-2" aria-label="Clairon's Food Coldline, go to the dashboard">
+          <Link href="/" className="block rounded-xl bg-white px-2.5 py-2" aria-label="Clairon's Food, go to the dashboard">
             <Logo height={compact ? 22 : 38} />
           </Link>
           <button

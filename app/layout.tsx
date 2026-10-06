@@ -22,8 +22,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Coldline | Clairon's Foods",
-  description: "Order entry, cold-storage inventory and delivery tracking for Clairon's Foods.",
+  title: "Clairon's Food",
+  description: "Order entry, cold-storage inventory and delivery tracking for Clairon's Food.",
 };
 
 // Cover the whole screen so the phone bottom bar can pad for the home indicator.
