@@ -125,6 +125,18 @@ body {
   color: var(--color-ink);
 }
 
+/* Home before the app loads: the script in app/layout.tsx marks a saved login with data-auth, so a
+   logged-in owner sees the loading line instead of a flash of the landing page (components/HomeGate.tsx). */
+.home-boot {
+  display: none;
+}
+html[data-auth="in"] .home-public {
+  display: none;
+}
+html[data-auth="in"] .home-boot {
+  display: block;
+}
+
 /* 5. Components ---------------------------------------------------------- */
 @layer components {
   /* Buttons. 44px tall by default so they are easy to hit; disabled buttons go grey rather than see-through,

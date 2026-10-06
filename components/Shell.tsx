@@ -3,7 +3,7 @@
 import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, ReceiptText, RotateCcw, ScanBarcode, Search, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, createContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AUTH_KEY, ROLE_LABEL, canOpen, homeFor, useAuth, type Role } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { clock, dayLong } from "@/lib/format";
@@ -61,11 +61,12 @@ function useBoot() {
 }
 
 /**
- * Where to send someone who may not see this path. Logged out goes to /login, and comes back to the
- * store page they were on after logging in. Anyone else goes to their home page.
+ * Where to send someone who may not see this path. Logged out goes to the landing page at /, or to /login
+ * from the store, coming back to the store page they were on after logging in. Anyone else goes to their
+ * home page.
  */
 function redirectFor(path: string, role: Role | undefined) {
-  if (!role) return canOpen(role, path) ? null : path.startsWith("/shop") ? `/login?next=${encodeURIComponent(path)}` : "/login";
+  if (!role) return canOpen(role, path) ? null : path.startsWith("/shop") ? `/login?next=${encodeURIComponent(path)}` : "/";
   if (path.startsWith("/login")) return nextFrom(role) ?? homeFor(role);
   if (!canOpen(role, path)) return homeFor(role);
   return null;
@@ -102,7 +103,11 @@ export default function Shell({ children }: { children: ReactNode }) {
   const to = ready ? redirectFor(path, user?.role) : null;
   const show = ready && !to;
   // Pages read their ?id= / ?sku= links with useSearchParams, which needs a Suspense boundary.
-  const page = <Suspense fallback={<Boot />}>{children}</Suspense>;
+  const page = (
+    <BootedContext value={ready}>
+      <Suspense fallback={<Boot />}>{children}</Suspense>
+    </BootedContext>
+  );
 
   useEffect(() => {
     if (to) router.replace(to);
@@ -118,8 +123,19 @@ export default function Shell({ children }: { children: ReactNode }) {
     );
   }
 
-  // The public landing and contact pages read no store data, so they render without waiting for boot.
-  if (path.startsWith("/landing") || path.startsWith("/contact")) return <>{children}</>;
+  // The public contact page reads no store data, so it renders without waiting for boot.
+  if (path.startsWith("/contact")) return <>{children}</>;
+
+  // Home is the landing page until someone logs in. Before the app loads, HomeGate decides what shows.
+  // No Suspense here: it would ship the landing page hidden behind the loading line.
+  if (path === "/" && !(ready && user)) {
+    return (
+      <>
+        <BootedContext value={ready}>{children}</BootedContext>
+        <Toaster />
+      </>
+    );
+  }
 
   // The driver handheld and the online store bring their own header.
   if (path.startsWith("/driver") || path.startsWith("/shop")) {
@@ -318,7 +334,10 @@ function useCollapsed() {
   return [collapsed, setCollapsed] as const;
 }
 
-function Boot() {
+/** True once the saved store and login have loaded in this browser. */
+export const BootedContext = createContext(false);
+
+export function Boot() {
   return <div className="p-10 text-lead text-ink-2">Loading this morning&rsquo;s stock and routes…</div>;
 }
 

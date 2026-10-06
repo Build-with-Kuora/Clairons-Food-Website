@@ -2,14 +2,15 @@ import { Bike, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { PublicFrame } from "@/components/landing/PublicFrame";
-import { NextDeliveryStamp } from "@/components/landing/NextDeliveryStamp";
+import { PublicFrame } from "./PublicFrame";
+import { NextDeliveryStamp } from "./NextDeliveryStamp";
 import { money0 } from "@/lib/format";
 import { DROP_FEE, DROP_MIN, FUEL_FEE, SERVICE_AREAS } from "@/lib/logic";
 import { ROUTES } from "@/lib/seed";
 
 
-export const metadata: Metadata = {
+/** Title and description for search engines; used by the home page, which shows this page to logged-out visitors. */
+export const LANDING_METADATA: Metadata = {
   title: "Clairon's Food | Frozen siopao, siomai and merienda, delivered in Metro Manila",
   description: "Clairon's Food makes siopao, siomai, fishballs, tocino and more, and delivers them frozen, Monday to Saturday.",
 };
@@ -47,7 +48,8 @@ const SWEET: Item[] = [
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const CITIES = Object.keys(SERVICE_AREAS);
 
-export default function LandingPage() {
+/** The public home page (spec 11). Shown at / to anyone not logged in. */
+export function LandingPage() {
   return (
     <PublicFrame page="home">
       <Hero />
