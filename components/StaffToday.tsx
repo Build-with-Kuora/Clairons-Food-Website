@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, Factory, PackageSearch, PauseCircle, Snowflake } from "lucide-react";
+import { AlertTriangle, CalendarClock, Factory, PackageCheck, PackageSearch, PauseCircle, Snowflake, Truck } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { clock, dateTime, daysUntil, startOfDay, units } from "@/lib/format";
@@ -9,7 +9,7 @@ import { STATUS_LABEL, carrierOf, isFreezing, readyAt, runKey, toMake } from "@/
 import { useStore } from "@/lib/store";
 import { AttentionList } from "./AttentionList";
 import { RoutesPanel } from "./RoutesPanel";
-import { PageHead, cx } from "./ui";
+import { Badge, PageHead, Stat } from "./ui";
 
 /**
  * Home for staff (counter, warehouse, production, dispatch): today's work queue.
@@ -37,36 +37,29 @@ export function StaffToday() {
   const name = (sku: string) => maps.product.get(sku)?.name ?? sku;
   const unit = (sku: string) => maps.product.get(sku)?.unit ?? "unit";
 
-  const figures = [
-    { label: "To pick and load", value: String(toLoad.length), sub: "Stops leaving today" },
-    { label: "Stops delivered", value: `${done} of ${stopsToday.length}`, sub: exceptions.length ? `${exceptions.length} with a problem` : "No problems", alert: exceptions.length > 0 },
-    { label: "Trucks out", value: `${trucksOut} of ${routes.length}`, sub: "Ref vans on the road now" },
-    { label: "Move to freezer", value: String(frozen.length), sub: `${blast.length - frozen.length} lots still blast freezing` },
-  ];
-
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="mx-auto max-w-[1500px]">
       <PageHead
         title="Today's work"
         sub="What needs doing in the building and on the road."
         actions={
-          <>
-            <Link href="/production" className="btn btn-ghost">
-              <Factory size={16} /> Record batch
-            </Link>
-            <Link href="/counter" className="btn btn-primary">New order</Link>
-          </>
+          <Link href="/production" className="btn btn-ghost">
+            <Factory size={16} /> Record batch
+          </Link>
         }
       />
 
-      <div className="mb-5 grid grid-cols-2 overflow-hidden rounded-[10px] border border-line bg-panel md:grid-cols-4">
-        {figures.map((f, i) => (
-          <div key={f.label} className={cx("px-4 py-3", i > 0 && "md:border-l", i % 2 === 1 && "border-l", i > 1 && "border-t md:border-t-0", "border-line")}>
-            <div className="text-[13px] text-ink-3">{f.label}</div>
-            <div className="display mt-0.5 text-[34px] leading-none font-semibold">{f.value}</div>
-            <div className={cx("mt-1 text-[13px]", f.alert ? "font-semibold text-bad" : "text-ink-3")}>{f.sub}</div>
-          </div>
-        ))}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <Stat dark icon={<PackageSearch size={20} />} label="To pick and load" value={String(toLoad.length)} href="/dispatch" foot="Stops leaving today" />
+        <Stat
+          icon={<PackageCheck size={20} />}
+          label="Stops delivered"
+          value={`${done} of ${stopsToday.length}`}
+          href="/dispatch"
+          foot={exceptions.length ? <Badge tone="bad">{exceptions.length} with a problem</Badge> : "No problems"}
+        />
+        <Stat icon={<Truck size={20} />} label="Trucks out" value={`${trucksOut} of ${routes.length}`} href="/dispatch" foot="Ref vans on the road now" />
+        <Stat icon={<Snowflake size={20} />} label="Move to freezer" value={String(frozen.length)} href="/inventory?tab=lots" foot={`${blast.length - frozen.length} lots still blast freezing`} />
       </div>
 
       <div className="mb-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">

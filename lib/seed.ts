@@ -1,5 +1,5 @@
 import { DAY, HOUR, MIN, dateKey, lotCode, startOfDay } from "./format";
-import { ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey, zoneOfBin } from "./logic";
+import { WALK_IN, ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey, zoneOfBin } from "./logic";
 import type {
   Alloc,
   Batch,
@@ -137,6 +137,7 @@ const BUYS: Record<Client["type"], Category[]> = {
   Hotel: ["Seafood", "Pork", "Bakery", "Desserts", "Dimsum", "Chiller", "Tocino & longganisa"],
   "Convenience store": ["Dimsum", "Streetfood", "Desserts", "Tocino & longganisa"],
   "Online customer": ["Dimsum", "Streetfood", "Tocino & longganisa", "Desserts"],
+  "Walk-in": ["Dimsum", "Streetfood", "Tocino & longganisa", "Desserts", "Fries"],
 };
 
 const BIG: Client["type"][] = ["Supermarket", "School canteen", "Hospital", "Hotel", "Convenience store"];
@@ -493,6 +494,23 @@ export function buildSeed(now = Date.now()): Data {
     }
   }
 
+  // Walk-in counter sales, a few a day, most without a name.
+  const WALK_IN_NAMES = ["Ate Joy", "Kuya Ramil", "Mrs. Dizon", "Carlo", "Aling Bebang"];
+  const walkIn = (at: number) => {
+    const o = makeOrder(WALK_IN, at, "PICKUP", false);
+    o.payMethod = r() < 0.6 ? "CASH" : r() < 0.7 ? "GCASH" : "CARD";
+    o.paid = true;
+    o.status = "FULFILLED";
+    if (r() < 0.35) o.buyerName = pick(WALK_IN_NAMES);
+    for (const l of o.lines)
+      for (const a of l.allocs) movements.push({ id: mvId(), at, sku: l.sku, lotCode: a.lotCode, type: "PICKUP", qty: -a.qty, ref: o.number, by: "Counter 1" });
+  };
+  for (let back = 13; back >= 1; back--) {
+    const d = today - back * DAY;
+    if (new Date(d).getDay() === 0) continue;
+    for (let i = int(1, 3); i > 0; i--) walkIn(d + int(8, 17) * HOUR + int(0, 59) * MIN);
+  }
+
   // Today: orders placed yesterday, on the trucks now.
   type Plan = { client: string; status: DeliveryStatus; at?: number; eta?: number; rider?: Rider };
   const yesterday = today - DAY;
@@ -596,6 +614,7 @@ export function buildSeed(now = Date.now()): Data {
       for (const a of l.allocs) movements.push({ id: mvId(), at, sku: l.sku, lotCode: a.lotCode, type: "PICKUP", qty: -a.qty, ref: o.number, by: "Counter 1" });
   }
 
+  walkIn(Math.min(now - 25 * MIN, Math.max(today + 7.5 * HOUR, now - 0.4 * HOUR)));
   // Orders taken today for tomorrow's trucks
   const tomorrowStart = startOfDay(today + DAY + 2 * HOUR);
   ["c-wahlee", "c-lucky", "c-sampaguita", "c-maginhawa", "c-lorenzo"].forEach((cid, i) => {
@@ -640,7 +659,7 @@ export function buildSeed(now = Date.now()): Data {
     products,
     lots,
     movements,
-    clients,
+    clients: [...clients, WALK_IN],
     orders,
     deliveries,
     routes: ROUTES,

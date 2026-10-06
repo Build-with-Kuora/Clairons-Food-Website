@@ -1,18 +1,30 @@
 "use client";
 
-import { AlertTriangle, History, Minus, Plus, Printer, Search, Send, Trash2, X } from "lucide-react";
+import { AlertTriangle, Banknote, CreditCard, FileCheck2, History, Landmark, Minus, Plus, Printer, Search, Send, Smartphone, Store, Trash2, Truck, Wallet, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CategoryTile } from "@/components/CategoryTile";
 import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
-import { Badge, Field, Kbd, Modal, PageHead, cx } from "@/components/ui";
+import { Badge, Field, Kbd, Modal, cx } from "@/components/ui";
 import { useIsAdmin } from "@/lib/auth";
-import { dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
-import { useMaps, useStock } from "@/lib/hooks";
-import { DROP_MIN, PAY_LABEL, TERMS_LABEL, ZONES, allocateFEFO, deliveryDays, casePrice, orderTotals, priceLines, priceUnit } from "@/lib/logic";
+import { dayLong, dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
+import { useMaps, useNow, useStock } from "@/lib/hooks";
+import { DROP_MIN, PAY_LABEL, TERMS_LABEL, WALK_IN, WALK_IN_ID, allocateFEFO, buyerName, casePrice, deliveryDays, isWalkIn, orderTotals, priceLines, priceUnit, vatSplit } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Order, PayMethod } from "@/lib/types";
 
 const CATS: (Category | "All")[] = ["All", "Dimsum", "Streetfood", "Tocino & longganisa", "Pork", "Poultry", "Seafood", "Desserts", "Bakery", "Fries", "Chiller"];
+
+type Mode = "WALK_IN" | "DELIVERY";
+
+const PAY_ICON: Record<PayMethod, typeof Banknote> = {
+  CASH: Banknote,
+  GCASH: Smartphone,
+  CARD: CreditCard,
+  CHECK: FileCheck2,
+  ACCOUNT: Landmark,
+  COD: Wallet,
+};
 
 export default function Counter() {
   const allProducts = useStore((s) => s.products);
@@ -24,14 +36,17 @@ export default function Counter() {
   const placeOrder = useStore((s) => s.placeOrder);
   const toast = useUi((s) => s.toast);
   const maps = useMaps();
+  const now = useNow(60_000);
   const { rows, reserved } = useStock();
 
-  // A client handed over from the Clients page arrives through the UI store.
-  const [clientId, setClientId] = useState<string>(() => useUi.getState().counterClientId ?? "");
+  // A client handed over from the Customers page arrives through the UI store and starts a delivery order.
+  const [handoff] = useState(() => useUi.getState().counterClientId ?? "");
+  const [mode, setMode] = useState<Mode>(handoff ? "DELIVERY" : "WALK_IN");
+  const [clientId, setClientId] = useState<string>(handoff);
+  const [buyer, setBuyer] = useState("");
   const [cart, setCart] = useState<{ sku: string; qty: number }[]>([]);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
-  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
   const [days] = useState(() => deliveryDays(Date.now(), 6));
   const [date, setDate] = useState(days[0]);
   const [payChoice, setPayChoice] = useState<PayMethod | null>(null);
@@ -43,17 +58,25 @@ export default function Counter() {
   const [done, setDone] = useState<Order | null>(null);
   const [sending, setSending] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const orderRef = useRef<HTMLElement>(null);
 
-  const client = clients.find((c) => c.id === clientId);
+  const fulfillment = mode === "WALK_IN" ? "PICKUP" : "DELIVERY";
+  const accounts = useMemo(() => clients.filter((c) => !isWalkIn(c)), [clients]);
+  // A walk-in with no account picked is sold to the built-in walk-in account.
+  const walkIn = clients.find((c) => c.id === WALK_IN_ID) ?? WALK_IN;
+  const picked = accounts.find((c) => c.id === clientId);
+  const client = picked ?? (mode === "WALK_IN" ? walkIn : undefined);
+  const anonymous = isWalkIn(client);
   const tier = client?.tier ?? "C";
 
   useEffect(() => {
     useUi.getState().setCounterClient(undefined);
   }, []);
 
-  // First option is the sensible default for the account's terms.
-  const payOptions: PayMethod[] =
-    client?.terms === "COD"
+  // First option is the sensible default for the account's terms. Anonymous walk-ins pay now.
+  const payOptions: PayMethod[] = anonymous
+    ? ["CASH", "GCASH", "CARD"]
+    : client?.terms === "COD"
       ? fulfillment === "DELIVERY"
         ? ["COD", "GCASH", "CARD", "CHECK"]
         : ["CASH", "GCASH", "CARD", "CHECK"]
@@ -87,6 +110,8 @@ export default function Counter() {
   const priced = client ? priceLines(products, client, cart) : [];
   const subtotal = priced.reduce((s, l) => s + l.lineTotal, 0);
   const totals = orderTotals(subtotal, fulfillment);
+  const vat = vatSplit(totals.total).vat;
+  const items = cart.reduce((s, l) => s + l.qty, 0);
 
   const shortLines = cart.filter((l) => l.qty > (rows.get(l.sku)?.available ?? 0));
   const creditAfter = client ? client.balance + (pay === "ACCOUNT" ? totals.total : 0) : 0;
@@ -100,8 +125,8 @@ export default function Counter() {
       : null;
   const canPlace = !!client && cart.length > 0 && shortLines.length === 0 && (!creditProblem || override);
 
-  const lastOrder = client
-    ? orders.filter((o) => o.clientId === client.id && o.status !== "CANCELLED").sort((a, b) => b.createdAt - a.createdAt)[0]
+  const lastOrder = picked
+    ? orders.filter((o) => o.clientId === picked.id && o.status !== "CANCELLED").sort((a, b) => b.createdAt - a.createdAt)[0]
     : undefined;
 
   function add(sku: string, n = 1) {
@@ -127,40 +152,63 @@ export default function Counter() {
     }
   }
 
+  function switchMode(m: Mode) {
+    setMode(m);
+    setPayChoice(null);
+    setOverride(false);
+  }
+
   function submit() {
     if (!client) return;
-    const res = placeOrder({ clientId: client.id, lines: cart, fulfillment, date, payMethod: pay, clientPo, notes, by: "Counter 1" });
+    const res = placeOrder({
+      clientId: client.id,
+      lines: cart,
+      fulfillment,
+      date,
+      payMethod: pay,
+      clientPo,
+      notes,
+      by: "Counter 1",
+      buyerName: anonymous ? buyer : undefined,
+    });
     if (!res.ok) {
       toast(res.error, "warn");
       return;
     }
     setDone(res.order);
-    toast(`${res.order.number} placed for ${client.name}`);
+    toast(`${res.order.number} ${fulfillment === "PICKUP" ? "paid" : "placed"} for ${buyerName(res.order, client)}`);
   }
 
   function reset() {
     setDone(null);
     setCart([]);
+    setBuyer("");
     setClientPo("");
     setNotes("");
     setOverride(false);
     setExtras(false);
   }
 
-  return (
-    <div className="mx-auto max-w-[1500px]">
-      <PageHead title="Counter" sub="Phone, fax and walk-in orders. Stock is reserved first-expired, first-out when you place the order." />
+  const doneClient = done ? maps.client.get(done.clientId) ?? walkIn : undefined;
 
-      <div className="grid items-start gap-5 xl:grid-cols-[1fr_440px]">
+  return (
+    <div className={cx("mx-auto max-w-[1500px]", cart.length > 0 && "pb-16 xl:pb-0")}>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         {/* ---------- Catalog ---------- */}
         <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <div className="relative min-w-[260px] flex-1">
-              <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" />
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="text-[14px] text-ink-3" suppressHydrationWarning>
+                {dayLong(now)}
+              </div>
+              <h1 className="display text-[32px] leading-tight font-semibold">Point of sale</h1>
+            </div>
+            <div className="relative w-full max-w-[420px]">
+              <Search size={17} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" />
               <input
                 ref={searchRef}
-                className="input h-11 pl-9 text-[15px]"
-                placeholder="Search name or SKU. Type “DM-1001 4” and Enter to add 4."
+                className="input h-11 rounded-xl pr-10 pl-10 text-[15px]"
+                placeholder="Search name or SKU, or “DM-1001 4” + Enter"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onSearchKey}
@@ -171,14 +219,22 @@ export default function Counter() {
               </span>
             </div>
           </div>
-          <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 scroll-thin">
+
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="display text-[21px] font-semibold">Products</h2>
+            <span className="text-[13px] text-ink-3">
+              {filtered.length} of {products.length}, prices at {anonymous || !client ? "list (tier C)" : `tier ${tier}`}
+            </span>
+          </div>
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-1 scroll-thin" role="group" aria-label="Category">
             {CATS.map((c) => (
               <button
                 key={c}
                 onClick={() => setCat(c)}
+                aria-pressed={cat === c}
                 className={cx(
-                  "h-8 shrink-0 cursor-pointer rounded-full border px-3 text-[13.5px] font-semibold",
-                  cat === c ? "border-ink bg-ink text-white" : "border-line bg-panel text-ink-2 hover:border-line-2",
+                  "h-9 shrink-0 cursor-pointer rounded-full px-4 text-[14px] font-semibold transition-colors",
+                  cat === c ? "bg-brand text-white" : "bg-panel text-ink-2 shadow-card hover:text-ink",
                 )}
               >
                 {c}
@@ -186,100 +242,137 @@ export default function Counter() {
             ))}
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(212px,1fr))] gap-2.5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
             {filtered.map((p) => {
-              const row = rows.get(p.sku);
-              const avail = row?.available ?? 0;
+              const avail = rows.get(p.sku)?.available ?? 0;
               const qty = inCart.get(p.sku) ?? 0;
               const out = avail <= 0;
               return (
-                <button
+                <article
                   key={p.sku}
-                  onClick={() => !out && add(p.sku)}
-                  disabled={out}
                   className={cx(
-                    "group relative flex min-h-[136px] cursor-pointer flex-col rounded-[4px] border bg-white text-left transition-[border-color,box-shadow] disabled:cursor-not-allowed",
-                    qty ? "border-ink shadow-[0_0_0_1px_var(--color-ink)]" : "border-line hover:border-ink-3",
-                    out && "opacity-55",
+                    "relative flex flex-col rounded-2xl border bg-panel p-3 shadow-card transition-[border-color,box-shadow]",
+                    qty ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-line/70",
+                    out && "opacity-60",
                   )}
-                  aria-label={`Add ${p.name}`}
                 >
-                  <div className="flex items-center justify-between gap-2 border-b border-dashed border-line px-2.5 py-1.5">
-                    <span className="code font-medium text-ink-2">{p.sku}</span>
-                    <span className="flex items-center gap-1 text-[12px] text-ink-3">
-                      <span className="h-2 w-2 rounded-[1px]" style={{ background: ZONES[p.zone].color }} />
-                      {ZONES[p.zone].name}
-                    </span>
+                  <CategoryTile category={p.category} size="lg" />
+                  <div className="mt-3 flex items-start justify-between gap-2">
+                    <h3 className="text-[15px] leading-snug font-semibold">{p.name}</h3>
                   </div>
-                  <div className="flex-1 px-2.5 pt-1.5">
-                    <div className="text-[14.5px] leading-snug font-semibold">{p.name}</div>
-                    <div className="text-[13px] text-ink-3">
-                      Per {p.unit}, {p.pack}
-                      {p.catchWeight && ", catch weight"}
-                    </div>
+                  <div className="mt-0.5 text-[12.5px] text-ink-3">
+                    <span className="code">{p.sku}</span>, per {p.unit}, {p.pack}
+                    {p.catchWeight && ", catch weight"}
                   </div>
-                  <div className="flex items-end justify-between px-2.5 pt-1 pb-2">
-                    <div className="display text-[20px] leading-none font-semibold">
-                      {money(p.price[tier])}
-                      <span className="ml-0.5 text-[13px] font-medium text-ink-3">/{priceUnit(p)}</span>
+                  <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-3">
+                    <div>
+                      <div className="display text-[20px] leading-none font-semibold text-brand">
+                        {money(p.price[tier])}
+                        <span className="ml-0.5 text-[12.5px] font-medium text-ink-3">/{priceUnit(p)}</span>
+                      </div>
+                      <div className={cx("mt-1 text-[12.5px] font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-3")}>
+                        {out ? "Out of stock" : `${units(avail, p.unit)} left`}
+                      </div>
                     </div>
-                    <div className={cx("text-[12.5px] font-semibold", out ? "text-bad" : avail < p.reorderPoint ? "text-warn" : "text-ink-3")}>
-                      {out ? "Out of stock" : `${units(avail, p.unit)} free`}
-                    </div>
+                    <button className="btn btn-primary btn-sm ml-auto h-8 rounded-lg px-3" onClick={() => add(p.sku)} disabled={out} aria-label={`Add ${p.name}`}>
+                      <Plus size={14} strokeWidth={2.6} /> Add
+                    </button>
                   </div>
                   {qty > 0 && (
-                    <span className="absolute -top-2 -right-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[12.5px] font-bold text-white">{qty}</span>
+                    <span className="absolute top-2 right-2 grid h-7 min-w-7 place-items-center rounded-full bg-ink px-2 text-[13px] font-bold text-white" aria-label={`${qty} in the order`}>
+                      {qty}
+                    </span>
                   )}
-                </button>
+                </article>
               );
             })}
           </div>
           {filtered.length === 0 && <p className="py-10 text-center text-[14px] text-ink-3">No products match “{q}”. Clear the search or pick another category.</p>}
-          {!client && <p className="mt-4 text-[13px] text-ink-3">Prices shown at list (tier C). Pick a client to see their tier.</p>}
         </div>
 
-        {/* ---------- Ticket ---------- */}
-        <aside className="sticky top-[72px] flex max-h-[calc(100vh-170px)] min-h-[560px] flex-col overflow-hidden rounded-[10px] border border-line bg-panel">
-          <div className="border-b border-line p-4">
-            <Field label="Client">
-              <select className="input h-10 text-[15px]" value={clientId} onChange={(e) => {
-                  setClientId(e.target.value);
+        {/* ---------- Current order ---------- */}
+        <aside ref={orderRef} className="scroll-mt-20 flex flex-col overflow-y-auto rounded-2xl border border-line/70 bg-panel shadow-card xl:sticky xl:top-[92px] xl:max-h-[calc(100vh-116px)] scroll-thin">
+          <div className="space-y-4 px-5 pt-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="display text-[24px] font-semibold">Current order</h2>
+              <button className="btn btn-quiet btn-sm px-2" onClick={reset} disabled={!cart.length && !buyer} aria-label="Clear the order">
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="flex gap-2" role="radiogroup" aria-label="Order type">
+              {(
+                [
+                  ["WALK_IN", "Walk-in", Store],
+                  ["DELIVERY", "Delivery", Truck],
+                ] as const
+              ).map(([m, label, Icon]) => (
+                <button
+                  key={m}
+                  role="radio"
+                  aria-checked={mode === m}
+                  onClick={() => switchMode(m)}
+                  className={cx(
+                    "flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border text-[14.5px] font-semibold transition-colors",
+                    mode === m ? "border-brand bg-brand text-white" : "border-line text-ink-2 hover:border-line-2 hover:text-ink",
+                  )}
+                >
+                  <Icon size={16} aria-hidden /> {label}
+                </button>
+              ))}
+            </div>
+
+            {mode === "WALK_IN" ? (
+              <div className="grid gap-2">
+                <Field label="Customer name" hint={picked ? undefined : "Optional. Printed on the receipt."}>
+                  <input className="input" value={picked ? picked.name : buyer} onChange={(e) => setBuyer(e.target.value)} placeholder="Walk-in customer" disabled={!!picked} />
+                </Field>
+                <AccountPicker
+                  label="Charge to an account"
+                  value={clientId}
+                  onChange={(id) => {
+                    setClientId(id);
+                    setPayChoice(null);
+                    setOverride(false);
+                  }}
+                  accounts={accounts}
+                  routeName={(rid) => maps.route.get(rid)?.name}
+                  empty="No account, pay now"
+                />
+              </div>
+            ) : (
+              <AccountPicker
+                label="Customer account"
+                value={clientId}
+                onChange={(id) => {
+                  setClientId(id);
                   setPayChoice(null);
                   setOverride(false);
                 }}
-              >
-                <option value="">Choose an account…</option>
-                {[...new Set(clients.map((c) => c.routeId))].map((rid) => (
-                  <optgroup key={rid} label={maps.route.get(rid)?.name}>
-                    {clients
-                      .filter((c) => c.routeId === rid)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-            </Field>
-            {client && (
-              <div className="mt-3 text-[13px]">
+                accounts={accounts}
+                routeName={(rid) => maps.route.get(rid)?.name}
+                empty="Choose an account…"
+              />
+            )}
+
+            {picked && (
+              <div className="text-[13px]">
                 <div className="flex flex-wrap gap-1.5">
-                  <Badge>Tier {client.tier}</Badge>
-                  <Badge tone={client.terms === "COD" ? "warn" : "neutral"}>{TERMS_LABEL[client.terms]}</Badge>
-                  <Badge>{maps.route.get(client.routeId)?.name}</Badge>
-                  <Badge>{client.window}</Badge>
+                  <Badge>Tier {picked.tier}</Badge>
+                  <Badge tone={picked.terms === "COD" ? "warn" : "neutral"}>{TERMS_LABEL[picked.terms]}</Badge>
+                  {mode === "DELIVERY" && <Badge>{maps.route.get(picked.routeId)?.name}</Badge>}
+                  {mode === "DELIVERY" && <Badge>{picked.window}</Badge>}
                 </div>
-                {client.creditLimit > 0 && (
+                {picked.creditLimit > 0 && (
                   <div className="mt-2.5">
                     <div className="flex justify-between text-ink-3">
-                      <span>Balance {money0(client.balance)}</span>
-                      <span>Limit {money0(client.creditLimit)}</span>
+                      <span>Balance {money0(picked.balance)}</span>
+                      <span>Limit {money0(picked.creditLimit)}</span>
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-sunk">
                       <div
-                        className={cx("h-full rounded-full", creditAfter > client.creditLimit ? "bg-bad" : client.balance / client.creditLimit > 0.8 ? "bg-warn" : "bg-ink-2")}
-                        style={{ width: `${Math.min(100, (creditAfter / client.creditLimit) * 100)}%` }}
+                        className={cx("h-full rounded-full", creditAfter > picked.creditLimit ? "bg-bad" : picked.balance / picked.creditLimit > 0.8 ? "bg-warn" : "bg-ink-2")}
+                        style={{ width: `${Math.min(100, (creditAfter / picked.creditLimit) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -299,13 +392,11 @@ export default function Counter() {
             )}
           </div>
 
-          <div className="min-h-[120px] flex-1 overflow-y-auto scroll-thin">
+          <div className="mt-4 min-h-[140px] shrink-0 border-y border-line bg-sunk/50 px-3 py-3 scroll-thin">
             {cart.length === 0 ? (
-              <p className="px-4 py-8 text-center text-[14px] text-ink-3">
-                Tap a product or type a SKU to start the ticket.
-              </p>
+              <p className="px-3 py-8 text-center text-[14px] text-ink-3">Add products from the left, or type a SKU and press Enter.</p>
             ) : (
-              <ul className="divide-y divide-line">
+              <ul className="space-y-2">
                 {cart.map((l) => {
                   const p = maps.product.get(l.sku)!;
                   const pl = priced.find((x) => x.sku === l.sku);
@@ -313,44 +404,42 @@ export default function Counter() {
                   const allocs = allocateFEFO(lots, l.sku, Math.min(l.qty, avail), reserved) ?? [];
                   const short = l.qty > avail;
                   return (
-                    <li key={l.sku} className="px-4 py-2.5">
-                      <div className="flex items-start gap-2">
+                    <li key={l.sku} className="rounded-xl bg-panel p-3 shadow-card">
+                      <div className="flex items-start gap-3">
+                        <CategoryTile category={p.category} size="md" />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[14px] leading-snug font-semibold">{p.name}</div>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-[14px] leading-snug font-semibold">{p.name}</div>
+                            <button className="-mt-1 -mr-1 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md text-ink-3 hover:bg-bad-bg hover:text-bad" onClick={() => setQty(l.sku, 0)} aria-label={`Remove ${p.name}`}>
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                           <div className="text-[12.5px] text-ink-3">
-                            <span className="code">{p.sku}</span> {units(l.qty, p.unit)}, {p.pack}
+                            {money(p.price[tier])}/{priceUnit(p)}
                             {p.catchWeight && `, about ${p.caseKg * l.qty} kg`}
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-[14px] font-semibold">{money(pl?.lineTotal ?? casePrice(p, tier) * l.qty)}</div>
-                          <div className="text-[12px] text-ink-3">
-                            {money(p.price[tier])}/{priceUnit(p)}
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <div className="text-[15px] font-semibold text-brand">{money(pl?.lineTotal ?? casePrice(p, tier) * l.qty)}</div>
+                            <div className="flex items-center rounded-full border border-line bg-white">
+                              <button className="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, -1)} aria-label={`One less ${p.unit}`}>
+                                <Minus size={14} />
+                              </button>
+                              <input
+                                className="h-8 w-10 text-center text-[14px] font-semibold focus:outline-none"
+                                value={l.qty}
+                                inputMode="numeric"
+                                onChange={(e) => setQty(l.sku, parseInt(e.target.value.replace(/\D/g, "") || "0", 10))}
+                                aria-label={`Number of ${unitPlural(p.unit)}`}
+                              />
+                              <button className="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, 1)} aria-label={`One more ${p.unit}`}>
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="code mt-1 truncate text-[11.5px] text-ink-3" title="Lots this line will pull, oldest best-by first">
+                            {short ? <span className="font-sans text-[12.5px] font-semibold text-bad">Only {units(avail, p.unit)} free</span> : allocs.map((a) => `${a.lotCode}×${a.qty}`).join("  ")}
                           </div>
                         </div>
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between gap-2">
-                        <div className="flex items-center rounded-md border border-line bg-white">
-                          <button className="grid h-8 w-8 cursor-pointer place-items-center text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, -1)} aria-label={`One less ${p.unit}`}>
-                            <Minus size={14} />
-                          </button>
-                          <input
-                            className="h-8 w-12 border-x border-line text-center text-[14px] font-semibold focus:outline-none"
-                            value={l.qty}
-                            inputMode="numeric"
-                            onChange={(e) => setQty(l.sku, parseInt(e.target.value.replace(/\D/g, "") || "0", 10))}
-                            aria-label={`Number of ${unitPlural(p.unit)}`}
-                          />
-                          <button className="grid h-8 w-8 cursor-pointer place-items-center text-ink-2 hover:bg-sunk" onClick={() => add(l.sku, 1)} aria-label={`One more ${p.unit}`}>
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                        <div className="code min-w-0 flex-1 truncate text-right text-[11.5px] text-ink-3" title="Lots this line will pull, oldest best-by first">
-                          {short ? <span className="font-sans text-[12.5px] font-semibold text-bad">Only {units(avail, p.unit)} free</span> : allocs.map((a) => `${a.lotCode}×${a.qty}`).join("  ")}
-                        </div>
-                        <button className="btn btn-quiet btn-sm px-1.5" onClick={() => setQty(l.sku, 0)} aria-label={`Remove ${p.name}`}>
-                          <Trash2 size={14} />
-                        </button>
                       </div>
                     </li>
                   );
@@ -359,22 +448,9 @@ export default function Counter() {
             )}
           </div>
 
-          <div className="space-y-3 border-t border-line bg-sunk/60 p-4">
-            <div className="grid grid-cols-2 gap-1 rounded-md border border-line bg-white p-0.5" role="radiogroup" aria-label="Fulfillment">
-              {(["DELIVERY", "PICKUP"] as const).map((f) => (
-                <button
-                  key={f}
-                  role="radio"
-                  aria-checked={fulfillment === f}
-                  onClick={() => setFulfillment(f)}
-                  className={cx("h-8 cursor-pointer rounded text-[13.5px] font-semibold", fulfillment === f ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk")}
-                >
-                  {f === "DELIVERY" ? "Truck delivery" : "Will-call at dock"}
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {fulfillment === "DELIVERY" ? (
+          <div className="space-y-4 px-5 pt-4 pb-4">
+            {mode === "DELIVERY" && (
+              <div className="space-y-2">
                 <Field label="Delivery day">
                   <select className="input" value={date} onChange={(e) => setDate(e.target.value)}>
                     {days.map((d) => (
@@ -384,41 +460,32 @@ export default function Counter() {
                     ))}
                   </select>
                 </Field>
-              ) : (
-                <div className="text-[12.5px] text-ink-3">Stock leaves inventory when you complete the sale.</div>
-              )}
-              <Field label="Payment">
-                <select className="input" value={pay} onChange={(e) => setPayChoice(e.target.value as PayMethod)} disabled={!client}>
-                  {payOptions.map((p) => (
-                    <option key={p} value={p}>
-                      {PAY_LABEL[p]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-            {extras || clientPo || notes ? (
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Client PO">
-                  <input className="input" value={clientPo} onChange={(e) => setClientPo(e.target.value)} placeholder="Optional" autoFocus={extras && !clientPo} />
-                </Field>
-                <Field label="Note for driver">
-                  <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
-                </Field>
+                {extras || clientPo || notes ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Customer PO">
+                      <input className="input" value={clientPo} onChange={(e) => setClientPo(e.target.value)} placeholder="Optional" autoFocus={extras && !clientPo} />
+                    </Field>
+                    <Field label="Note for driver">
+                      <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
+                    </Field>
+                  </div>
+                ) : (
+                  <button className="btn btn-quiet btn-sm -ml-2.5" onClick={() => setExtras(true)}>
+                    Add customer PO or driver note
+                  </button>
+                )}
               </div>
-            ) : (
-              <button className="btn btn-quiet btn-sm -ml-2.5" onClick={() => setExtras(true)}>
-                Add client PO or driver note
-              </button>
             )}
 
-            <dl className="text-[14px]">
-              <div className="flex justify-between py-0.5">
-                <dt className="text-ink-2">Subtotal</dt>
-                <dd>{money(subtotal)}</dd>
+            <dl className="space-y-1 text-[14px]">
+              <div className="flex justify-between">
+                <dt className="text-ink-2">Items</dt>
+                <dd>
+                  {items} for {money(subtotal)}
+                </dd>
               </div>
               {totals.dropFee > 0 && (
-                <div className="flex justify-between py-0.5">
+                <div className="flex justify-between gap-2">
                   <dt className="text-ink-2">
                     Small-drop fee <span className="text-[12.5px] text-ink-3">(add {money0(DROP_MIN - subtotal)} to waive)</span>
                   </dt>
@@ -426,19 +493,47 @@ export default function Counter() {
                 </div>
               )}
               {totals.fuel > 0 && (
-                <div className="flex justify-between py-0.5">
+                <div className="flex justify-between">
                   <dt className="text-ink-2">Fuel surcharge</dt>
                   <dd>{money(totals.fuel)}</dd>
                 </div>
               )}
-              <div className="mt-1 flex items-baseline justify-between border-t border-line pt-2">
+              <div className="flex justify-between text-ink-3">
+                <dt>VAT 12% included</dt>
+                <dd>{money(vat)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between border-t border-dashed border-line pt-2">
                 <dt className="font-semibold">Total</dt>
                 <dd className="display text-[30px] leading-none font-semibold">{money(totals.total)}</dd>
               </div>
             </dl>
 
+            <div>
+              <div className="mb-2 text-[14px] font-semibold">Payment</div>
+              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment">
+                {payOptions.map((p) => {
+                  const Icon = PAY_ICON[p];
+                  return (
+                    <button
+                      key={p}
+                      role="radio"
+                      aria-checked={pay === p}
+                      onClick={() => setPayChoice(p)}
+                      disabled={!client}
+                      className={cx(
+                        "flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                        pay === p ? "border-ink bg-ink text-white" : "border-line text-ink-2 hover:border-line-2 hover:text-ink",
+                      )}
+                    >
+                      <Icon size={15} aria-hidden /> {PAY_LABEL[p]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {creditProblem && (
-              <div className="rounded-md border border-warn/30 bg-warn-bg p-2.5 text-[13px] text-warn">
+              <div className="rounded-xl border border-warn/30 bg-warn-bg p-3 text-[13px] text-warn">
                 <div className="flex gap-2 font-semibold">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0" /> Credit hold: {creditProblem}
                 </div>
@@ -452,19 +547,28 @@ export default function Counter() {
                 )}
               </div>
             )}
+          </div>
 
-            <div className="flex gap-2">
-              <button className="btn btn-ghost btn-lg px-3" onClick={reset} disabled={!cart.length} aria-label="Clear ticket">
-                <X size={18} />
-              </button>
-              <button className="btn btn-primary btn-lg flex-1" disabled={!canPlace} onClick={submit}>
-                {fulfillment === "PICKUP" ? "Complete will-call sale" : `Place order for ${dayShort(keyToTs(date)).split(",")[0]}`}
-              </button>
-            </div>
-            {!client && cart.length > 0 && <p className="text-[12.5px] text-ink-3">Choose the client to price and place this order.</p>}
+          {/* Checkout stays in view at the bottom of the panel however long the order gets. */}
+          <div className="sticky bottom-0 border-t border-line bg-panel px-5 pt-3 pb-5">
+            <button className="btn btn-primary btn-lg w-full" disabled={!canPlace} onClick={submit}>
+              {mode === "WALK_IN" ? `Checkout ${money(totals.total)}` : `Place order for ${dayShort(keyToTs(date)).split(",")[0]}, ${money(totals.total)}`}
+            </button>
+            {mode === "DELIVERY" && !client && cart.length > 0 && <p className="mt-2 text-[12.5px] text-ink-3">Choose the customer account to price and place this order.</p>}
           </div>
         </aside>
       </div>
+
+      {/* Below xl the order sits under the products, so phones and tablets get a shortcut to it. */}
+      {cart.length > 0 && (
+        <button
+          className="btn btn-dark fixed inset-x-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 h-12 justify-between rounded-xl px-4 text-[15px] shadow-lg lg:bottom-4 xl:hidden"
+          onClick={() => orderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        >
+          <span>View order, {units(items, "item")}</span>
+          <span>{money(totals.total)}</span>
+        </button>
+      )}
 
       <Modal
         open={!!done}
@@ -485,22 +589,52 @@ export default function Counter() {
           </>
         }
       >
-        {done && (
+        {done && doneClient && (
           <div className="-mx-5 -my-4">
-            <Invoice
-              order={done}
-              client={maps.client.get(done.clientId)!}
-              delivery={deliveries.find((d) => d.id === done.deliveryId)}
-              route={maps.route.get(maps.client.get(done.clientId)!.routeId)}
-              products={maps.product}
-            />
+            <Invoice order={done} client={doneClient} delivery={deliveries.find((d) => d.id === done.deliveryId)} route={maps.route.get(doneClient.routeId)} products={maps.product} />
           </div>
         )}
       </Modal>
-      {done && sending && (
+      {done && doneClient && sending && (
         // The placed order lives in the store; read it back so a logged send shows up.
-        <SendReceipt order={orders.find((o) => o.id === done.id) ?? done} client={maps.client.get(done.clientId)!} by="Counter 1" onClose={() => setSending(false)} />
+        <SendReceipt order={orders.find((o) => o.id === done.id) ?? done} client={doneClient} by="Counter 1" onClose={() => setSending(false)} />
       )}
     </div>
+  );
+}
+
+/** Customer accounts grouped by van route. Never lists the built-in walk-in account. */
+function AccountPicker({
+  label,
+  value,
+  onChange,
+  accounts,
+  routeName,
+  empty,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  accounts: { id: string; name: string; routeId: string }[];
+  routeName: (routeId: string) => string | undefined;
+  empty: string;
+}) {
+  return (
+    <Field label={label}>
+      <select className="input h-10 text-[15px]" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{empty}</option>
+        {[...new Set(accounts.map((c) => c.routeId))].map((rid) => (
+          <optgroup key={rid} label={routeName(rid) ?? "Other"}>
+            {accounts
+              .filter((c) => c.routeId === rid)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+    </Field>
   );
 }

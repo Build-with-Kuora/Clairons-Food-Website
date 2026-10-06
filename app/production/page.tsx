@@ -54,7 +54,7 @@ export default function Production() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="mx-auto max-w-[1500px]">
       <PageHead title="Production" sub={`${plural(madeToday.length, "batch", "batches")} today, ${units(casesToday, commonUnit(madeToday.map((b) => product.get(b.sku))))} made. Finished batches go into the blast freezer and can be sold once frozen, ${BLAST_HOURS} hours later.`} />
 
       <div className="mb-5 grid items-start gap-5 xl:grid-cols-[380px_1fr]">

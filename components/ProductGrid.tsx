@@ -52,13 +52,13 @@ export function ProductGrid({ now }: { now: number }) {
       title="Products"
       className="mb-5"
       actions={
-        <div className="flex rounded-md border border-line p-0.5" role="group" aria-label="Sold over">
+        <div className="flex rounded-full border border-line bg-sunk/70 p-0.5" role="group" aria-label="Sold over">
           {PERIODS.map((x) => (
             <button
               key={x.id}
               onClick={() => setPeriod(x.id)}
               aria-pressed={period === x.id}
-              className={cx("h-7 cursor-pointer rounded px-2.5 text-[13px] font-semibold", period === x.id ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk")}
+              className={cx("h-7 cursor-pointer rounded-full px-3 text-[13px] font-semibold", period === x.id ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk")}
             >
               {x.label}
             </button>
@@ -88,7 +88,7 @@ export function ProductGrid({ now }: { now: number }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {shown.map((x) => {
           const n = sold.get(x.sku) ?? 0;
           const left = rows.get(x.sku)?.available ?? 0;
@@ -98,12 +98,12 @@ export function ProductGrid({ now }: { now: number }) {
             <Link
               key={x.sku}
               href={`/inventory?sku=${x.sku}`}
-              className="flex min-w-0 flex-col rounded-md border border-line bg-panel p-2.5 transition-colors hover:border-ink-3"
+              className="flex min-w-0 flex-col rounded-xl border border-line bg-panel p-3 transition-colors hover:border-ink-3"
               aria-label={`${x.name}: ${money0(x.price.C)} per ${priceUnit(x)}, ${units(n, x.unit)} ${p.sold}, ${units(left, x.unit)} left`}
             >
-              <span className="self-start rounded bg-ink px-1.5 py-0.5 text-[13px] leading-tight font-semibold text-white">
+              <span className="self-start rounded-full bg-brand-bg px-2 py-0.5 text-[13px] leading-tight font-semibold text-brand">
                 {money0(x.price.C)}
-                <span className="font-normal text-white/70">/{priceUnit(x)}</span>
+                <span className="font-normal text-brand/70">/{priceUnit(x)}</span>
               </span>
               <span className="mt-2 line-clamp-2 min-h-[2.7em] text-[14px] leading-snug font-semibold">{x.name}</span>
               <span className="code text-ink-3">{x.sku}</span>
@@ -116,7 +116,7 @@ export function ProductGrid({ now }: { now: number }) {
                 </span>
                 <span
                   className={cx(
-                    "shrink-0 rounded border px-1.5 py-0.5 text-[13px] font-semibold whitespace-nowrap",
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[13px] font-semibold whitespace-nowrap",
                     out ? "border-bad/25 bg-bad-bg text-bad" : low ? "border-warn/25 bg-warn-bg text-warn" : "border-line bg-sunk text-ink-2",
                   )}
                 >

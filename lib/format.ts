@@ -8,8 +8,8 @@ const int = new Intl.NumberFormat("en-PH");
 
 export const money = (n: number) => php.format(n);
 export const money0 = (n: number) => php0.format(n);
-/** Compact peso for chart axes: ₱12.5k */
-export const pesoK = (n: number) => (n >= 1000 ? `₱${+(n / 1000).toFixed(1)}k` : money0(n));
+/** Compact peso for chart axes and small totals: ₱12.5k, ₱1.71M */
+export const pesoK = (n: number) => (n >= 1_000_000 ? `₱${+(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₱${+(n / 1000).toFixed(1)}k` : money0(n));
 export const count = (n: number) => int.format(n);
 
 /** Typographic minus so negative temperatures line up and read correctly. */

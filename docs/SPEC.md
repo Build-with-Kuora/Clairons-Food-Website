@@ -20,7 +20,8 @@ These change what we build, so they come first.
 5. **Decided: both riders and vans.** Refrigerated vans on routes for big accounts (keeping temperature logs), riders on motorbikes for small drops. A delivery is assigned to either a van route or a rider.
 6. **Decided: a sale counts when the order is delivered or paid** (see 6.3).
 7. **Decided: a public online store** (2026-10-03). Anyone can browse; customers sign up to check out, pay by GCash, card or cash on delivery, and track their orders. Built as `/shop` (section 9).
-8. **Confirm the catalogue is all made in-house.** Some demo products look bought-in rather than made: imported fries, vannamei shrimp, ice cream tubs, quick-melt cheese. The prototype treats all 48 as produced (decision 0.1). If some are resold, either drop them or bring back a small receiving step for those items only.
+8. **Decided: a public landing page** (2026-10-05). It introduces Clairon's (what they make, how it arrives frozen, about, contact) and gives two doors: the online store for households and a wholesale inquiry for businesses, both equal weight. Built for now at `/landing`; it moves to `/` for logged-out visitors later (section 11). Clairon's is Filipino-owned: the page never frames the brand as Chinese.
+9. **Confirm the catalogue is all made in-house.** Some demo products look bought-in rather than made: imported fries, vannamei shrimp, ice cream tubs, quick-melt cheese. The prototype treats all 48 as produced (decision 0.1). If some are resold, either drop them or bring back a small receiving step for those items only.
 
 ---
 
@@ -126,6 +127,28 @@ These change what we build, so they come first.
 | 10.2 | Single shared database so every device stays in sync | Missing (deferred) | Prototype data lives in each browser's local storage, so two phones don't share data. A real database is deferred until the client signs off on the prototype. |
 | 10.3 | **[changed]** Logins and roles: owner, counter, production, rider | Partial | Prototype logins, checked in the browser with no database (`lib/auth.ts`): `admin@clairon.com`, `staff@clairon.com`, `rider@clairon.com`. **Admin** (owner) sees everything: the sales Today, the sales report, add/edit products and prices, approving orders past a credit hold, and resetting the demo. **Staff** (counter, warehouse, production, dispatch) get a work-queue home (to pick and load, move out of blast freezer, to make, delivery problems, sell first, QA hold) and every screen except the sales report; they can't edit products or approve credit holds. **Riders** only get the driver handheld. **Customers** (`customer@clairon.com`) only get the online store. Sign up makes a customer account in that browser only. Forgot password shows a confirmation but sends nothing. Left for the main app: real accounts and passwords on the server, separate counter and production roles, and a reset e-mail. The demo passwords are readable in the page source, so they are for the presentation only. |
 
+## 11. Public landing and contact pages
+
+Product facts behind the page (audience, positioning, what may and may not be claimed) are in `PRODUCT.md`.
+
+**Design direction: "Master Case."** The public pages read like the side of a printed frozen master carton: white-coated board printed in the logo's black (`#141518`) and red (`#d71f26`) only, square corners, a white case label with ruled fields, handling marks, and a red rubber stamp. Display type is Archivo (condensed, extra heavy); body is Barlow, as in the app. Chosen 2026-10-05 over a wall-calendar direction, an illustrated cutaway of the kitchen-to-van chain, and the usual food-photo hero. **[changed 2026-10-05]** The client asked that colours stay with the logo, so the kraft-brown board and the brown cut-edge strips were dropped.
+
+| # | Requirement | Status | Notes |
+|---|---|---|---|
+| 11.1 | Header with logo, links (Products, Delivery, About, Contact) and a Shop online button | Done | Shared by both public pages (`components/landing/PublicFrame.tsx`). Products, Delivery and About jump to sections of `/landing`; Contact opens `/contact`. Sticky. The links hide on phones; the logo and Shop online stay. |
+| 11.2 | Opening screen shows who Clairon's is and both doors | Done | **[changed 2026-10-05]** Fills the screen below the header. The client's photo of the Clairon's Food Product building (`public/landing/clairons-building.jpg`) runs full width and fades into a black field with logo red glowing from the far edge: left to right on desktop, top to bottom on phones. On the dark side: the logo in a light version (`public/brand/clairons-logo-reverse.png`, white wordmark, red script, made from the client's logo) and the two buttons Shop online (`/shop`) and Order wholesale (`/contact#wholesale`). No headline or other wording for now, at the client's request. Handling marks sit below the hero: keep frozen at −18°C, delivered Monday to Saturday 8 am to 5 pm, made in our own kitchen. |
+| 11.3 | What they make | Done | Dimsum, Streetfood, Breakfast, and Sweets and bakery, with real pack sizes and online (tier C) prices from `lib/seed.ts`, plus "And 30 more" linking to the store. The prices are copied into `app/landing/page.tsx`, so they must be updated there when catalogue prices change, or read from the store once there is a database. |
+| 11.4 | How it stays frozen and where it goes | Done | Make, then deliver, with the van temperature read from `ROUTES` (−20°C). **[changed 2026-10-05]** Blast freezing is left off the page at the client's request. Delivery week with Sunday marked as no deliveries, delivery fees from `FUEL_FEE` / `DROP_FEE` / `DROP_MIN`, the three van routes, riders, and the cities in `SERVICE_AREAS`. |
+| 11.5 | Two doors: for home and for your business | Done | Home: online store, GCash / card / COD, order tracking. Business: price tiers, terms, a spot on the van route. |
+| 11.6 | About | Partial | Short Filipino-owned maker paragraph. **Placeholder**: the owner's story and a wide kitchen or team photo (the building photo is used in the hero). |
+| 11.7 | Contact and wholesale inquiry | Partial | **[changed 2026-10-05]** Its own page, `/contact`, so the landing page stays an overview of the store. Contact card with **placeholder** address, mobile, Messenger and e-mail; delivery hours are real. Wholesale form (`#wholesale`): name, mobile (PH format), business name, kind of business, city we deliver to, what they need. Checks each field and shows a thank-you, but sends nothing yet (the page says so). Left: send it somewhere real (e-mail, Messenger, or a lead in the app). |
+| 11.8 | Footer with Staff log in | Done | Links to the store, the landing sections, Contact and `/login`. |
+| 11.9 | Lives at `/` for logged-out visitors | Missing | Now at `/landing`, with `/contact` beside it; both are open to everyone (`canOpen` in `lib/auth.ts`), and `Shell` renders them without the app chrome or waiting for the store, since they read no store data. To move it: render the landing page from `app/page.tsx` when no one is logged in, point the logged-out redirect at `/` instead of `/login`, and change the `/landing` links in `PublicFrame`. |
+| 11.11 | **Confirm where Clairon's is** | Question for the client | The sign on their building reads "Clairon's Food Product: siopao, siomai, meatball, patties, shanghai, flake ice" with "Iloilo Fish Port Complex" under it, but the prototype (routes, cities, delivery fees, README) assumes Metro Manila. The new hero makes no location claim; the delivery section, page title and app data still say Metro Manila. Also check whether meatballs, patties and flake ice belong in the catalogue. |
+| 11.10 | Real photos and contact details | Missing | The client has them. Every placeholder is styled with a dashed red outline or a hatched photo box so none ship by accident. No testimonials, customer names or numbers we can't stand behind. |
+
+Checked in the browser at desktop (1440 × 900) and phone (375 × 812) widths on 2026-10-05: the hero fills the screen at both, and nothing scrolls sideways. The dev server is slow on this machine (several minutes to start, and new image sizes take a while the first time).
+
 ---
 
 ## Keeping the prototype ready for a real API
@@ -152,6 +175,10 @@ Not built in the prototype. Do these once the client approves the prototype and 
 ## Suggested build order (prototype, no database)
 
 Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), production replaces suppliers (4.6), sale rule (6.3), no selling stock still blast freezing (4.4), phone bottom navigation (1.3–1.4), delivery table and riders (5.1, 5.7, 5.8, and changing the rider in 5.3), sales table with totals and VAT (6.1, 6.2, 6.5), add/edit products with owner-set units (2.8, decision 0.4), receipts with BIR details and sending by SMS or e-mail (7.1, 7.4; sample seller details for now), delivery date and notes (5.3), prototype logins with an admin, staff, rider and customer view (10.3), public online store (9.1, 9.2; simulated payments for 9.3), sales CSV download for today, 7 days and 30 days.
+
+Built: public landing page at `/landing` and contact page at `/contact` (section 11).
+
+Next for the landing page: drop in the real photos and contact details, confirm where Clairon's is (11.11), decide where wholesale inquiries go, then move it to `/` (11.9).
 
 Left out of the prototype for now: **BIR accreditation** (7.2) and **freezer temperature monitoring** (needs sensors).
 

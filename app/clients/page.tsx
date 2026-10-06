@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Badge, Drawer, PageHead, Panel, Signature, StatusPill, cx } from "@/components/ui";
 import { DAY, dateTime, day, dayShort, keyToTs, money, money0, temp } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
-import { TERMS_LABEL, TRUCK_LIMIT_C } from "@/lib/logic";
+import { TERMS_LABEL, TRUCK_LIMIT_C, isWalkIn } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Client } from "@/lib/types";
 
@@ -19,14 +19,14 @@ export default function Clients() {
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
 
-  const list = clients.filter((c) => !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.city.toLowerCase().includes(q.toLowerCase()));
+  const list = clients.filter((c) => !isWalkIn(c) && (!q || c.name.toLowerCase().includes(q.toLowerCase()) || c.city.toLowerCase().includes(q.toLowerCase())));
   const totalAR = clients.reduce((s, c) => s + c.balance, 0);
   const pastDue = clients.reduce((s, c) => s + c.pastDue, 0);
   const open = clients.find((c) => c.id === openId);
 
   return (
-    <div className="mx-auto max-w-[1400px]">
-      <PageHead title="Clients" sub={`${clients.length} accounts. ${money0(totalAR)} receivable, ${money0(pastDue)} past due.`} />
+    <div className="mx-auto max-w-[1500px]">
+      <PageHead title="Customers" sub={`${clients.filter((c) => !isWalkIn(c)).length} accounts. ${money0(totalAR)} receivable, ${money0(pastDue)} past due.`} />
       <Panel bodyClass="">
         <div className="border-b border-line p-3">
           <div className="relative max-w-sm">

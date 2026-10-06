@@ -289,6 +289,91 @@ export function salesSummary(sales: Sale[], from: number, to: number) {
 }
 
 /**
+ * Anonymous counter sales go to this one built-in account, so they price, invoice and count like
+ * any other sale. List price, cash at the counter, no credit and no route. Hidden from Customers.
+ */
+export const WALK_IN_ID = "walk-in";
+export const WALK_IN: Client = {
+  id: WALK_IN_ID,
+  name: "Walk-in customer",
+  type: "Walk-in",
+  tier: "C",
+  terms: "COD",
+  creditLimit: 0,
+  balance: 0,
+  pastDue: 0,
+  address: "",
+  city: "",
+  contact: "",
+  phone: "",
+  routeId: "",
+  window: "",
+  dockNote: "",
+};
+export const isWalkIn = (c: Pick<Client, "id"> | undefined) => c?.id === WALK_IN_ID;
+
+/** Who bought: the name a walk-in gave, else the account name. */
+export const buyerName = (o: Pick<Order, "buyerName">, c: Pick<Client, "name"> | undefined) => o.buyerName || c?.name || "";
+
+/** Fulfillment as staff say it: counter sales are walk-ins, the rest go out on a truck or bike. */
+export const FULFILLMENT_LABEL: Record<Order["fulfillment"], string> = { PICKUP: "Walk-in", DELIVERY: "Delivery" };
+
+/** Whole-number percent change from `prev` to `now`, or null when there is nothing to compare against. */
+export function pctChange(now: number, prev: number): number | null {
+  if (prev === 0) return null;
+  return Math.round(((now - prev) / Math.abs(prev)) * 100);
+}
+
+/** The period of the same length that ends where [from, to) starts. */
+export const previousRange = (from: number, to: number) => ({ from: from - (to - from), to: from });
+
+/** Amount sold per product category between `from` and `to`, largest first. Fees are left out. */
+export function salesByCategory(sales: Sale[], products: Map<string, Product>, from: number, to: number) {
+  const out = new Map<Category, number>();
+  for (const s of sales) {
+    if (s.at < from || s.at >= to) continue;
+    for (const l of s.lines) {
+      const c = products.get(l.sku)?.category;
+      if (c) out.set(c, round2((out.get(c) ?? 0) + l.amount));
+    }
+  }
+  return [...out.entries()].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
+}
+
+/**
+ * Sales per day (or per week for long ranges) split into walk-in and delivery, oldest first.
+ * Buckets with no sales are kept so the chart shows the gaps.
+ */
+export function salesByDay(sales: Sale[], orders: Map<string, Order>, from: number, to: number) {
+  const days = Math.max(1, Math.round((to - from) / DAY));
+  const step = days > 31 ? 7 : 1;
+  const out: { start: number; walkIn: number; delivery: number }[] = [];
+  for (let t = startOfDay(from + 2 * HOUR); t < to; t = startOfDay(t + step * DAY + 2 * HOUR)) out.push({ start: t, walkIn: 0, delivery: 0 });
+  for (const s of sales) {
+    if (s.at < from || s.at >= to) continue;
+    let i = out.length - 1;
+    while (i > 0 && out[i].start > s.at) i--;
+    const pickup = orders.get(s.orderId)?.fulfillment === "PICKUP";
+    if (pickup) out[i].walkIn = round2(out[i].walkIn + s.total);
+    else out[i].delivery = round2(out[i].delivery + s.total);
+  }
+  return { step, buckets: out };
+}
+
+/** Amount sold per buying account between `from` and `to`, largest first. */
+export function salesByClient(sales: Sale[], from: number, to: number) {
+  const out = new Map<string, { clientId: string; amount: number; count: number }>();
+  for (const s of sales) {
+    if (s.at < from || s.at >= to) continue;
+    const r = out.get(s.clientId) ?? { clientId: s.clientId, amount: 0, count: 0 };
+    r.amount = round2(r.amount + s.total);
+    r.count++;
+    out.set(s.clientId, r);
+  }
+  return [...out.values()].sort((a, b) => b.amount - a.amount);
+}
+
+/**
  * The sales-by-product table as CSV for a spreadsheet or the accountant: one row per product,
  * then products, delivery fees and total rows. Amounts are plain numbers in pesos, VAT-inclusive.
  */
@@ -463,8 +548,8 @@ export function receiptMessage(o: Order, buyer: Client, seller: Seller, channel:
     "",
     `Sales invoice ${no}, order ${o.number}`,
     `Date: ${dateTime(o.createdAt)}`,
-    `Sold to: ${buyer.name}${buyer.tin ? `, TIN ${buyer.tin}` : ""}`,
-    `${buyer.address}, ${buyer.city}`,
+    `Sold to: ${buyerName(o, buyer)}${buyer.tin ? `, TIN ${buyer.tin}` : ""}`,
+    ...(buyer.address ? [`${buyer.address}, ${buyer.city}`] : []),
     "",
     ...lines,
     ...fees,

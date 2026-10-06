@@ -2,16 +2,20 @@
 
 import {
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle2,
   Clock3,
   MapPin,
   PackageCheck,
   PackageSearch,
+  TrendingDown,
+  TrendingUp,
   Truck,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
-import { STATUS_LABEL, ZONES, isFreezing, readyAt } from "@/lib/logic";
+import { STATUS_LABEL, ZONES, isFreezing, pctChange, readyAt } from "@/lib/logic";
 import { clock, dateTime, startOfDay, tempBare } from "@/lib/format";
 import type { DeliveryStatus, Lot, ZoneId } from "@/lib/types";
 import { useUi } from "@/lib/store";
@@ -24,7 +28,7 @@ export function PageHead({ title, sub, actions }: { title: string; sub?: ReactNo
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="display text-[34px] leading-none font-semibold">{title}</h1>
+        <h1 className="display text-[32px] leading-none font-semibold">{title}</h1>
         {sub && <p className="mt-1.5 text-[14.5px] text-ink-2">{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -32,8 +36,10 @@ export function PageHead({ title, sub, actions }: { title: string; sub?: ReactNo
   );
 }
 
+/** White rounded card. Every block on every screen sits in one. */
 export function Panel({
   title,
+  sub,
   actions,
   children,
   className,
@@ -41,6 +47,7 @@ export function Panel({
   edge,
 }: {
   title?: ReactNode;
+  sub?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -50,16 +57,133 @@ export function Panel({
 }) {
   return (
     <section
-      className={cx("relative min-w-0 rounded-[10px] border border-line bg-panel", className)}
-      style={edge ? { boxShadow: `inset 4px 0 0 ${edge}` } : undefined}
+      className={cx("relative min-w-0 rounded-2xl border border-line/70 bg-panel shadow-card", className)}
+      style={edge ? { boxShadow: `inset 4px 0 0 ${edge}, var(--shadow-card)` } : undefined}
     >
       {title && (
-        <div className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-4 py-2">
-          <h2 className="display text-[19px] font-semibold">{title}</h2>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-4 pb-2">
+          <div className="min-w-0">
+            <h2 className="display text-[20px] leading-tight font-semibold">{title}</h2>
+            {sub && <p className="text-[13px] text-ink-3">{sub}</p>}
+          </div>
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </div>
       )}
-      <div className={bodyClass ?? "p-4"}>{children}</div>
+      <div className={bodyClass ?? (title ? "px-5 pt-2 pb-5" : "p-5")}>{children}</div>
+    </section>
+  );
+}
+
+/** Pill-shaped single choice, e.g. 7 / 14 / 30 days. */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+  className,
+}: {
+  options: { id: T; label: ReactNode }[];
+  value: T | undefined;
+  onChange: (v: T) => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div role="group" aria-label={label} className={cx("inline-flex rounded-full border border-line bg-sunk/70 p-0.5", className)}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          aria-pressed={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={cx(
+            "h-7 cursor-pointer rounded-full px-3 text-[13px] font-semibold whitespace-nowrap transition-colors",
+            value === o.id ? "bg-ink text-white" : "text-ink-2 hover:text-ink",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Change against an earlier period as a pill: "+12%" up, "−8%" down. Rising is green and falling red
+ * unless `invert` (for counts where fewer is better). No earlier figure reads "New".
+ */
+export function Delta({ now, prev, invert = false, onDark = false }: { now: number; prev: number; invert?: boolean; onDark?: boolean }) {
+  const pct = pctChange(now, prev);
+  const up = pct === null ? now > 0 : pct > 0;
+  const flat = pct === 0 || (pct === null && now === 0);
+  const good = flat ? null : up !== invert;
+  const Icon = flat ? null : up ? TrendingUp : TrendingDown;
+  const text = pct === null ? (now === 0 ? "0%" : "New") : `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${Math.abs(pct)}%`;
+  return (
+    <span
+      className={cx(
+        "inline-flex h-6 items-center gap-1 rounded-full px-2 text-[12.5px] font-semibold whitespace-nowrap",
+        good === null ? (onDark ? "bg-white/10 text-white/80" : "bg-sunk text-ink-2") : good ? (onDark ? "bg-good/25 text-[#7fd8a7]" : "bg-good-bg text-good") : onDark ? "bg-bad/30 text-[#ff9c94]" : "bg-bad-bg text-bad",
+      )}
+    >
+      {text}
+      {Icon && <Icon size={13} strokeWidth={2.4} aria-hidden />}
+    </span>
+  );
+}
+
+/**
+ * A figure card: icon tile, label, big value, and a footer line (usually a Delta and what it compares to).
+ * `dark` makes it the black highlight card; `href` adds the corner arrow.
+ */
+export function Stat({
+  icon,
+  label,
+  value,
+  foot,
+  dark = false,
+  tone = "brand",
+  href,
+  className,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  foot?: ReactNode;
+  dark?: boolean;
+  tone?: "brand" | "bad" | "ink";
+  href?: string;
+  className?: string;
+}) {
+  const tile = dark ? "bg-white/10 text-white" : tone === "bad" ? "bg-bad-bg text-bad" : tone === "ink" ? "bg-sunk text-ink" : "bg-brand-bg text-brand";
+  return (
+    <section
+      className={cx(
+        "relative flex min-w-0 flex-col rounded-2xl border p-4 shadow-card sm:p-5",
+        dark ? "border-ink bg-ink text-white" : "border-line/70 bg-panel",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className={cx("grid h-11 w-11 place-items-center rounded-full", tile)} aria-hidden>
+          {icon}
+        </span>
+        {href && (
+          <Link
+            href={href}
+            aria-label={`Open ${label}`}
+            className={cx(
+              "grid h-9 w-9 place-items-center rounded-full border transition-colors",
+              dark ? "border-white/20 text-white hover:bg-white/10" : "border-line text-ink-2 hover:bg-sunk hover:text-ink",
+            )}
+          >
+            <ArrowUpRight size={16} />
+          </Link>
+        )}
+      </div>
+      <div className={cx("mt-4 text-[14px] sm:mt-5 sm:text-[14.5px]", dark ? "text-white/75" : "text-ink-2")}>{label}</div>
+      <div className="display mt-1 truncate text-[24px] leading-none font-semibold sm:text-[30px] xl:text-[32px]">{value}</div>
+      {foot && <div className={cx("mt-3 flex flex-wrap items-center gap-2 text-[13px]", dark ? "text-white/70" : "text-ink-3")}>{foot}</div>}
     </section>
   );
 }
@@ -79,7 +203,7 @@ export function Badge({ tone = "neutral", children, className }: { tone?: Tone; 
   return (
     <span
       className={cx(
-        "inline-flex h-[22px] items-center gap-1 rounded border px-1.5 text-[12.5px] font-semibold whitespace-nowrap",
+        "inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[12.5px] font-semibold whitespace-nowrap",
         toneClass[tone],
         className,
       )}
