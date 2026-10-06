@@ -190,6 +190,8 @@ export interface Order {
   channel?: "ONLINE";
   /** Name a walk-in buyer gave at the counter, printed in place of the account name */
   buyerName?: string;
+  /** Money owed back for cases refused on an order that was already paid, and when it was handed back */
+  refund?: { amount: number; at?: number; by?: string };
 }
 
 /** What a customer gives at checkout on the online store. Becomes (or updates) their client record. */

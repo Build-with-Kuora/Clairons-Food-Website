@@ -172,6 +172,12 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
                   <dd className="font-semibold">{money(d.pod.collected)}</dd>
                 </div>
               )}
+              {o.refund && (
+                <div>
+                  <dt className="text-caption text-ink-3">{o.refund.at ? "Refunded" : "Refund owed"}</dt>
+                  <dd className={cx("font-semibold", !o.refund.at && "text-warn")}>{money(o.refund.amount)}</dd>
+                </div>
+              )}
               {d.pod.notes && (
                 <div className="col-span-2">
                   <dt className="text-caption text-ink-3">Notes</dt>

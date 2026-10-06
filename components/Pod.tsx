@@ -3,7 +3,7 @@
 import { Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
-import { FROZEN_LIMIT_C } from "@/lib/logic";
+import { FROZEN_LIMIT_C, refusedCredit, refusedSettlement, round2 } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Delivery, Order, Short } from "@/lib/types";
 import { Field, cx } from "./ui";
@@ -101,12 +101,16 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [sig, setSig] = useState<string>();
   const [notes, setNotes] = useState("");
-  const isCod = order.payMethod === "COD" && !order.paid;
-  const [collected, setCollected] = useState(isCod ? order.total.toFixed(2) : "");
-
   const shorts: Short[] = order.lines
     .filter((l) => (qty[l.sku] ?? l.qty) < l.qty)
     .map((l) => ({ sku: l.sku, qty: l.qty - (qty[l.sku] ?? l.qty), reason: reasons[l.sku] ?? SHORT_REASONS[0] }));
+  const credit = refusedCredit(order, shorts);
+  const settle = refusedSettlement(order);
+  const isCod = settle === "COLLECT_LESS";
+  const due = round2(order.total - credit);
+  // Follows what is due as cases come back, until the driver types a different amount.
+  const [typed, setTyped] = useState<string>();
+  const collected = typed ?? (isCod ? due.toFixed(2) : "");
   const t = parseFloat(tempC);
   const warm = !Number.isNaN(t) && t > FROZEN_LIMIT_C;
   const ready = receivedBy.trim().length > 1 && !!sig && !Number.isNaN(t);
@@ -161,7 +165,18 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
             );
           })}
         </ul>
-        {shorts.length > 0 && <p className="mt-1 text-caption text-warn">Returned stock goes back on the truck and into stock at the dock. The account is credited.</p>}
+        {shorts.length > 0 && (
+          <p className="mt-1 text-caption text-warn">
+            Returned stock goes back on the truck and into stock at the dock.{" "}
+            {settle === "ACCOUNT"
+              ? `${money(credit)} comes off the account.`
+              : settle === "REFUND"
+                ? `${money(credit)} is owed back to the customer; the office hands it back.`
+                : settle === "COLLECT_LESS"
+                  ? `Collect ${money(credit)} less.`
+                  : ""}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -175,8 +190,8 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
       {warm && <p className="-mt-2 text-caption font-semibold text-bad">Warmer than −15°C. Note it below and expect the receiver to refuse soft product.</p>}
 
       {isCod && (
-        <Field label={`Collect on delivery, ${money(order.total)} due`}>
-          <input className={inputCls} inputMode="decimal" value={collected} onChange={(e) => setCollected(e.target.value)} />
+        <Field label={`Collect on delivery, ${money(due)} due`}>
+          <input className={inputCls} inputMode="decimal" value={collected} onChange={(e) => setTyped(e.target.value)} />
         </Field>
       )}
 

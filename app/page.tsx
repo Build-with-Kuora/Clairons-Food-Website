@@ -12,7 +12,7 @@ import { Badge, Delta, Panel, Segmented, Stat } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { DAY, count, daysUntil, money, money0, pesoK, plural, startOfDay, units } from "@/lib/format";
 import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
-import { runKey } from "@/lib/logic";
+import { buyerName, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 
 /** Home is different per role: the owner gets sales and money, staff get today's work. Riders never land here. */
@@ -35,6 +35,7 @@ function OwnerToday() {
   const routes = useStore((s) => s.routes);
   const lots = useStore((s) => s.lots);
   const clients = useStore((s) => s.clients);
+  const orders = useStore((s) => s.orders);
   const maps = useMaps();
   const { rows } = useStock();
   const [period, setPeriod] = useState<PeriodId>("14");
@@ -76,6 +77,7 @@ function OwnerToday() {
   const belowReorder = active.filter((r) => r.available < r.product.reorderPoint).sort((a, b) => a.available / a.product.reorderPoint - b.available / b.product.reorderPoint);
   const expiring = lots.filter((l) => l.qty > 0 && daysUntil(l.bestBy, now) <= 30).sort((a, b) => a.bestBy - b.bestBy);
   const held = lots.filter((l) => l.qty > 0 && l.status === "HOLD");
+  const refunds = orders.filter((o) => o.refund && !o.refund.at);
   const overCredit = clients.filter((c) => c.pastDue > 0 || (c.creditLimit > 0 && c.balance > c.creditLimit * 0.9));
 
   return (
@@ -195,9 +197,15 @@ function OwnerToday() {
                 <AttentionList
                   icon={<PauseCircle size={20} />}
                   tone="neutral"
-                  title="On hold and unpaid"
-                  empty="Nothing on hold and no overdue accounts."
+                  title="On hold and money to settle"
+                  empty="Nothing on hold, no overdue accounts and no refunds owed."
                   items={[
+                    ...refunds.map((o) => ({
+                      key: o.id,
+                      href: `/orders?id=${o.id}`,
+                      main: buyerName(o, maps.client.get(o.clientId)),
+                      side: `Refund owed ${money(o.refund!.amount)} for refused cases`,
+                    })),
                     ...held.map((l) => ({ key: l.id, href: `/inventory?sku=${l.sku}`, main: `${maps.product.get(l.sku)?.name}`, side: `Batch ${l.code} held for a quality check` })),
                     ...overCredit.map((c) => ({
                       key: c.id,

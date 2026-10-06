@@ -13,6 +13,7 @@ import type {
   ProductInput,
   ReceiptChannel,
   Seller,
+  Short,
   Rider,
   Route,
   Run,
@@ -238,6 +239,26 @@ export function salesOf(orders: Order[], deliveries: Delivery[]): Sale[] {
     out.push({ orderId: o.id, clientId: o.clientId, at, lines, fees, total: round2(lines.reduce((t, l) => t + l.amount, 0) + fees) });
   }
   return out;
+}
+
+/** What the cases refused at the door are worth, at the prices on the order. Delivery fees stay charged. */
+export function refusedCredit(order: Order, shorts: Short[]) {
+  let credit = 0;
+  for (const sh of shorts) {
+    const line = order.lines.find((l) => l.sku === sh.sku);
+    if (line && sh.qty > 0) credit += (line.lineTotal / line.qty) * sh.qty;
+  }
+  return round2(credit);
+}
+
+/**
+ * How refused cases are paid back: off the balance for on-account orders, as a refund owed for orders
+ * already paid, or simply not collected for unpaid COD.
+ */
+export function refusedSettlement(order: Order): "ACCOUNT" | "REFUND" | "COLLECT_LESS" | "NONE" {
+  if (order.payMethod === "ACCOUNT") return "ACCOUNT";
+  if (order.paid) return "REFUND";
+  return order.payMethod === "COD" ? "COLLECT_LESS" : "NONE";
 }
 
 /** Units sold per SKU since `since`. */
