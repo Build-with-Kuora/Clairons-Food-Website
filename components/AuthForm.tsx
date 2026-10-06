@@ -71,8 +71,8 @@ export function AuthForm() {
           <span className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-good-bg text-good">
             <MailCheck size={24} aria-hidden />
           </span>
-          <h1 className="display text-[26px] leading-tight font-semibold">Check your email</h1>
-          <p className="mt-2 text-[14.5px] text-ink-2">
+          <h1 className="display text-heading leading-tight font-semibold">Check your email</h1>
+          <p className="mt-2 text-small text-ink-2">
             If an account exists for <span className="font-semibold text-ink">{sentTo}</span>, we sent a link to reset your password.
           </p>
           <button type="button" className="btn btn-ghost btn-lg mt-6 w-full" onClick={() => go("login")}>
@@ -90,8 +90,8 @@ export function AuthForm() {
           <button type="button" className="btn btn-quiet btn-sm -ml-2.5 mb-3" onClick={() => go("login")}>
             <ArrowLeft size={14} aria-hidden /> Back to log in
           </button>
-          <h1 className="display text-[26px] leading-tight font-semibold">Reset your password</h1>
-          <p className="mt-1 text-[14.5px] text-ink-2">Enter your email and we&rsquo;ll send you a reset link.</p>
+          <h1 className="display text-heading leading-tight font-semibold">Reset your password</h1>
+          <p className="mt-1 text-small text-ink-2">Enter your email and we&rsquo;ll send you a reset link.</p>
         </div>
       ) : (
         <>
@@ -103,7 +103,7 @@ export function AuthForm() {
                 role="tab"
                 aria-selected={mode === m}
                 className={cx(
-                  "h-9 cursor-pointer rounded-md text-[14px] font-semibold transition-colors",
+                  "h-9 cursor-pointer rounded-md text-small font-semibold transition-colors",
                   mode === m ? "bg-panel text-ink shadow-[0_1px_2px_rgba(20,21,24,0.12)]" : "text-ink-3 hover:text-ink",
                 )}
                 onClick={() => mode !== m && go(m)}
@@ -112,7 +112,7 @@ export function AuthForm() {
               </button>
             ))}
           </div>
-          <h1 className="display mb-4 text-[26px] leading-tight font-semibold">{mode === "login" ? "Welcome back" : "Create your account"}</h1>
+          <h1 className="display mb-4 text-heading leading-tight font-semibold">{mode === "login" ? "Welcome back" : "Create your account"}</h1>
         </>
       )}
 
@@ -125,7 +125,7 @@ export function AuthForm() {
               autoComplete="email"
               inputMode="email"
               autoFocus
-              className={cx("input h-11 text-[15px]", errors.email && "border-bad")}
+              className={cx("input h-11 text-body", errors.email && "border-bad")}
               placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -142,7 +142,7 @@ export function AuthForm() {
             hint={mode === "signup" ? `At least ${PASSWORD_MIN} characters.` : undefined}
             aside={
               mode === "login" && (
-                <button type="button" className="cursor-pointer text-[13px] font-semibold text-brand hover:text-brand-hover hover:underline" onClick={() => go("forgot")}>
+                <button type="button" className="cursor-pointer text-caption font-semibold text-brand hover:text-brand-hover hover:underline" onClick={() => go("forgot")}>
                   Forgot password?
                 </button>
               )
@@ -168,7 +168,7 @@ export function AuthForm() {
       </form>
 
       {mode !== "forgot" && (
-        <p className="mt-5 text-center text-[14px] text-ink-2">
+        <p className="mt-5 text-center text-small text-ink-2">
           {mode === "login" ? "Don't have an account? " : "Already have an account? "}
           <button type="button" className="cursor-pointer font-semibold text-brand hover:text-brand-hover hover:underline" onClick={() => go(mode === "login" ? "signup" : "login")}>
             {mode === "login" ? "Sign up" : "Log in"}
@@ -209,7 +209,7 @@ function Field({
       </div>
       {children(id, msg ? msgId : undefined)}
       {msg && (
-        <p id={msgId} className={cx("mt-1 text-[13px]", error ? "text-bad" : "text-ink-3")} role={error ? "alert" : undefined}>
+        <p id={msgId} className={cx("mt-1 text-caption", error ? "text-bad" : "text-ink-3")} role={error ? "alert" : undefined}>
           {msg}
         </p>
       )}
@@ -239,7 +239,7 @@ function PasswordInput({
         id={id}
         type={show ? "text" : "password"}
         autoComplete={autoComplete}
-        className={cx("input h-11 pr-11 text-[15px]", invalid && "border-bad")}
+        className={cx("input h-11 pr-11 text-body", invalid && "border-bad")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={invalid}

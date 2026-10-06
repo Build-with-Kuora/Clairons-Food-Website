@@ -8,9 +8,9 @@ import type { Category, Product, Tier, ZoneId } from "@/lib/types";
 import { Field, Modal } from "./ui";
 
 const TIERS: { t: Tier; label: string }[] = [
-  { t: "C", label: "List (tier C)" },
-  { t: "B", label: "Standard (tier B)" },
-  { t: "A", label: "Contract (tier A)" },
+  { t: "C", label: "Walk-in and online price (C)" },
+  { t: "B", label: "Standard price (B)" },
+  { t: "A", label: "Contract price (A)" },
 ];
 
 /** Add a product (no `product`) or edit one. Saving goes through the `saveProduct` store action. */
@@ -61,7 +61,7 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
       active: f.active,
     });
     if (!r.ok) return setError(r.error);
-    toast(product ? `${r.product.sku} saved` : `${r.product.sku} ${r.product.name} added`);
+    toast(product ? `${r.product.name} saved` : `${r.product.name} added`);
     onClose();
   }
 
@@ -77,7 +77,7 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
       title={product ? `Edit ${product.sku}` : "Add product"}
       footer={
         <>
-          {error && <p className="mr-auto text-[13.5px] font-semibold text-bad">{error}</p>}
+          {error && <p className="mr-auto text-small font-semibold text-bad">{error}</p>}
           <button className="btn btn-ghost" type="button" onClick={onClose}>
             Cancel
           </button>
@@ -91,14 +91,14 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
         <Field label="Name" className="sm:col-span-2">
           <input className="input" value={f.name} onChange={(e) => set("name", e.target.value)} autoFocus />
         </Field>
-        <Field label="Category" hint={product ? undefined : `SKU will be ${nextSku(products, f.category)}`}>
+        <Field label="Category" hint={product ? undefined : `Product code will be ${nextSku(products, f.category)}`}>
           <select className="input" value={f.category} onChange={(e) => set("category", e.target.value as Category)} disabled={!!product}>
             {CATEGORIES.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
         </Field>
-        <label className="flex items-center gap-2 self-end pb-2 text-[14px]">
+        <label className="flex items-center gap-2 self-end pb-2 text-small">
           <input type="checkbox" className="accent-ink" checked={f.active} onChange={(e) => set("active", e.target.checked)} />
           Active: can be ordered and produced
         </label>
@@ -111,9 +111,9 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
           <input className="input" value={f.pack} onChange={(e) => set("pack", e.target.value)} />
         </Field>
         <Field label={`Weight of one ${unit} (kg)`}>{num("caseKg")}</Field>
-        <label className="flex items-center gap-2 self-end pb-2 text-[14px]">
+        <label className="flex items-center gap-2 self-end pb-2 text-small">
           <input type="checkbox" className="accent-ink" checked={f.catchWeight} onChange={(e) => set("catchWeight", e.target.checked)} />
-          Priced per kg (catch weight)
+          Sold by weight (priced per kg)
         </label>
 
         <h3 className="field-label mt-2 sm:col-span-2">Prices per {per}, VAT included</h3>
@@ -125,10 +125,10 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
         <Field label={`Production cost per ${per}`}>{num("cost")}</Field>
 
         <h3 className="field-label mt-2 sm:col-span-2">Stock levels, in {unitPlural(unit)}</h3>
-        <Field label="Reorder point" hint="“To make” suggests a batch below this.">
+        <Field label="Make more when under" hint="“What to make” lists the product once available stock drops below this.">
           {num("reorderPoint", "1")}
         </Field>
-        <Field label="Par level" hint="A batch tops free stock back up to this.">
+        <Field label="Fill back up to" hint="The suggested batch brings available stock back up to this.">
           {num("par", "1")}
         </Field>
 
@@ -142,7 +142,7 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
             ))}
           </select>
         </Field>
-        <Field label="Home bin" hint={`Starts with ${ZONES[f.zone].prefix}-, e.g. ${ZONES[f.zone].prefix}-01-A1`}>
+        <Field label="Storage bin" hint={`Starts with ${ZONES[f.zone].prefix}-, e.g. ${ZONES[f.zone].prefix}-01-A1`}>
           <input className="input uppercase" value={f.bin} onChange={(e) => set("bin", e.target.value)} />
         </Field>
         <Field label="Shelf life (days)">{num("shelfDays", "1")}</Field>

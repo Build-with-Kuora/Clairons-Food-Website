@@ -32,7 +32,7 @@ export function StopPlan({ delivery: d }: { delivery: Delivery }) {
         <span className="field-label">Delivery day</span>
         {movable ? (
           <input
-            className="input h-9 w-auto"
+            className="input w-auto"
             type="date"
             value={d.date}
             min={today}
@@ -44,15 +44,15 @@ export function StopPlan({ delivery: d }: { delivery: Delivery }) {
             }}
           />
         ) : (
-          <span className="block py-1.5 text-[14px] font-semibold">{dayShort(keyToTs(d.date))}</span>
+          <span className="block py-1.5 text-small font-semibold">{dayShort(keyToTs(d.date))}</span>
         )}
-        <span className="mt-1 block text-[12.5px] text-ink-3">{movable ? "Change before the stop is loaded." : "Locked once loaded."}</span>
+        <span className="mt-1 block text-caption text-ink-3">{movable ? "Change before the stop is loaded." : "Locked once loaded."}</span>
       </label>
       <div className="min-w-0">
         <label className="block">
           <span className="field-label">Note for the driver</span>
           {closed ? (
-            <span className="block py-1.5 text-[14px]">{d.note ?? <span className="text-ink-3">No note</span>}</span>
+            <span className="block py-1.5 text-small">{d.note ?? <span className="text-ink-3">No note</span>}</span>
           ) : (
             <textarea
               className="input min-h-[38px] py-1.5"

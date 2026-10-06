@@ -11,6 +11,9 @@ import { useStore, useUi } from "@/lib/store";
 
 const BY = "Production line";
 
+/** Batches listed before "Show all", so the page stays short. */
+const BATCHES_SHOWN = 15;
+
 export default function Production() {
   const { now } = useToday();
   const products = useStore((s) => s.products);
@@ -24,6 +27,7 @@ export default function Production() {
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [allBatches, setAllBatches] = useState(false);
 
   const dayStart = startOfDay(now);
   const today = useMemo(() => producedBySku(batches, dayStart), [batches, dayStart]);
@@ -55,66 +59,65 @@ export default function Production() {
 
   return (
     <div className="mx-auto max-w-[1500px]">
-      <PageHead title="Production" sub={`${plural(madeToday.length, "batch", "batches")} today, ${units(casesToday, commonUnit(madeToday.map((b) => product.get(b.sku))))} made. Finished batches go into the blast freezer and can be sold once frozen, ${BLAST_HOURS} hours later.`} />
+      <PageHead sub={`${plural(madeToday.length, "batch", "batches")} made today, ${units(casesToday, commonUnit(madeToday.map((b) => product.get(b.sku))))} in all.`} />
 
-      <div className="mb-5 grid items-start gap-5 xl:grid-cols-[380px_1fr]">
-        <Panel title="Record a batch">
-          <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="mb-6 grid items-start gap-5 xl:grid-cols-[420px_1fr]">
+        <Panel title="Record a batch" sub={`New batches go into the blast freezer and can be sold once frozen, ${BLAST_HOURS} hours later.`}>
+          <form onSubmit={submit} className="flex flex-col gap-4">
             <Field label="Product">
               <select className="input" value={sku} onChange={(e) => setSku(e.target.value)} required>
                 <option value="">Choose a product…</option>
                 {products.filter((p) => p.active || p.sku === sku).map((p) => (
                   <option key={p.sku} value={p.sku}>
-                    {p.sku} {p.name}
+                    {p.name}
                   </option>
                 ))}
               </select>
             </Field>
             <Field
               label={sku ? `${capitalize(unitPlural(product.get(sku)?.unit ?? "unit"))} made` : "Quantity made"}
-              hint={sku ? `${product.get(sku)?.pack} per ${product.get(sku)?.unit}. ${units(rows.get(sku)?.available ?? 0, product.get(sku)?.unit ?? "unit")} free to sell now.` : undefined}
+              hint={sku ? `${product.get(sku)?.pack} per ${product.get(sku)?.unit}. ${units(rows.get(sku)?.available ?? 0, product.get(sku)?.unit ?? "unit")} available now.` : undefined}
             >
               <input id="batch-qty" className="input" type="number" inputMode="numeric" min={1} step={1} value={qty} onChange={(e) => setQty(e.target.value)} required />
             </Field>
             <Field label="Note (optional)">
-              <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Shift, line, or anything QA should know" />
+              <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Shift, line, or anything worth noting" />
             </Field>
-            {error && <p className="text-[13.5px] font-semibold text-bad">{error}</p>}
+            {error && <p className="text-small font-semibold text-bad">{error}</p>}
             <button className="btn btn-primary btn-lg" type="submit">
-              <Factory size={18} aria-hidden /> Record batch
+              <Factory size={20} aria-hidden /> Record batch
             </button>
           </form>
         </Panel>
 
-        <Panel title="To make" actions={<span className="text-[13px] text-ink-3">Under reorder point, topped up to par</span>} bodyClass="p-0">
+        <Panel title="What to make" sub="Products running low, with how many to make to fill them back up" bodyClass="p-0">
           {suggestions.length === 0 ? (
-            <Empty title="Nothing below reorder point">Every product has enough free stock.</Empty>
+            <Empty title="Nothing is running low">Every product has enough stock.</Empty>
           ) : (
-            <div className="max-h-[420px] overflow-auto scroll-thin">
-              <table className="tbl">
+            <div className="overflow-x-auto scroll-thin">
+              <table className="tbl min-w-[560px]">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th className="r">Free / reorder at</th>
+                    <th className="pl-5 sm:pl-6">Product</th>
+                    <th className="r">Available</th>
                     <th className="r">Make</th>
-                    <th />
+                    <th className="pr-5 sm:pr-6">
+                      <span className="sr-only">Action</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {suggestions.map(({ row, qty: q }) => (
                     <tr key={row.product.sku}>
-                      <td>
-                        <div className="font-semibold">{row.product.name}</div>
-                        <div className="code text-ink-3">{row.product.sku}</div>
-                      </td>
+                      <td className="pl-5 font-semibold sm:pl-6">{row.product.name}</td>
                       <td className="r whitespace-nowrap">
                         <span className={cx("font-semibold", row.available <= 0 ? "text-bad" : "text-warn")}>{row.available}</span>
-                        <span className="text-ink-3"> / {row.product.reorderPoint}</span>
+                        <span className="text-small text-ink-3"> (make more under {row.product.reorderPoint})</span>
                       </td>
-                      <td className="r display text-[18px] font-semibold whitespace-nowrap">{units(q, row.product.unit)}</td>
-                      <td className="r">
+                      <td className="r display text-lead font-semibold whitespace-nowrap">{units(q, row.product.unit)}</td>
+                      <td className="r pr-5 sm:pr-6">
                         <button className="btn btn-ghost btn-sm" onClick={() => prefill(row.product.sku, q)}>
-                          Use
+                          Make this
                         </button>
                       </td>
                     </tr>
@@ -126,68 +129,75 @@ export default function Production() {
         </Panel>
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <Panel title="Batches" bodyClass="p-0">
+      <div className="grid items-start gap-5 2xl:grid-cols-[1.5fr_1fr]">
+        <Panel title="Batches" sub="Newest first" bodyClass="p-0">
           {batches.length === 0 ? (
             <Empty title="No batches yet">Record the first batch from the line and it shows up here and in Inventory.</Empty>
           ) : (
-            <div className="max-h-[480px] overflow-auto scroll-thin">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Made</th>
-                    <th>Batch</th>
-                    <th>Product</th>
-                    <th className="r">Qty</th>
-                    <th>Lot</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batches.map((b) => {
-                    const lot = lotById.get(b.lotId);
-                    return (
-                      <tr key={b.id}>
-                        <td className="whitespace-nowrap">{b.madeAt >= dayStart ? clock(b.madeAt) : dateTime(b.madeAt)}</td>
-                        <td className="code">{b.number}</td>
-                        <td>
-                          <Link href={`/inventory?sku=${b.sku}`} className="font-semibold hover:underline">
-                            {product.get(b.sku)?.name}
-                          </Link>
-                          {b.note && <div className="text-[12.5px] text-ink-3">{b.note}</div>}
-                        </td>
-                        <td className="r font-semibold whitespace-nowrap">
-                          {b.qty} <span className="text-[12.5px] font-normal text-ink-3">{product.get(b.sku)?.unit}</span>
-                        </td>
-                        <td className="code text-ink-2">{lot?.code}</td>
-                        <td>{lot && <LotBadge lot={lot} now={now} sellable="In stock" />}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto scroll-thin">
+                <table className="tbl min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th className="pl-5 sm:pl-6">Made</th>
+                      <th>Product</th>
+                      <th className="r">Quantity</th>
+                      <th>Batch no.</th>
+                      <th className="pr-5 sm:pr-6">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batches.slice(0, allBatches ? undefined : BATCHES_SHOWN).map((b) => {
+                      const lot = lotById.get(b.lotId);
+                      return (
+                        <tr key={b.id}>
+                          <td className="pl-5 whitespace-nowrap sm:pl-6">{b.madeAt >= dayStart ? `Today ${clock(b.madeAt)}` : dateTime(b.madeAt)}</td>
+                          <td>
+                            <Link href={`/inventory?sku=${b.sku}`} className="font-semibold hover:underline">
+                              {product.get(b.sku)?.name}
+                            </Link>
+                            {b.note && <div className="hint">{b.note}</div>}
+                          </td>
+                          <td className="r font-semibold whitespace-nowrap">
+                            {b.qty} <span className="text-small font-normal text-ink-3">{product.get(b.sku)?.unit}</span>
+                          </td>
+                          <td className="code whitespace-nowrap text-ink-2">{lot?.code ?? b.number}</td>
+                          <td className="pr-5 sm:pr-6">{lot && <LotBadge lot={lot} now={now} sellable="In stock" />}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {batches.length > BATCHES_SHOWN && (
+                <div className="border-t border-line p-4 sm:px-6">
+                  <button className="btn btn-ghost w-full" onClick={() => setAllBatches((v) => !v)}>
+                    {allBatches ? "Show the latest only" : `Show all ${batches.length} batches`}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </Panel>
 
-        <Panel title="Produced by product" actions={<span className="text-[13px] text-ink-3">In each product&rsquo;s unit</span>} bodyClass="p-0">
+        <Panel title="Made per product" sub="Counted in each product&rsquo;s selling unit" bodyClass="p-0">
           {summary.length === 0 ? (
             <Empty title="Nothing made in the last 7 days" />
           ) : (
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Product</th>
+                  <th className="pl-5 sm:pl-6">Product</th>
                   <th className="r">Today</th>
-                  <th className="r">7 days</th>
+                  <th className="r pr-5 sm:pr-6">Last 7 days</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.map((p) => (
                   <tr key={p.sku}>
-                    <td className="font-semibold">{p.name}</td>
+                    <td className="pl-5 font-semibold sm:pl-6">{p.name}</td>
                     <td className="r">{today.get(p.sku) ?? "–"}</td>
-                    <td className="r font-semibold">{week.get(p.sku)}</td>
+                    <td className="r pr-5 font-semibold sm:pr-6">{week.get(p.sku)}</td>
                   </tr>
                 ))}
               </tbody>

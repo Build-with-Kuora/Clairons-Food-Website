@@ -15,7 +15,7 @@ export default function Login() {
           <Logo height={72} />
         </div>
         <AuthForm />
-        <p className="mt-5 text-center text-[14px] text-ink-2">
+        <p className="mt-5 text-center text-small text-ink-2">
           Buying for home or your store?{" "}
           <Link href="/shop" className="font-semibold text-brand hover:text-brand-hover hover:underline">
             Shop online

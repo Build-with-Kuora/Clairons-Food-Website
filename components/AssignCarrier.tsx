@@ -20,7 +20,7 @@ export function AssignCarrier({ delivery: d, className }: { delivery: Delivery; 
 
   return (
     <select
-      className={cx("input h-8 w-auto py-0 text-[13.5px]", className)}
+      className={cx("input w-auto", className)}
       aria-label="Who delivers this stop"
       value={d.riderId ?? ""}
       onClick={(e) => e.stopPropagation()}

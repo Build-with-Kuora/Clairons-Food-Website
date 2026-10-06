@@ -43,7 +43,7 @@ export function SendReceipt({ order, client, by, onClose }: { order: Order; clie
       title={`Send receipt ${invoiceNumber(order.invoiceNo)}`}
       footer={
         <>
-          {error && <p className="mr-auto text-[13.5px] font-semibold text-bad">{error}</p>}
+          {error && <p className="mr-auto text-small font-semibold text-bad">{error}</p>}
           <button className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
@@ -53,7 +53,7 @@ export function SendReceipt({ order, client, by, onClose }: { order: Order; clie
         </>
       }
     >
-      <div className="flex rounded-md border border-line p-0.5" role="group" aria-label="Send by">
+      <div className="flex gap-2" role="group" aria-label="Send by">
         {(
           [
             ["EMAIL", "E-mail", Mail],
@@ -67,7 +67,7 @@ export function SendReceipt({ order, client, by, onClose }: { order: Order; clie
               setError("");
             }}
             aria-pressed={channel === c}
-            className={cx("flex h-9 flex-1 cursor-pointer items-center justify-center gap-2 rounded text-[14px] font-semibold", channel === c ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk")}
+            className="chip flex-1 justify-center"
           >
             <Icon size={16} aria-hidden /> {label}
           </button>
@@ -89,13 +89,13 @@ export function SendReceipt({ order, client, by, onClose }: { order: Order; clie
 
       <div className="mt-3">
         <div className="field-label">Message</div>
-        {channel === "EMAIL" && <div className="mb-1 text-[13px] font-semibold">{msg.subject}</div>}
-        <pre className="max-h-56 overflow-auto rounded-md border border-line bg-sunk p-3 font-sans text-[13px] whitespace-pre-wrap scroll-thin">{msg.body}</pre>
-        <p className="mt-1.5 text-[12.5px] text-ink-3">Opens your {channel === "SMS" ? "messages" : "mail"} app with this filled in. Press send there.</p>
+        {channel === "EMAIL" && <div className="mb-1 text-caption font-semibold">{msg.subject}</div>}
+        <pre className="max-h-56 overflow-auto rounded-md border border-line bg-sunk p-3 font-sans text-caption whitespace-pre-wrap scroll-thin">{msg.body}</pre>
+        <p className="mt-1.5 text-caption text-ink-3">Opens your {channel === "SMS" ? "messages" : "mail"} app with this filled in. Press send there.</p>
       </div>
 
       {(order.receipts?.length ?? 0) > 0 && (
-        <div className="mt-3 border-t border-line pt-2 text-[13px] text-ink-3">
+        <div className="mt-3 border-t border-line pt-2 text-caption text-ink-3">
           {order.receipts!.map((r) => (
             <div key={r.at}>
               {r.channel === "SMS" ? "SMS" : "E-mail"} to {r.to}, {dateTime(r.at)}, by {r.by}

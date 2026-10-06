@@ -54,15 +54,14 @@ export default function Dispatch() {
   return (
     <div className="mx-auto max-w-[1600px]">
       <PageHead
-        title="Delivery"
         sub={
           <>
-            {stops.length} stops: {counts.done} delivered, {counts.road} on the road, {counts.dock} still at the dock
-            {counts.exc > 0 && <span className="font-semibold text-bad">, {counts.exc} exception{counts.exc > 1 ? "s" : ""}</span>}.
+            {stops.length} deliveries: {counts.done} delivered, {counts.road} on the road, {counts.dock} not left yet
+            {counts.exc > 0 && <span className="font-semibold text-bad">, {counts.exc} with a problem</span>}.
           </>
         }
         actions={
-          <div className="flex gap-1 rounded-md border border-line bg-panel p-0.5" role="radiogroup" aria-label="Delivery day">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Delivery day">
             {dates.slice(0, 5).map((d) => (
               <button
                 key={d}
@@ -72,7 +71,7 @@ export default function Dispatch() {
                   setDate(d);
                   setSel(undefined);
                 }}
-                className={cx("h-8 cursor-pointer rounded px-3 text-[13.5px] font-semibold", date === d ? "bg-ink text-white" : "text-ink-2 hover:bg-sunk")}
+                className={cx("chip", date === d && "chip-on")}
               >
                 {d === today ? "Today" : dayShort(keyToTs(d)).replace(/,.*/, "") + " " + new Date(keyToTs(d)).getDate()}
               </button>
@@ -81,19 +80,19 @@ export default function Dispatch() {
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-5">
         <Tabs<View>
           value={view}
           onChange={setView}
           tabs={[
-            { id: "routes", label: "Routes" },
-            { id: "table", label: "Table", count: stops.length || undefined },
+            { id: "routes", label: "By van" },
+            { id: "table", label: "All deliveries", count: stops.length || undefined },
             { id: "riders", label: "Riders" },
           ]}
         />
       </div>
 
-      <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_620px] xl:grid-cols-[minmax(0,1fr)_540px]">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_580px]">
         <div className="space-y-5">
           {view === "table" && (
             <Panel title="Deliveries" bodyClass="p-0">
@@ -102,7 +101,7 @@ export default function Dispatch() {
           )}
           {view === "riders" && <RiderList />}
           {view === "routes" && riderStops.length > 0 && (
-            <Panel title="Rider drops" actions={<span className="text-[13px] text-ink-3">Motorbike, no temperature log</span>} bodyClass="p-0">
+            <Panel title="Rider deliveries" sub="By motorbike, no temperature log" bodyClass="p-0">
               <DeliveryTable stops={riderStops} selectedId={selected?.id} onSelect={setSel} />
             </Panel>
           )}
@@ -119,9 +118,9 @@ export default function Dispatch() {
               <Panel
                 key={r.id}
                 title={
-                  <span className="flex items-center gap-3">
+                  <span className="flex flex-wrap items-baseline gap-x-3">
                     {r.name}
-                    <span className="text-[14px] font-medium text-ink-3">
+                    <span className="font-sans text-body font-medium text-ink-2">
                       {r.truck}, {r.driver}
                     </span>
                   </span>
@@ -129,8 +128,8 @@ export default function Dispatch() {
                 actions={
                   <>
                     {last && date === today && (
-                      <span className={cx("text-[13px] font-semibold whitespace-nowrap", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
-                        Box {tempBare(last.c)}C
+                      <span className={cx("text-small font-semibold whitespace-nowrap", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
+                        Van temperature {tempBare(last.c)}°C
                       </span>
                     )}
                     {!run?.departedAt && loaded > 0 && date === today && (
@@ -138,10 +137,10 @@ export default function Dispatch() {
                         className="btn btn-primary btn-sm"
                         onClick={() => {
                           dispatchRoute(r.id, date, "Dispatch");
-                          toast(`${r.truck} dispatched with ${loaded} stops${notLoaded ? `, ${notLoaded} left at dock` : ""}`);
+                          toast(`${r.truck} sent out with ${loaded} deliveries${notLoaded ? `, ${notLoaded} not loaded yet` : ""}`);
                         }}
                       >
-                        <Truck size={14} /> Dispatch truck
+                        <Truck size={18} aria-hidden /> Send van out
                       </button>
                     )}
                     {run?.departedAt && <Badge tone="accent">Out since {clock(run.departedAt)}</Badge>}
@@ -150,22 +149,21 @@ export default function Dispatch() {
                 bodyClass=""
               >
                 {rs.length === 0 ? (
-                  <Empty title="No stops on this route">Orders for {r.name} clients will land here.</Empty>
+                  <Empty title="No deliveries on this route">Orders for {r.name} customers will show here.</Empty>
                 ) : (
                   <>
-                    <div className="px-3 pt-3 pb-1">
+                    <div className="px-4 pt-3 pb-2 sm:px-6">
                       <RouteLine stops={rs} run={run} clients={maps.client} selectedId={selected?.id} onSelect={setSel} />
                     </div>
                     <div className="overflow-x-auto scroll-thin">
-                      <table className="tbl min-w-[620px]">
+                      <table className="tbl min-w-[560px]">
                         <thead>
                           <tr>
-                            <th className="w-10">Stop</th>
-                            <th>Client</th>
-                            <th>Window</th>
+                            <th className="w-14 pl-5 sm:pl-6">Stop</th>
+                            <th>Customer</th>
                             <th>Status</th>
                             <th>Time</th>
-                            <th className="r">Qty</th>
+                            <th className="r pr-5 sm:pr-6">Cases</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -175,27 +173,28 @@ export default function Dispatch() {
                             const at = d.pod?.at ?? d.exception?.at;
                             return (
                               <tr key={d.id} className={cx("clickable", selected?.id === d.id && "selected")} onClick={() => setSel(d.id)}>
-                                <td className="font-semibold text-ink-3">{d.seq}</td>
+                                <td className="pl-5 text-lead font-semibold text-ink-2 sm:pl-6">{d.seq}</td>
                                 <td>
                                   <div className="font-semibold">{c.name}</div>
-                                  <div className="text-[12.5px] text-ink-3">{c.city}</div>
+                                  <div className="hint">
+                                    {c.city}, between {c.window}
+                                  </div>
                                 </td>
-                                <td className="text-ink-2">{c.window}</td>
                                 <td>
                                   <StatusPill status={d.status} />
                                 </td>
-                                <td className="text-ink-2">{at ? clock(at) : d.eta ? `ETA ${clock(d.eta)}` : "–"}</td>
-                                <td className="r">{o?.lines.reduce((s, l) => s + l.qty, 0)}</td>
+                                <td className="whitespace-nowrap text-ink-2">{at ? clock(at) : d.eta ? `Expected ${clock(d.eta)}` : "–"}</td>
+                                <td className="r pr-5 sm:pr-6">{o?.lines.reduce((s, l) => s + l.qty, 0)}</td>
                               </tr>
                             );
                           })}
                         </tbody>
                       </table>
                     </div>
-                    <div className="border-t border-line px-4 py-2 text-[12.5px] text-ink-3">
+                    <div className="border-t border-line px-5 py-3 hint sm:px-6">
                       {units(cases, unit)} on this route.{" "}
-                      {run && !run.departedAt && `Planned departure ${clock(run.plannedDepart)}.`}
-                      {notLoaded > 0 && !run?.departedAt && ` ${notLoaded} stop${notLoaded > 1 ? "s" : ""} still being picked.`}
+                      {run && !run.departedAt && `Leaves at ${clock(run.plannedDepart)}.`}
+                      {notLoaded > 0 && !run?.departedAt && ` ${notLoaded} deliver${notLoaded > 1 ? "ies" : "y"} still being packed.`}
                     </div>
                   </>
                 )}
@@ -204,9 +203,9 @@ export default function Dispatch() {
           })}
         </div>
 
-        <aside className="xl:sticky xl:top-[84px]">
-          <Panel bodyClass="p-5 max-h-[calc(100vh-110px)] overflow-y-auto scroll-thin">
-            {selected ? <DeliveryDetail key={selected.id} delivery={selected} /> : <Empty title="No stops for this day">Place an order on the Counter to schedule one.</Empty>}
+        <aside className="xl:sticky xl:top-6">
+          <Panel bodyClass="p-5 sm:p-6 xl:max-h-[calc(100vh-10rem)] xl:overflow-y-auto scroll-thin">
+            {selected ? <DeliveryDetail key={selected.id} delivery={selected} /> : <Empty title="No deliveries on this day">Place a delivery order on the POS to schedule one.</Empty>}
           </Panel>
         </aside>
       </div>

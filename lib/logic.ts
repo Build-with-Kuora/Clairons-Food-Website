@@ -507,7 +507,7 @@ export const STATUS_LABEL: Record<DeliveryStatus, string> = {
   EN_ROUTE: "En route",
   ARRIVED: "Arrived",
   DELIVERED: "Delivered",
-  EXCEPTION: "Exception",
+  EXCEPTION: "Problem",
 };
 
 export const TERMS_LABEL: Record<Terms, string> = { COD: "COD", NET15: "Net 15", NET30: "Net 30" };

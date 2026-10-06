@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge, Panel, cx } from "./ui";
@@ -25,17 +26,20 @@ export function AttentionList({
         </span>
       }
       actions={items.length ? <Badge tone={tone}>{items.length}</Badge> : undefined}
-      bodyClass="max-h-[260px] overflow-y-auto scroll-thin"
+      bodyClass="max-h-[400px] overflow-y-auto scroll-thin"
     >
       {items.length === 0 ? (
-        <p className="px-4 py-4 text-[14px] text-ink-3">{empty}</p>
+        <p className="px-5 py-5 text-body text-ink-2 sm:px-6">{empty}</p>
       ) : (
-        <ul className="divide-y divide-line/70">
+        <ul className="divide-y divide-line">
           {items.map((it) => (
             <li key={it.key}>
-              <Link href={it.href} className="block px-4 py-2 hover:bg-sunk">
-                <div className="truncate text-[14px] font-semibold">{it.main}</div>
-                <div className="truncate text-[13px] text-ink-3">{it.side}</div>
+              <Link href={it.href} className="flex items-center gap-3 px-5 py-3.5 hover:bg-sunk sm:px-6">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-body font-semibold">{it.main}</span>
+                  <span className="mt-0.5 block text-small text-ink-2">{it.side}</span>
+                </span>
+                <ChevronRight size={20} className="shrink-0 text-ink-3" aria-hidden />
               </Link>
             </li>
           ))}

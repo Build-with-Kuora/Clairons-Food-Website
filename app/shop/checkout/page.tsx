@@ -98,23 +98,23 @@ export default function Checkout() {
       <Link href="/shop" className="btn btn-quiet btn-sm -ml-2.5 mb-2">
         <ArrowLeft size={14} aria-hidden /> Keep shopping
       </Link>
-      <h1 className="display mb-5 text-[34px] leading-none font-semibold">Checkout</h1>
+      <h1 className="display mb-5 text-figure leading-none font-semibold">Checkout</h1>
 
       <form onSubmit={submit} noValidate className="grid items-start gap-5 lg:grid-cols-[1fr_380px]">
         <div className="space-y-5">
           <Section title="Deliver to">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Name">
-                <input className="input h-10" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
               </Field>
               <Field label="Mobile number" hint="The rider calls this number on arrival.">
-                <input className="input h-10" type="tel" inputMode="tel" autoComplete="tel" placeholder="0917 555 1234" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <input className="input" type="tel" inputMode="tel" autoComplete="tel" placeholder="0917 555 1234" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </Field>
               <Field label="Street address, barangay and landmark" className="sm:col-span-2">
-                <input className="input h-10" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                <input className="input" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} />
               </Field>
               <Field label="City" hint="We deliver within these Metro Manila cities.">
-                <select className="input h-10" value={city} onChange={(e) => setCity(e.target.value)}>
+                <select className="input" value={city} onChange={(e) => setCity(e.target.value)}>
                   <option value="">Choose a city</option>
                   {Object.keys(SERVICE_AREAS).map((c) => (
                     <option key={c}>{c}</option>
@@ -122,7 +122,7 @@ export default function Checkout() {
                 </select>
               </Field>
               <Field label="Notes for the driver (optional)">
-                <input className="input h-10" placeholder="Gate code, call first…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <input className="input" placeholder="Gate code, call first…" value={notes} onChange={(e) => setNotes(e.target.value)} />
               </Field>
             </div>
           </Section>
@@ -135,13 +135,13 @@ export default function Checkout() {
                   type="button"
                   onClick={() => setDate(d)}
                   aria-pressed={date === d}
-                  className={cx("h-10 cursor-pointer rounded-md border px-3 text-[14px] font-semibold", date === d ? "border-ink bg-ink text-white" : "border-line bg-panel hover:border-line-2")}
+                  className={cx("h-10 cursor-pointer rounded-md border px-3 text-small font-semibold", date === d ? "border-ink bg-ink text-white" : "border-line bg-panel hover:border-line-2")}
                 >
                   {dayLong(keyToTs(d)).split(",")[0]}, {new Date(keyToTs(d)).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[13px] text-ink-3">Delivered between 8 am and 5 pm. No deliveries on Sundays.</p>
+            <p className="mt-2 text-caption text-ink-3">Delivered between 8 am and 5 pm. No deliveries on Sundays.</p>
           </Section>
 
           <Section title="Payment">
@@ -153,16 +153,16 @@ export default function Checkout() {
                 >
                   <input type="radio" name="pay" className="mt-1 accent-ink" checked={pay === o.id} onChange={() => setPay(o.id)} />
                   <span>
-                    <span className="flex items-center gap-1.5 text-[14.5px] font-semibold">
+                    <span className="flex items-center gap-1.5 text-small font-semibold">
                       <o.icon size={15} aria-hidden /> {o.label}
                     </span>
-                    <span className="block text-[13px] text-ink-3">{o.sub}</span>
+                    <span className="block text-caption text-ink-3">{o.sub}</span>
                   </span>
                 </label>
               ))}
             </div>
             {pay !== "COD" && (
-              <p className="mt-2 rounded-md bg-warn-bg px-3 py-2 text-[13px] text-warn">
+              <p className="mt-2 rounded-md bg-warn-bg px-3 py-2 text-caption text-warn">
                 Prototype: no money is charged. The live store sends you to {pay === "GCASH" ? "GCash" : "the card payment page"} here; this demo marks the order paid.
               </p>
             )}
@@ -170,8 +170,8 @@ export default function Checkout() {
         </div>
 
         <aside className="rounded-xl border border-line bg-panel p-5 lg:sticky lg:top-20">
-          <h2 className="display text-[22px] font-semibold">Order summary</h2>
-          <ul className="mt-3 divide-y divide-line/70 text-[14px]">
+          <h2 className="display text-title font-semibold">Order summary</h2>
+          <ul className="mt-3 divide-y divide-line/70 text-small">
             {quote.items.map((i) => (
               <li key={i.product.sku} className="flex justify-between gap-3 py-2">
                 <span className="min-w-0">
@@ -184,18 +184,18 @@ export default function Checkout() {
               </li>
             ))}
           </ul>
-          <dl className="mt-2 space-y-1 border-t border-line pt-3 text-[14px] text-ink-2">
+          <dl className="mt-2 space-y-1 border-t border-line pt-3 text-small text-ink-2">
             <Line label="Subtotal" value={money(quote.subtotal)} />
             <Line label="Delivery fee" value={money(quote.fuel)} />
             {quote.dropFee > 0 && <Line label="Small order fee" value={money(quote.dropFee)} />}
             <div className="flex items-baseline justify-between border-t border-line pt-2 text-ink">
               <dt className="font-semibold">Total</dt>
-              <dd className="display text-[30px] leading-none font-semibold">{money(quote.total)}</dd>
+              <dd className="display text-figure leading-none font-semibold">{money(quote.total)}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-[12.5px] text-ink-3">Prices include 12% VAT. Items sold by weight are billed at the weight delivered.</p>
+          <p className="mt-2 text-caption text-ink-3">Prices include 12% VAT. Items sold by weight are billed at the weight delivered.</p>
           {error && (
-            <p className="mt-3 rounded-md bg-bad-bg px-3 py-2 text-[13px] text-bad" role="alert">
+            <p className="mt-3 rounded-md bg-bad-bg px-3 py-2 text-caption text-bad" role="alert">
               {error}
             </p>
           )}
@@ -211,7 +211,7 @@ export default function Checkout() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-xl border border-line bg-panel p-5">
-      <h2 className="display mb-3 text-[22px] font-semibold">{title}</h2>
+      <h2 className="display mb-3 text-title font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -229,8 +229,8 @@ function Line({ label, value }: { label: string; value: string }) {
 function Notice({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto max-w-md rounded-xl border border-line bg-panel p-8 text-center">
-      <h1 className="display text-[26px] font-semibold">{title}</h1>
-      <p className="mt-2 text-[14.5px] text-ink-2">{children}</p>
+      <h1 className="display text-heading font-semibold">{title}</h1>
+      <p className="mt-2 text-small text-ink-2">{children}</p>
       <Link href="/shop" className="btn btn-ghost mt-5">
         <ArrowLeft size={15} aria-hidden /> Back to the store
       </Link>
