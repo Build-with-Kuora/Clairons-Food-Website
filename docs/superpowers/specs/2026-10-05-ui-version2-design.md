@@ -2,7 +2,7 @@
 
 Branch: `ui-version2` (from `origin/prototype` at `f78eb1d`)
 Date: 2026-10-05
-Status: built on ui-version2
+Status: built on ui-version2. Sizes, the dashboard layout, wording and the laptop zoom were revised on 2026-10-06 for older users; see `2026-10-06-readability-design.md`.
 
 ## Goal
 
