@@ -44,8 +44,9 @@ const STAFF_BLOCKED = ["/sales"];
 
 export function canOpen(role: Role | undefined, path: string) {
   const under = (p: string) => path === p || path.startsWith(`${p}/`);
-  if (under("/landing") || under("/contact")) return true;
-  if (!role) return under("/login") || path === "/shop";
+  if (under("/contact")) return true;
+  // Logged out, / is the landing page (spec 11.9).
+  if (!role) return path === "/" || under("/login") || path === "/shop";
   if (role === "rider") return under("/driver");
   if (role === "customer") return under("/shop");
   if (role === "staff") return !STAFF_BLOCKED.some(under);

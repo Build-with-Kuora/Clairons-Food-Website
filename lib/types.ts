@@ -81,6 +81,18 @@ export type MoveType =
   | "HOLD"
   | "RELEASE";
 
+/** One price the owner changed on a product. */
+export interface PriceChange {
+  id: string;
+  at: number;
+  sku: string;
+  /** A price list, or the production cost */
+  field: Tier | "cost";
+  from: number;
+  to: number;
+  by: string;
+}
+
 export interface Movement {
   id: string;
   at: number;
@@ -190,6 +202,8 @@ export interface Order {
   channel?: "ONLINE";
   /** Name a walk-in buyer gave at the counter, printed in place of the account name */
   buyerName?: string;
+  /** Money owed back for cases refused on an order that was already paid, and when it was handed back */
+  refund?: { amount: number; at?: number; by?: string };
 }
 
 /** What a customer gives at checkout on the online store. Becomes (or updates) their client record. */

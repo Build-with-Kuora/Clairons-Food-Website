@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   Coldline styles
+   Clairon's Food app styles
    1. Brand          raw values; the only block to edit when the final theme lands
    2. Theme tokens   what components use (bg-panel, text-ink-3, border-line…)
    3. Fonts
@@ -123,6 +123,18 @@ body {
 ::selection {
   background: var(--color-brand-bg);
   color: var(--color-ink);
+}
+
+/* Home before the app loads: the script in app/layout.tsx marks a saved login with data-auth, so a
+   logged-in owner sees the loading line instead of a flash of the landing page (components/HomeGate.tsx). */
+.home-boot {
+  display: none;
+}
+html[data-auth="in"] .home-public {
+  display: none;
+}
+html[data-auth="in"] .home-boot {
+  display: block;
 }
 
 /* 5. Components ---------------------------------------------------------- */
@@ -261,9 +273,18 @@ body {
 }
 
 /* 7. Utilities and print ------------------------------------------------- */
+/* One scrollbar everywhere: thin, light gray, on a clear track. `.scroll-thin` predates this and now
+   matches the default. */
+*,
 .scroll-thin {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-2) transparent;
+}
+
+/* The landing page scrolls with no visible bar, so it never cuts into the hero. Wheel, touch and keys
+   still scroll it. */
+html:has(.home-public) {
+  scrollbar-width: none;
 }
 
 @media print {

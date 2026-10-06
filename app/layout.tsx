@@ -22,8 +22,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Coldline | Clairon's Foods",
-  description: "Order entry, cold-storage inventory and delivery tracking for Clairon's Foods.",
+  title: "Clairon's Food",
+  description: "Order entry, cold-storage inventory and delivery tracking for Clairon's Food.",
 };
 
 // Cover the whole screen so the phone bottom bar can pad for the home indicator.
@@ -33,9 +33,19 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * Runs before the page paints: marks a login saved in this browser so / can hide the landing page until
+ * the app has loaded (see components/HomeGate.tsx). "coldline-auth" is AUTH_KEY in lib/auth.ts.
+ */
+const SAVED_LOGIN = `try{var a=JSON.parse(localStorage.getItem("coldline-auth"));if(a&&a.state&&a.state.user)document.documentElement.dataset.auth="in"}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable} ${plexMono.variable} h-full antialiased`}>
+    // The head script adds data-auth before React loads, so <html> differs from the server's on purpose.
+    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable} ${plexMono.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SAVED_LOGIN }} />
+      </head>
       <body className="min-h-full">
         <Shell>{children}</Shell>
       </body>

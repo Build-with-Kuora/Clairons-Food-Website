@@ -55,9 +55,3 @@ export function useMaps() {
     [clients, products, orders, routes, riders],
   );
 }
-
-/** Read a query param once. Pages only render on the client (see Shell), so window is available. */
-export function queryParam(key: string) {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get(key);
-}

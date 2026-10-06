@@ -2,11 +2,11 @@
 
 import { ChevronRight, Phone, Search } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Badge, Drawer, PageHead, Panel, Signature, StatusPill, cx } from "@/components/ui";
 import { DAY, dateKey, dateTime, dayShort, keyToTs, money, money0, temp } from "@/lib/format";
-import { queryParam, useMaps, useNow } from "@/lib/hooks";
+import { useMaps, useNow } from "@/lib/hooks";
 import { TERMS_LABEL, TRUCK_LIMIT_C, isWalkIn } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Client } from "@/lib/types";
@@ -17,7 +17,8 @@ export default function Clients() {
   const now = useNow();
   const deliveries = useStore((s) => s.deliveries);
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
+  const params = useSearchParams();
+  const [openId, setOpenId] = useState<string | null>(() => params.get("id"));
 
   // Overdue accounts first: they are the ones to call.
   const list = clients

@@ -1,8 +1,9 @@
 import { DAY, HOUR, MIN, dateKey, lotCode, startOfDay } from "./format";
-import { WALK_IN, ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey, zoneOfBin } from "./logic";
+import { WALK_IN, ZONES, allocateFEFO, orderTotals, priceLines, refusedCredit, round2, runKey, zoneOfBin } from "./logic";
 import type {
   Alloc,
   Batch,
+  PriceChange,
   Category,
   Client,
   Delivery,
@@ -232,6 +233,7 @@ export interface Data {
   runs: Record<string, Run>;
   zones: Zone[];
   batches: Batch[];
+  priceChanges: PriceChange[];
   counters: { so: number; batch: number; invoice: number };
   seededAt: number;
 }
@@ -590,7 +592,8 @@ export function buildSeed(now = Date.now()): Data {
           reason: "Too warm on arrival",
           note: `Box warmed past −15°C after the rear door stayed open at the prior stop. Receiver refused ${refused} cs ${ic.name.toLowerCase()} as soft; rest accepted. Refused cases returning to dock for QA.`,
         };
-        extra.pod = { ...pod(c, s.at!, o.total, o.payMethod), productTempC: -9.2, shorts: [{ sku: ic.sku, qty: refused, reason: "Refused, soft on arrival" }] };
+        const shorts = [{ sku: ic.sku, qty: refused, reason: "Refused, soft on arrival" }];
+        extra.pod = { ...pod(c, s.at!, round2(o.total - refusedCredit(o, shorts)), o.payMethod), productTempC: -9.2, shorts };
         movements.push({ id: mvId(), at: s.at!, sku: ic.sku, lotCode: ic.allocs[0].lotCode, type: "RETURN", qty: refused, ref: o.number, by: rt.driver, note: "Refused, soft on arrival" });
       }
       if (s.eta) extra.eta = s.eta;
@@ -667,6 +670,7 @@ export function buildSeed(now = Date.now()): Data {
     runs,
     zones,
     batches,
+    priceChanges: [],
     counters: { so, batch: lots.length, invoice },
     seededAt: now,
   };

@@ -3,7 +3,7 @@
 import { Boxes, ChartColumn, Factory, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, ReceiptText, RotateCcw, ScanBarcode, Search, Truck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, createContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AUTH_KEY, ROLE_LABEL, canOpen, homeFor, useAuth, type Role } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { clock, dayLong } from "@/lib/format";
@@ -61,11 +61,12 @@ function useBoot() {
 }
 
 /**
- * Where to send someone who may not see this path. Logged out goes to /login, and comes back to the
- * store page they were on after logging in. Anyone else goes to their home page.
+ * Where to send someone who may not see this path. Logged out goes to the landing page at /, or to /login
+ * from the store, coming back to the store page they were on after logging in. Anyone else goes to their
+ * home page.
  */
 function redirectFor(path: string, role: Role | undefined) {
-  if (!role) return canOpen(role, path) ? null : path.startsWith("/shop") ? `/login?next=${encodeURIComponent(path)}` : "/login";
+  if (!role) return canOpen(role, path) ? null : path.startsWith("/shop") ? `/login?next=${encodeURIComponent(path)}` : "/";
   if (path.startsWith("/login")) return nextFrom(role) ?? homeFor(role);
   if (!canOpen(role, path)) return homeFor(role);
   return null;
@@ -101,6 +102,12 @@ export default function Shell({ children }: { children: ReactNode }) {
   const compact = collapsed || tablet;
   const to = ready ? redirectFor(path, user?.role) : null;
   const show = ready && !to;
+  // Pages read their ?id= / ?sku= links with useSearchParams, which needs a Suspense boundary.
+  const page = (
+    <BootedContext value={ready}>
+      <Suspense fallback={<Boot />}>{children}</Suspense>
+    </BootedContext>
+  );
 
   useEffect(() => {
     if (to) router.replace(to);
@@ -110,20 +117,31 @@ export default function Shell({ children }: { children: ReactNode }) {
   if (path.startsWith("/login")) {
     return (
       <>
-        {show && children}
+        {show && page}
         <Toaster />
       </>
     );
   }
 
-  // The public landing and contact pages read no store data, so they render without waiting for boot.
-  if (path.startsWith("/landing") || path.startsWith("/contact")) return <>{children}</>;
+  // The public contact page reads no store data, so it renders without waiting for boot.
+  if (path.startsWith("/contact")) return <>{children}</>;
+
+  // Home is the landing page until someone logs in. Before the app loads, HomeGate decides what shows.
+  // No Suspense here: it would ship the landing page hidden behind the loading line.
+  if (path === "/" && !(ready && user)) {
+    return (
+      <>
+        <BootedContext value={ready}>{children}</BootedContext>
+        <Toaster />
+      </>
+    );
+  }
 
   // The driver handheld and the online store bring their own header.
   if (path.startsWith("/driver") || path.startsWith("/shop")) {
     return (
       <>
-        {show ? children : <Boot />}
+        {show ? page : <Boot />}
         <Toaster />
       </>
     );
@@ -148,7 +166,7 @@ export default function Shell({ children }: { children: ReactNode }) {
     <div className="app-frame flex min-h-screen bg-page md:bg-side">
       <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col bg-side text-side-ink transition-[width] duration-200 md:flex", compact ? "w-[92px]" : "w-[264px]")}>
         <div className={cx("flex items-center gap-2 border-b border-white/10 py-5", compact ? "flex-col px-3" : "justify-between px-5")}>
-          <Link href="/" className="block rounded-xl bg-white px-2.5 py-2" aria-label="Clairon's Food Coldline, go to the dashboard">
+          <Link href="/" className="block rounded-xl bg-white px-2.5 py-2" aria-label="Clairon's Food, go to the dashboard">
             <Logo height={compact ? 22 : 38} />
           </Link>
           <button
@@ -283,7 +301,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main ref={scroller} className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] scroll-thin md:overflow-y-auto md:px-9 md:pt-7 md:pb-9">{show ? children : <Boot />}</main>
+        <main ref={scroller} className="min-w-0 flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] scroll-thin md:overflow-y-auto md:px-9 md:pt-7 md:pb-9">{show ? page : <Boot />}</main>
       </div>
       <BottomNav />
       <Toaster aboveNav />
@@ -316,7 +334,10 @@ function useCollapsed() {
   return [collapsed, setCollapsed] as const;
 }
 
-function Boot() {
+/** True once the saved store and login have loaded in this browser. */
+export const BootedContext = createContext(false);
+
+export function Boot() {
   return <div className="p-10 text-lead text-ink-2">Loading this morning&rsquo;s stock and routes…</div>;
 }
 

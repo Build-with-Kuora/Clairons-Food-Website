@@ -2,12 +2,14 @@
 
 import { Printer, Search, Send } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
 import { Badge, Drawer, Empty, PageHead, Pager, Panel, StatusPill } from "@/components/ui";
+import { useIsAdmin } from "@/lib/auth";
 import { dateTime, dayShort, invoiceNumber, keyToTs, money, money0, startOfDay } from "@/lib/format";
-import { queryParam, useMaps, useNow } from "@/lib/hooks";
+import { useMaps, useNow } from "@/lib/hooks";
 import { PAY_LABEL, buyerName } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Order } from "@/lib/types";
@@ -26,7 +28,8 @@ export default function Orders() {
   const now = useNow();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
+  const params = useSearchParams();
+  const [openId, setOpenId] = useState<string | null>(() => params.get("id"));
   const [sending, setSending] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -130,6 +133,11 @@ export default function Orders() {
                     <td>
                       <div className="text-ink-2">{PAY_LABEL[o.payMethod]}</div>
                       {o.status !== "CANCELLED" && (o.paid ? <Badge tone="good">Paid</Badge> : o.payMethod === "COD" ? <Badge tone="warn">Collect on delivery</Badge> : <Badge>To be paid</Badge>)}
+                      {o.refund && !o.refund.at && (
+                        <Badge tone="warn" className="ml-1.5">
+                          Refund owed {money(o.refund.amount)}
+                        </Badge>
+                      )}
                     </td>
                     <td className="r pr-5 text-lead font-semibold sm:pr-6">{money(o.total)}</td>
                   </tr>
@@ -190,6 +198,7 @@ function OrderBody({ order }: { order: Order }) {
   const c = maps.client.get(order.clientId)!;
   return (
     <div className="-mx-5 -my-4">
+      {order.refund && <RefundBar order={order} />}
       {d && (
         <div className="flex flex-wrap items-center gap-3 border-b border-line bg-sunk px-5 py-3 text-body">
           <StatusPill status={d.status} />
@@ -205,6 +214,38 @@ function OrderBody({ order }: { order: Order }) {
         </div>
       )}
       <Invoice order={order} client={c} delivery={d} route={maps.route.get(c.routeId)} rider={d?.riderId ? maps.rider.get(d.riderId) : undefined} products={maps.product} />
+    </div>
+  );
+}
+
+/** Money owed back for refused cases on a paid order. Only the owner marks it handed back. */
+function RefundBar({ order }: { order: Order }) {
+  const markRefunded = useStore((s) => s.markRefunded);
+  const toast = useUi((s) => s.toast);
+  const isAdmin = useIsAdmin();
+  const r = order.refund!;
+  if (r.at)
+    return (
+      <div className="border-b border-line bg-sunk px-5 py-3 text-body">
+        Refunded <span className="font-semibold">{money(r.amount)}</span> for refused cases on {dateTime(r.at)} by {r.by}.
+      </div>
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-b border-line bg-warn-bg px-5 py-3 text-body">
+      <span className="flex-1">
+        <span className="font-semibold">Refund owed {money(r.amount)}</span> for cases refused at the door. {isAdmin ? "Mark it once the money is handed back." : "The owner marks it once the money is handed back."}
+      </span>
+      {isAdmin && (
+        <button
+          className="btn btn-dark btn-sm"
+          onClick={() => {
+            const res = markRefunded(order.id, "Owner");
+            toast(res.ok ? `${order.number}: ${money(r.amount)} refunded` : res.error);
+          }}
+        >
+          Mark refunded
+        </button>
+      )}
     </div>
   );
 }

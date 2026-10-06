@@ -14,10 +14,13 @@ import {
   customerError,
   freeBlastBin,
   nextSku,
+  priceDiff,
   orderTotals,
   priceLines,
   productError,
   receiptToError,
+  refusedCredit,
+  refusedSettlement,
   rescheduleError,
   reservedByLot,
   round2,
@@ -89,11 +92,13 @@ interface Actions {
   /** Set or clear dispatch's note on a stop. */
   setDeliveryNote(deliveryId: string, note: string, by: string): { ok: true } | { ok: false; error: string };
   /** Add a product, or edit one (including deactivating it). */
-  saveProduct(i: ProductInput): { ok: true; product: Product } | { ok: false; error: string };
+  saveProduct(i: ProductInput, by: string): { ok: true; product: Product } | { ok: false; error: string };
   /** Create or update an online customer's client record (matched by e-mail) from their checkout details. */
   saveCustomer(i: CustomerInput): { ok: true; client: Client } | { ok: false; error: string };
   /** Record that a copy of the receipt went to the buyer. */
   logReceipt(orderId: string, channel: ReceiptChannel, to: string, by: string): { ok: true } | { ok: false; error: string };
+  /** Record that the refund owed for refused cases was handed back to the buyer. */
+  markRefunded(orderId: string, by: string): { ok: true } | { ok: false; error: string };
   produce(i: ProduceInput): { ok: true; batch: Batch; lot: Lot } | { ok: false; error: string };
   adjust(lotId: string, delta: number, type: "ADJUST" | "WASTE", note: string, by: string): void;
   moveLot(lotId: string, bin: string, by: string): void;
@@ -115,6 +120,7 @@ const empty: Data = {
   runs: {},
   zones: [],
   batches: [],
+  priceChanges: [],
   counters: { so: 0, batch: 0, invoice: 0 },
   seededAt: 0,
 };
@@ -316,12 +322,12 @@ export const useStore = create<Store>()(
         const now = Date.now();
         let lots = s.lots;
         let movements = s.movements;
-        let credit = 0;
+        const credit = refusedCredit(o, pod.shorts);
+        const settle = refusedSettlement(o);
         for (const sh of pod.shorts) {
           const line = o.lines.find((l) => l.sku === sh.sku);
           const alloc = line?.allocs[0];
           if (!line || !alloc || sh.qty <= 0) continue;
-          credit += line.catchWeight ? (line.lineTotal / line.qty) * sh.qty : line.unitPrice * sh.qty;
           lots = lots.map((l) => (l.id === alloc.lotId ? { ...l, qty: l.qty + sh.qty } : l));
           movements = [mv({ sku: sh.sku, lotCode: alloc.lotCode, type: "RETURN", qty: sh.qty, ref: o.number, by, note: sh.reason }), ...movements];
         }
@@ -334,10 +340,17 @@ export const useStore = create<Store>()(
               : x,
           ),
           orders: s.orders.map((x) =>
-            x.id === o.id ? { ...x, status: "FULFILLED", paid: x.paid || (pod.collected ?? 0) > 0 } : x,
+            x.id === o.id
+              ? {
+                  ...x,
+                  status: "FULFILLED",
+                  paid: x.paid || (pod.collected ?? 0) > 0,
+                  ...(credit > 0 && settle === "REFUND" ? { refund: { amount: credit } } : {}),
+                }
+              : x,
           ),
           clients:
-            credit > 0 && o.payMethod === "ACCOUNT"
+            credit > 0 && settle === "ACCOUNT"
               ? s.clients.map((c) => (c.id === o.clientId ? { ...c, balance: round2(c.balance - credit) } : c))
               : s.clients,
         });
@@ -437,7 +450,7 @@ export const useStore = create<Store>()(
         return { ok: true, rider };
       },
 
-      saveProduct: (i) => {
+      saveProduct: (i, by) => {
         const s = get();
         if (i.sku && !s.products.some((p) => p.sku === i.sku)) return { ok: false, error: "Product not found." };
         const error = productError(i, s.products);
@@ -450,7 +463,13 @@ export const useStore = create<Store>()(
           pack: i.pack.trim(),
           bin: i.bin.trim().toUpperCase(),
         };
-        set({ products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product] });
+        const before = i.sku ? s.products.find((p) => p.sku === i.sku) : undefined;
+        const now = Date.now();
+        const changes = before ? priceDiff(before, product).map((c) => ({ ...c, id: uid(), at: now, sku: product.sku, by })) : [];
+        set({
+          products: i.sku ? s.products.map((p) => (p.sku === i.sku ? product : p)) : [...s.products, product],
+          priceChanges: changes.length ? [...changes, ...s.priceChanges] : s.priceChanges,
+        });
         return { ok: true, product };
       },
 
@@ -491,6 +510,16 @@ export const useStore = create<Store>()(
         if (error) return { ok: false, error };
         const send = { at: Date.now(), channel, to: to.trim(), by };
         set({ orders: s.orders.map((o) => (o.id === orderId ? { ...o, receipts: [...(o.receipts ?? []), send] } : o)) });
+        return { ok: true };
+      },
+
+      markRefunded: (orderId, by) => {
+        const s = get();
+        const o = s.orders.find((x) => x.id === orderId);
+        if (!o?.refund) return { ok: false, error: "No refund is owed on this order." };
+        if (o.refund.at) return { ok: false, error: "This refund was already handed back." };
+        const refund = { ...o.refund, at: Date.now(), by };
+        set({ orders: s.orders.map((x) => (x.id === orderId ? { ...x, refund } : x)) });
         return { ok: true };
       },
 

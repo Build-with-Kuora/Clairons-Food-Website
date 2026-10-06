@@ -1,6 +1,7 @@
 "use client";
 
 import { Truck } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { DeliveryDetail } from "@/components/DeliveryDetail";
 import { DeliveryTable } from "@/components/DeliveryTable";
@@ -8,7 +9,7 @@ import { RiderList } from "@/components/RiderList";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, Empty, PageHead, Panel, StatusPill, Tabs, cx } from "@/components/ui";
 import { clock, dateKey, dayShort, keyToTs, temp, units } from "@/lib/format";
-import { queryParam, useMaps, useNow } from "@/lib/hooks";
+import { useMaps, useNow } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
@@ -23,6 +24,7 @@ export default function Dispatch() {
   const maps = useMaps();
   const now = useNow(20_000);
   const today = dateKey(now);
+  const params = useSearchParams();
 
   const dates = useMemo(() => {
     const ds = [...new Set(deliveries.map((d) => d.date))].filter((d) => d >= today).sort();
@@ -31,13 +33,13 @@ export default function Dispatch() {
   const [init] = useState(() => {
     const all = useStore.getState().deliveries;
     const day = dateKey(Date.now());
-    const stop = all.find((x) => x.id === queryParam("stop"));
+    const stop = all.find((x) => x.id === params.get("stop"));
     if (stop) return { date: stop.date, sel: stop.id };
-    const route = queryParam("route");
+    const route = params.get("route");
     const first = all.filter((x) => x.routeId === route && x.date === day).sort((a, b) => a.seq - b.seq)[0];
     return { date: day, sel: first?.id };
   });
-  const [view, setView] = useState<View>(() => (queryParam("view") as View | null) ?? "routes");
+  const [view, setView] = useState<View>(() => (params.get("view") as View | null) ?? "routes");
   const [date, setDate] = useState(init.date);
   const [sel, setSel] = useState<string | undefined>(init.sel);
 

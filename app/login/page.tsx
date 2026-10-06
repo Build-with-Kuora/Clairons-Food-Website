@@ -4,7 +4,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { Logo } from "@/components/Logo";
 
 export const metadata: Metadata = {
-  title: "Log in | Clairon's Foods",
+  title: "Log in | Clairon's Food",
 };
 
 export default function Login() {

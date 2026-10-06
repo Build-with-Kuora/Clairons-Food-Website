@@ -59,7 +59,7 @@ export function ProductForm({ product, onClose }: { product?: Product; onClose: 
       par: Number(f.par),
       shelfDays: Number(f.shelfDays),
       active: f.active,
-    });
+    }, "Owner");
     if (!r.ok) return setError(r.error);
     toast(product ? `${r.product.name} saved` : `${r.product.name} added`);
     onClose();

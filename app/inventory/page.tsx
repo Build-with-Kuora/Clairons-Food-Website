@@ -2,6 +2,7 @@
 
 import { Download, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CategoryTile } from "@/components/CategoryTile";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
@@ -9,7 +10,7 @@ import { ProductForm } from "@/components/ProductForm";
 import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Pager, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, plural, temp, unitPlural, units } from "@/lib/format";
 import { useIsAdmin } from "@/lib/auth";
-import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
+import { useMaps, useNow, useStock } from "@/lib/hooks";
 import { ZONES, ZONE_ORDER, caseCost, commonUnit, coreLimitC, isFreezing, priceUnit, zoneOfBin, type StockRow } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Lot, MoveType, Product, ZoneId } from "@/lib/types";
@@ -51,8 +52,9 @@ export default function Inventory() {
 }
 
 function InventoryPage() {
-  const [tab, setTab] = useState<Tab>(() => (useUi.getState().inventorySearch ? "stock" : ((queryParam("tab") as Tab | null) ?? "stock")));
-  const [openSku, setOpenSku] = useState<string | null>(() => queryParam("sku"));
+  const params = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => (useUi.getState().inventorySearch ? "stock" : ((params.get("tab") as Tab | null) ?? "stock")));
+  const [openSku, setOpenSku] = useState<string | null>(() => params.get("sku"));
   const { rows } = useStock();
   const lots = useStore((s) => s.lots);
   const products = useStore((s) => s.products);
@@ -173,11 +175,12 @@ const HISTORY_PAGE = 20;
 
 function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) => void }) {
   const admin = useIsAdmin();
-  const [q, setQ] = useState(() => useUi.getState().inventorySearch || queryParam("q") || "");
+  const params = useSearchParams();
+  const [q, setQ] = useState(() => useUi.getState().inventorySearch || params.get("q") || "");
   const [zone, setZone] = useState<ZoneId | "">("");
   const [cat, setCat] = useState<Category | "">("");
   // The dashboard's "Running low" card links here with ?filter=low.
-  const [status, setStatus] = useState<StatusFilter>(() => (queryParam("filter") === "low" ? "below" : ""));
+  const [status, setStatus] = useState<StatusFilter>(() => (params.get("filter") === "low" ? "below" : ""));
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<Product | null>(null);
   const now = useNow();
@@ -345,6 +348,9 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
   );
 }
 
+/** Names for the prices in the price change log, matching the Prices table. */
+const PRICE_FIELD = { A: "Contract (A)", B: "Standard (B)", C: "Walk-in and online (C)", cost: "Production cost" } as const;
+
 function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void }) {
   const p = row.product;
   const movements = useStore((s) => s.movements);
@@ -356,6 +362,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
   const [editing, setEditing] = useState(false);
   const admin = useIsAdmin();
   const moves = movements.filter((m) => m.sku === p.sku).slice(0, 14);
+  const priceLog = useStore((s) => s.priceChanges).filter((c) => c.sku === p.sku).slice(0, 10);
   const unit = priceUnit(p);
 
   return (
@@ -493,6 +500,25 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
         </tbody>
       </table>
       {p.catchWeight && <p className="mt-2 hint">Sold by weight: charged on the actual weight from the scale. The price per {p.unit} assumes {p.caseKg} kg.</p>}
+
+      <h3 className="display mt-7 mb-3 text-title font-semibold">Price changes</h3>
+      {priceLog.length ? (
+        <ul className="divide-y divide-line rounded-xl border border-line">
+          {priceLog.map((c) => (
+            <li key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-body">
+              <span className="min-w-0 flex-1">
+                <span className="font-semibold">{PRICE_FIELD[c.field]}</span> {money(c.from)} → <span className="font-semibold">{money(c.to)}</span>
+                <span className="text-ink-3"> /{unit}</span>
+              </span>
+              <span className="text-small text-ink-3">
+                {dateTime(c.at)}, {c.by}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hint">No price changes yet.</p>
+      )}
 
       <h3 className="display mt-7 mb-3 text-title font-semibold">Recent stock history</h3>
       <ul className="divide-y divide-line rounded-xl border border-line">
