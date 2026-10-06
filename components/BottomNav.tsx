@@ -45,7 +45,7 @@ export function BottomNav() {
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="lg:hidden">
+    <div className="md:hidden">
       {open && (
         <>
           <div className="fixed inset-0 z-40 bg-ink/30" onClick={() => setOpen(false)} aria-hidden />
