@@ -22,9 +22,9 @@ export default function Home() {
 }
 
 const PERIODS = [
-  { id: "7", label: "7 days" },
-  { id: "14", label: "14 days" },
-  { id: "30", label: "30 days" },
+  { id: "7", label: "Last 7 days" },
+  { id: "14", label: "Last 14 days" },
+  { id: "30", label: "Last 30 days" },
 ] as const;
 type PeriodId = (typeof PERIODS)[number]["id"];
 
@@ -183,7 +183,7 @@ function OwnerToday() {
                 <AttentionList
                   icon={<CalendarClock size={20} />}
                   tone="warn"
-                  title="Expiring within 30 days"
+                  title="Sell first, expiring soon"
                   empty="Nothing is close to its best-by date."
                   items={expiring.map((l) => ({
                     key: l.id,

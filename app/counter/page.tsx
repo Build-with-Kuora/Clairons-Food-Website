@@ -54,6 +54,7 @@ export default function Counter() {
   const [override, setOverride] = useState(false);
   const admin = useIsAdmin();
   const [extras, setExtras] = useState(false);
+  const [cleared, setCleared] = useState<{ cart: { sku: string; qty: number }[]; buyer: string } | null>(null);
   const [done, setDone] = useState<Order | null>(null);
   const [sending, setSending] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -175,6 +176,13 @@ export default function Counter() {
     toast(`${res.order.number} ${fulfillment === "PICKUP" ? "paid" : "placed"} for ${buyerName(res.order, client)}`);
   }
 
+  /** Clear the order, but keep what was in it for a few seconds so a mis-tap can be undone. */
+  function clearOrder() {
+    setCleared({ cart, buyer });
+    reset();
+    window.setTimeout(() => setCleared(null), 8000);
+  }
+
   function reset() {
     setDone(null);
     setCart([]);
@@ -204,7 +212,7 @@ export default function Counter() {
                 onKeyDown={onSearchKey}
                 aria-label="Search products"
               />
-              <span className="absolute top-1/2 right-3 -translate-y-1/2">
+              <span className="absolute top-1/2 right-3 hidden -translate-y-1/2 lg:block">
                 <Kbd>/</Kbd>
               </span>
             </div>
@@ -226,7 +234,7 @@ export default function Counter() {
 
           <SortableGrid
             storageKey="coldline-pos-products"
-            className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(230px,1fr))]"
+            className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
             items={filtered.map((p) => {
               const avail = rows.get(p.sku)?.available ?? 0;
               const qty = inCart.get(p.sku) ?? 0;
@@ -243,8 +251,10 @@ export default function Counter() {
                       qty ? "border-brand" : "border-transparent",
                     )}
                   >
-                    <CategoryTile category={p.category} size="lg" />
-                    <h3 className="mt-3 text-lead leading-snug font-semibold">{p.name}</h3>
+                    <div className={cx("flex items-start gap-3", qty > 0 && "pr-24")}>
+                      <CategoryTile category={p.category} size="md" />
+                      <h3 className="min-w-0 text-lead leading-snug font-semibold">{p.name}</h3>
+                    </div>
                     <div className="mt-1 text-small text-ink-2">
                       Per {p.unit}, {p.pack}
                       {p.catchWeight && ", sold by weight"}
@@ -282,7 +292,7 @@ export default function Counter() {
           <div className="space-y-4 px-5 pt-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="display text-heading font-semibold">Current order</h2>
-              <button className="btn btn-ghost btn-sm" onClick={reset} disabled={!cart.length && !buyer}>
+              <button className="btn btn-ghost btn-sm" onClick={clearOrder} disabled={!cart.length && !buyer}>
                 <X size={18} aria-hidden /> Clear
               </button>
             </div>
@@ -381,7 +391,23 @@ export default function Counter() {
 
           <div className="mt-4 shrink-0 border-y border-line bg-sunk/50 px-3 py-3">
             {cart.length === 0 ? (
-              <p className="px-3 py-8 text-center text-body text-ink-2">Nothing in the order yet. Tap &ldquo;Add to order&rdquo; on a product.</p>
+              cleared && cleared.cart.length > 0 ? (
+                <div className="flex flex-wrap items-center justify-center gap-3 px-3 py-6 text-center">
+                  <span className="text-body text-ink-2">Order cleared.</span>
+                  <button
+                    className="btn btn-dark btn-sm"
+                    onClick={() => {
+                      setCart(cleared.cart);
+                      setBuyer(cleared.buyer);
+                      setCleared(null);
+                    }}
+                  >
+                    Undo
+                  </button>
+                </div>
+              ) : (
+                <p className="px-3 py-8 text-center text-body text-ink-2">Nothing in the order yet. Tap &ldquo;Add to order&rdquo; on a product.</p>
+              )
             ) : (
               <ul className="space-y-2">
                 {cart.map((l) => {
@@ -490,12 +516,17 @@ export default function Counter() {
                 <dt>Includes 12% VAT</dt>
                 <dd>{money(vat)}</dd>
               </div>
-              <div className="flex items-baseline justify-between border-t border-dashed border-line pt-2">
-                <dt className="font-semibold">Total</dt>
-                <dd className="display text-figure leading-none font-semibold">{money(totals.total)}</dd>
-              </div>
             </dl>
 
+          </div>
+
+          {/* Total, payment and Checkout stay in view together at the bottom of the panel however long the
+              order gets, so the cashier always sees how the customer is paying before charging. */}
+          <div className="sticky bottom-0 space-y-4 border-t border-line bg-panel px-5 pt-4 pb-5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-lead font-semibold">Total</span>
+              <span className="display text-figure leading-none font-semibold">{money(totals.total)}</span>
+            </div>
             <div>
               <div className="mb-2 text-body font-semibold">Payment</div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Payment">
@@ -519,7 +550,6 @@ export default function Counter() {
                 })}
               </div>
             </div>
-
             {creditProblem && (
               <div className="rounded-xl border border-warn/30 bg-warn-bg p-4 text-small text-warn">
                 <div className="flex gap-2 font-semibold">
@@ -535,10 +565,6 @@ export default function Counter() {
                 )}
               </div>
             )}
-          </div>
-
-          {/* Checkout stays in view at the bottom of the panel however long the order gets. */}
-          <div className="sticky bottom-0 border-t border-line bg-panel px-5 pt-3 pb-5">
             <button className="btn btn-primary btn-lg w-full" disabled={!canPlace} onClick={submit}>
               {mode === "WALK_IN" ? `Checkout ${money(totals.total)}` : `Place order for ${dayShort(keyToTs(date)).split(",")[0]}, ${money(totals.total)}`}
             </button>

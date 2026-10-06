@@ -67,10 +67,17 @@ export default function Production() {
             <Field label="Product">
               <select className="input" value={sku} onChange={(e) => setSku(e.target.value)} required>
                 <option value="">Choose a product…</option>
-                {products.filter((p) => p.active || p.sku === sku).map((p) => (
-                  <option key={p.sku} value={p.sku}>
-                    {p.name}
-                  </option>
+                {/* Grouped by category, so a 48-product list is quicker to scan */}
+                {[...new Set(products.map((p) => p.category))].map((cat) => (
+                  <optgroup key={cat} label={cat}>
+                    {products
+                      .filter((p) => p.category === cat && (p.active || p.sku === sku))
+                      .map((p) => (
+                        <option key={p.sku} value={p.sku}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </optgroup>
                 ))}
               </select>
             </Field>
@@ -111,8 +118,8 @@ export default function Production() {
                     <tr key={row.product.sku}>
                       <td className="pl-5 font-semibold sm:pl-6">{row.product.name}</td>
                       <td className="r whitespace-nowrap">
-                        <span className={cx("font-semibold", row.available <= 0 ? "text-bad" : "text-warn")}>{row.available}</span>
-                        <span className="text-small text-ink-3"> (make more under {row.product.reorderPoint})</span>
+                        <div className={cx("font-semibold", row.available <= 0 ? "text-bad" : "text-warn")}>{row.available}</div>
+                        <div className="hint">make more under {row.product.reorderPoint}</div>
                       </td>
                       <td className="r display text-lead font-semibold whitespace-nowrap">{units(q, row.product.unit)}</td>
                       <td className="r pr-5 sm:pr-6">

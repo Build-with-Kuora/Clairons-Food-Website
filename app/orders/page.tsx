@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Invoice } from "@/components/Invoice";
 import { SendReceipt } from "@/components/SendReceipt";
-import { Badge, Drawer, Empty, PageHead, Panel, StatusPill } from "@/components/ui";
+import { Badge, Drawer, Empty, PageHead, Pager, Panel, StatusPill } from "@/components/ui";
 import { dateTime, dayShort, invoiceNumber, keyToTs, money, money0, startOfDay } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
 import { PAY_LABEL, buyerName } from "@/lib/logic";
@@ -13,6 +13,9 @@ import { useStore, useUi } from "@/lib/store";
 import type { Order } from "@/lib/types";
 
 type Filter = "all" | "today" | "unpaid" | "cancelled";
+
+/** Orders per page. */
+const PAGE = 20;
 
 export default function Orders() {
   const orders = useStore((s) => s.orders);
@@ -25,6 +28,7 @@ export default function Orders() {
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
   const [sending, setSending] = useState(false);
+  const [page, setPage] = useState(0);
 
   const dById = new Map(deliveries.map((d) => [d.id, d]));
   const dayStart = startOfDay(now);
@@ -40,6 +44,9 @@ export default function Orders() {
       return !needle || o.number.toLowerCase().includes(needle) || invoiceNumber(o.invoiceNo).toLowerCase().includes(needle) || buyerName(o, maps.client.get(o.clientId)).toLowerCase().includes(needle);
     })
     .sort((a, b) => b.createdAt - a.createdAt);
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  const at = Math.min(page, pages - 1);
+  const shown = list.slice(at * PAGE, at * PAGE + PAGE);
 
   const open = orders.find((o) => o.id === openId);
   const openD = open?.deliveryId ? dById.get(open.deliveryId) : undefined;
@@ -54,7 +61,13 @@ export default function Orders() {
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-4 sm:px-6">
           <div className="relative min-w-[240px] flex-1 md:max-w-[420px]">
             <Search size={20} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
-            <input className="input pl-11" placeholder="Customer name, order or invoice number" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search orders" />
+            <input className="input pl-11" placeholder="Customer name, order or invoice number" value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(0);
+              }}
+              aria-label="Search orders"
+            />
           </div>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
             {(
@@ -65,7 +78,15 @@ export default function Orders() {
                 ["cancelled", "Cancelled"],
               ] as const
             ).map(([k, l]) => (
-              <button key={k} onClick={() => setFilter(k)} aria-pressed={filter === k} className="chip">
+              <button
+                key={k}
+                onClick={() => {
+                  setFilter(k);
+                  setPage(0);
+                }}
+                aria-pressed={filter === k}
+                className="chip"
+              >
                 {l}
               </button>
             ))}
@@ -84,7 +105,7 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody>
-              {list.map((o) => {
+              {shown.map((o) => {
                 const d = o.deliveryId ? dById.get(o.deliveryId) : undefined;
                 return (
                   <tr key={o.id} className="clickable" onClick={() => setOpenId(o.id)}>
@@ -118,6 +139,7 @@ export default function Orders() {
           </table>
           {list.length === 0 && <Empty title="No orders match">Try another filter or search term.</Empty>}
         </div>
+        <Pager page={at} pages={pages} onChange={setPage} />
       </Panel>
 
       {open && (

@@ -42,7 +42,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
   const marks = [
     { at: statusAt(d, "LOADED"), label: "Loaded" },
     { at: statusAt(d, "ARRIVED"), label: "Arrived" },
-    { at: d.pod?.at ?? d.exception?.at, label: d.status === "EXCEPTION" ? "Exception" : "Signed" },
+    { at: d.pod?.at ?? d.exception?.at, label: d.status === "EXCEPTION" ? "Problem" : "Signed" },
   ].filter((m): m is { at: number; label: string } => !!m.at && trace.length > 0 && m.at >= trace[0].at);
 
   return (
@@ -100,7 +100,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
       </div>
 
       {/* Status ladder: a real sequence, so it gets step order */}
-      <ol className="mt-5 grid grid-cols-6 gap-1">
+      <ol className="mt-5 grid grid-cols-3 gap-x-2 gap-y-4">
         {STATUS_FLOW.map((s, i) => {
           const at = statusAt(d, s);
           const cur = d.status === s;
@@ -109,10 +109,10 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             <li key={s} className="min-w-0">
               <div className={cx("h-1.5 rounded-full", failed ? "bg-bad" : at ? "bg-ink" : "bg-line")} />
               <div className={cx("mt-1.5 flex items-center gap-1 text-caption font-semibold", cur ? "text-ink" : at ? "text-ink-2" : "text-ink-3")}>
-                {at && !cur && <Check size={12} strokeWidth={3} />}
-                <span className="truncate">{failed ? "Problem" : STATUS_LABEL[s]}</span>
+                {at && !cur && <Check size={14} strokeWidth={3} aria-hidden />}
+                <span>{failed ? "Problem" : STATUS_LABEL[s]}</span>
               </div>
-              <div className="text-caption text-ink-3">{failed ? when(d.exception!.at) : at ? when(at) : i === 4 && d.eta ? `ETA ${clock(d.eta)}` : ""}</div>
+              <div className="text-caption text-ink-3">{failed ? when(d.exception!.at) : at ? when(at) : i === 4 && d.eta ? `Expected ${clock(d.eta)}` : ""}</div>
             </li>
           );
         })}

@@ -204,7 +204,7 @@ export function PodForm({ delivery, order, by, onDone, onCancel, big }: { delive
   );
 }
 
-const EXCEPTION_REASONS = ["Client closed", "Refused delivery", "Temperature excursion", "Damaged load", "Can't access dock", "Truck breakdown", "Other"];
+const EXCEPTION_REASONS = ["Client closed", "Refused delivery", "Too warm on arrival", "Damaged load", "Can't access dock", "Truck breakdown", "Other"];
 
 export function ExceptionForm({ delivery, by, onDone, onCancel }: { delivery: Delivery; by: string; onDone: () => void; onCancel: () => void }) {
   const report = useStore((s) => s.reportException);
@@ -231,7 +231,7 @@ export function ExceptionForm({ delivery, by, onDone, onCancel }: { delivery: De
           className="btn btn-danger"
           onClick={() => {
             report(delivery.id, reason, note, by);
-            toast(`Exception logged: ${reason}`, "warn");
+            toast(`Problem reported: ${reason}`, "warn");
             onDone();
           }}
         >

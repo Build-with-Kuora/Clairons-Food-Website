@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Tip, barPath, niceMax, useWidth } from "./charts";
 
 /** Smooth path through points (Catmull-Rom as cubic Béziers), so a trend reads as a line, not a staircase. */
@@ -31,8 +31,7 @@ export function AreaTrend({
   format: (n: number) => string;
   label?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
   const pad = { l: 64, r: 14, t: 16, b: 34 };
   const iw = w - pad.l - pad.r;
@@ -115,8 +114,7 @@ export function PairedBars({
   height?: number;
   format: (n: number) => string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
   const pad = { l: 64, r: 6, t: 14, b: 32 };
   const iw = w - pad.l - pad.r;

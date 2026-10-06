@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useRef, useState } from "react";
 import { clock, tempBare } from "@/lib/format";
 import type { TempReading } from "@/lib/types";
 
-export function useWidth(ref: RefObject<HTMLElement | null>, fallback = 600) {
+/**
+ * A ref callback for a chart's box, and the box's width kept up to date. A callback ref attaches the observer
+ * the moment the element appears, including when a chart starts as an empty state and its box swaps later.
+ */
+export function useWidth(fallback = 600) {
   const [w, setW] = useState(fallback);
-  useEffect(() => {
-    if (!ref.current) return;
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!el) return;
+    // Measure now, so the first paint already fits the box instead of starting at the fallback width.
+    setW(Math.max(120, Math.round(el.getBoundingClientRect().width)));
     const ro = new ResizeObserver(([e]) => setW(Math.max(120, Math.round(e.contentRect.width))));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, [ref]);
-  return w;
+    ro.observe(el);
+    observer.current = ro;
+  }, []);
+  return [ref, w] as const;
 }
 
 export function niceMax(v: number) {
@@ -51,8 +60,7 @@ export function DailyBars({
   format: (n: number) => string;
   highlightLast?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
   const pad = { l: 60, r: 6, t: 12, b: 30 };
   const iw = w - pad.l - pad.r;
@@ -126,8 +134,7 @@ export function TempTrace({
   start?: number;
   end?: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const w = useWidth(ref);
+  const [ref, w] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
   if (!temps.length)
     return (

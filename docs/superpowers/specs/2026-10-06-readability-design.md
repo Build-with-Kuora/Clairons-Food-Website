@@ -89,6 +89,26 @@ several screens showed their title twice.
 
 Stored data, CSV headers and the invoice keep their original names.
 
+## Second pass (same day)
+
+A second critique scored 26/40 (from 21). The client kept the laptop text size as it is and kept phone tables
+as tables. Fixed:
+
+- POS: Total, payment method and Checkout pinned together at the bottom of the order panel; Clear can be
+  undone for 8 seconds; product cards use a small category tile beside the name, so 3 fit per row on a laptop.
+- One search box per screen (the header search is hidden on the Dashboard, POS, Inventory, Orders and
+  Customers); the Dashboard product grid says "Sold today / Sold in 7 days / Sold in 30 days" and the sales
+  chart "Last 7 / 14 / 30 days".
+- Charts: `useWidth` is now a ref callback that measures the box as soon as it appears.
+- Paging: `Pager` in `components/ui.tsx`; Orders and Stock history at 20 per page. Attention lists show 5
+  with "Show all" instead of scrolling inside the page.
+- Words: one set of delivery status words everywhere (Being packed, Loaded, Arrived, Problem); "Sell first,
+  expiring soon" on both homes; "Too warm on arrival" instead of "Temperature excursion"; "Count corrected";
+  "Fill back up to"; real minus signs; plural units; one degree sign.
+- Smaller: price pill in ink instead of red; 12 product cards on the Dashboard; overdue customers first with
+  "Paid up" and "Today"; grouped product picker on Production; rider deliveries below the van routes;
+  delivery status steps in two rows so they are not cut off.
+
 ## Testing
 
 Checked in the browser at 1440 × 900 and 375 × 812 on every app screen: no text below the caption size, no

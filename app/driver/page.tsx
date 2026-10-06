@@ -6,7 +6,7 @@ import { ExceptionForm, PodForm } from "@/components/Pod";
 import { Logo } from "@/components/Logo";
 import { StatusPill, cx } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { clock, dateKey, tempBare, units } from "@/lib/format";
+import { clock, dateKey, temp, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
@@ -107,7 +107,7 @@ export default function Driver() {
         </button>
         {route && box && (
           <span className={cx("flex items-center gap-1 text-body font-semibold", box.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink")}>
-            <Thermometer size={16} /> Box {tempBare(box.c)}C
+            <Thermometer size={18} aria-hidden /> Van temperature {temp(box.c)}
           </span>
         )}
       </div>

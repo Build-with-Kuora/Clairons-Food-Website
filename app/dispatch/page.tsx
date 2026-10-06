@@ -7,7 +7,7 @@ import { DeliveryTable } from "@/components/DeliveryTable";
 import { RiderList } from "@/components/RiderList";
 import { RouteLine } from "@/components/RouteLine";
 import { Badge, Empty, PageHead, Panel, StatusPill, Tabs, cx } from "@/components/ui";
-import { clock, dateKey, dayShort, keyToTs, tempBare, units } from "@/lib/format";
+import { clock, dateKey, dayShort, keyToTs, temp, units } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
@@ -100,11 +100,6 @@ export default function Dispatch() {
             </Panel>
           )}
           {view === "riders" && <RiderList />}
-          {view === "routes" && riderStops.length > 0 && (
-            <Panel title="Rider deliveries" sub="By motorbike, no temperature log" bodyClass="p-0">
-              <DeliveryTable stops={riderStops} selectedId={selected?.id} onSelect={setSel} />
-            </Panel>
-          )}
           {view === "routes" && routes.map((r) => {
             const rs = stops.filter((d) => d.routeId === r.id && !d.riderId).sort((a, b) => a.seq - b.seq);
             const run = runs[runKey(r.id, date)];
@@ -129,7 +124,7 @@ export default function Dispatch() {
                   <>
                     {last && date === today && (
                       <span className={cx("text-small font-semibold whitespace-nowrap", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
-                        Van temperature {tempBare(last.c)}°C
+                        Van temperature {temp(last.c)}
                       </span>
                     )}
                     {!run?.departedAt && loaded > 0 && date === today && (
@@ -163,7 +158,7 @@ export default function Dispatch() {
                             <th>Customer</th>
                             <th>Status</th>
                             <th>Time</th>
-                            <th className="r pr-5 sm:pr-6">Cases</th>
+                            <th className="r pr-5 sm:pr-6">Quantity</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -201,6 +196,11 @@ export default function Dispatch() {
               </Panel>
             );
           })}
+          {view === "routes" && riderStops.length > 0 && (
+            <Panel title="Rider deliveries" sub="By motorbike, no temperature log" bodyClass="p-0">
+              <DeliveryTable stops={riderStops} selectedId={selected?.id} onSelect={setSel} />
+            </Panel>
+          )}
         </div>
 
         <aside className="xl:sticky xl:top-6">

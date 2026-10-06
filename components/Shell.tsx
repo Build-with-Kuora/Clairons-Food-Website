@@ -25,8 +25,8 @@ export const NAV = [
   { href: "/production", label: "Production", icon: Factory },
 ];
 
-/** Screens with their own product search; the header search is hidden there. */
-const OWN_SEARCH = ["/counter", "/inventory"];
+/** Screens with their own search box; the header search is hidden there so a screen never has two. */
+const OWN_SEARCH = ["/", "/counter", "/inventory", "/orders", "/clients"];
 
 /** A greeting for the time of day. The demo logins have no names, so this beats "Hello, Admin". */
 function greeting(now: number) {
@@ -254,7 +254,7 @@ export default function Shell({ children }: { children: ReactNode }) {
               )}
             </div>
 
-            {/* POS and Inventory have their own search box, so the header one would be a second one on the same screen. */}
+            {/* Screens with their own search box skip this one, so there is never a second search on the same screen. */}
             {!OWN_SEARCH.includes(path) && <form onSubmit={search} role="search" className="relative mx-4 hidden max-w-[520px] flex-1 xl:block">
               <Search size={20} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-3" aria-hidden />
               <input name="q" className="input h-12 bg-sunk/60 pl-12" placeholder="Search products by name or code" aria-label="Search products" />

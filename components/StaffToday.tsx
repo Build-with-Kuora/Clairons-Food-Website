@@ -78,7 +78,7 @@ export function StaffToday() {
         <AttentionList
           icon={<Snowflake size={20} />}
           tone="warn"
-          title="Move out of blast freezer"
+          title="In the blast freezer"
           empty="Nothing frozen and waiting."
           items={blast.map((l) => {
             const at = readyAt(l);
@@ -117,7 +117,7 @@ export function StaffToday() {
         <AttentionList
           icon={<CalendarClock size={20} />}
           tone="warn"
-          title="Sell first"
+          title="Sell first, expiring soon"
           empty="Nothing is close to its best-by date."
           items={expiring.map((l) => ({
             key: l.id,

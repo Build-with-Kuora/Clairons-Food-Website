@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Badge, Drawer, PageHead, Panel, Signature, StatusPill, cx } from "@/components/ui";
-import { DAY, dateTime, dayShort, keyToTs, money, money0, temp } from "@/lib/format";
+import { DAY, dateKey, dateTime, dayShort, keyToTs, money, money0, temp } from "@/lib/format";
 import { queryParam, useMaps, useNow } from "@/lib/hooks";
 import { TERMS_LABEL, TRUCK_LIMIT_C, isWalkIn } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
@@ -14,6 +14,7 @@ import type { Client } from "@/lib/types";
 export default function Clients() {
   const clients = useStore((s) => s.clients);
   const orders = useStore((s) => s.orders);
+  const now = useNow();
   const deliveries = useStore((s) => s.deliveries);
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(() => queryParam("id"));
@@ -49,7 +50,7 @@ export default function Clients() {
               <tr>
                 <th className="pl-5 sm:pl-6">Customer</th>
                 <th className="r">Overdue</th>
-                <th>Owes, of credit limit</th>
+                <th>Balance owed</th>
                 <th>Payment terms</th>
                 <th>Next delivery</th>
                 <th className="pr-5 sm:pr-6">
@@ -69,7 +70,7 @@ export default function Clients() {
                         {c.type}, {c.city}
                       </div>
                     </td>
-                    <td className={cx("r whitespace-nowrap", c.pastDue > 0 ? "font-semibold text-bad" : "text-ink-3")}>{c.pastDue > 0 ? money(c.pastDue) : "None"}</td>
+                    <td className={cx("r whitespace-nowrap", c.pastDue > 0 ? "font-semibold text-bad" : "text-ink-3")}>{c.pastDue > 0 ? money(c.pastDue) : "Paid up"}</td>
                     <td>
                       {c.creditLimit > 0 ? (
                         <div className="w-52">
@@ -93,14 +94,14 @@ export default function Clients() {
                       {next ? (
                         <span className="flex flex-wrap items-center gap-2">
                           <StatusPill status={next.status} />
-                          <span className="text-small text-ink-2">{dayShort(keyToTs(next.date)).replace(/,.*/, "")}</span>
+                          <span className="text-small text-ink-2">{next.date === dateKey(now) ? "Today" : dayShort(keyToTs(next.date)).replace(/,.*/, "")}</span>
                         </span>
                       ) : (
                         <span className="text-ink-3">None planned</span>
                       )}
                     </td>
                     <td className="r pr-5 sm:pr-6">
-                      <span className="inline-flex items-center gap-1 text-small font-semibold text-brand">
+                      <span className="inline-flex items-center gap-1 text-small font-semibold text-ink-2">
                         Open <ChevronRight size={18} aria-hidden />
                       </span>
                     </td>

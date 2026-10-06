@@ -155,7 +155,7 @@ export default function Sales() {
                 value={money0(sum.total)}
                 foot={
                   <>
-                    <Delta now={sum.total} prev={before.total} onDark /> {plural(sum.count, "sale")}, VAT included
+                    <Delta now={sum.total} prev={before.total} onDark /> {vsLabel}. {plural(sum.count, "sale")}, VAT included.
                   </>
                 }
               />
@@ -189,7 +189,7 @@ export default function Sales() {
                 value={money0(total.vat)}
                 foot={
                   <>
-                    <Delta now={total.vat} prev={beforeTotal.vat} /> VAT inside the total
+                    The 12% VAT inside the total sales.
                   </>
                 }
               />
@@ -206,7 +206,7 @@ export default function Sales() {
                 value={count(sum.cases)}
                 foot={
                   <>
-                    <Delta now={sum.cases} prev={before.cases} /> {plural(sum.rows.length, "product")}
+                    <Delta now={sum.cases} prev={before.cases} /> {vsLabel}. {plural(sum.rows.length, "product")}.
                   </>
                 }
               />
@@ -281,7 +281,7 @@ export default function Sales() {
                       )}
                       <span className="text-body font-semibold whitespace-nowrap">{money0(c.amount)}</span>
                     </div>
-                    <div className={cx("mt-1.5 h-2.5 rounded-full", isWalkIn(client) ? "bg-brand" : "bg-ink")} style={{ width: `${topClient ? Math.max(2, (c.amount / topClient) * 100) : 0}%` }} aria-hidden />
+                    <div className={cx("mt-1.5 h-2.5 rounded-full", "bg-ink")} style={{ width: `${topClient ? Math.max(2, (c.amount / topClient) * 100) : 0}%` }} aria-hidden />
                     <div className="mt-1 hint">{plural(c.count, "sale")}</div>
                   </li>
                 );

@@ -55,11 +55,11 @@ export function RouteLine({
         const deliveredAt = d.pod?.at ?? d.exception?.at;
         const sub =
           d.status === "DELIVERED" ? `Done ${clock(deliveredAt!)}` :
-          d.status === "EXCEPTION" ? "Exception" :
-          d.status === "ARRIVED" ? "On site" :
+          d.status === "EXCEPTION" ? "Problem" :
+          d.status === "ARRIVED" ? "Arrived" :
           d.eta ? `Expected ${clock(d.eta)}` :
-          d.status === "LOADED" ? "On truck" :
-          d.status === "PICKING" ? "Picking" : "Not picked";
+          d.status === "LOADED" ? "Loaded" :
+          d.status === "PICKING" ? "Being packed" : "Not packed yet";
         return (
           <button
             key={d.id}

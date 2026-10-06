@@ -11,14 +11,14 @@ import type { Category } from "@/lib/types";
 import { Panel, Segmented, cx } from "./ui";
 
 const PERIODS = [
-  { id: "day", label: "Today", days: 1, sold: "sold today" },
-  { id: "week", label: "7 days", days: 7, sold: "sold, 7 days" },
-  { id: "month", label: "30 days", days: 30, sold: "sold, 30 days" },
+  { id: "day", label: "Sold today", days: 1, sold: "sold today" },
+  { id: "week", label: "Sold in 7 days", days: 7, sold: "sold, 7 days" },
+  { id: "month", label: "Sold in 30 days", days: 30, sold: "sold, 30 days" },
 ] as const;
 type PeriodId = (typeof PERIODS)[number]["id"];
 
-/** Cards shown before "Show all" when no search or category is picked. */
-const TOP = 8;
+/** Cards shown before "Show all" when no search or category is picked. 12 fills whole rows of 2, 3 or 4. */
+const TOP = 12;
 
 /**
  * Dashboard product cards from the client's sketch: price in the upper-left box,
@@ -77,7 +77,7 @@ export function ProductGrid({ now }: { now: number }) {
               className="flex min-w-0 flex-col rounded-2xl border border-line-2 bg-panel p-4 transition-colors hover:border-ink-3 hover:bg-sunk/40"
               aria-label={`${x.name}: ${money0(x.price.C)} per ${priceUnit(x)}, ${units(n, x.unit)} ${p.sold}, ${units(left, x.unit)} left`}
             >
-              <span className="self-start rounded-full bg-brand-bg px-3 py-1 text-body leading-tight font-bold text-brand-hover">
+              <span className="self-start rounded-full bg-sunk px-3 py-1 text-body leading-tight font-bold text-ink">
                 {money0(x.price.C)}
                 <span className="text-small font-semibold">/{priceUnit(x)}</span>
               </span>

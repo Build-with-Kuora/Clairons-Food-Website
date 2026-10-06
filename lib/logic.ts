@@ -502,7 +502,7 @@ export const STATUS_FLOW: DeliveryStatus[] = ["SCHEDULED", "PICKING", "LOADED", 
 
 export const STATUS_LABEL: Record<DeliveryStatus, string> = {
   SCHEDULED: "Scheduled",
-  PICKING: "Picking",
+  PICKING: "Being packed",
   LOADED: "Loaded",
   EN_ROUTE: "En route",
   ARRIVED: "Arrived",

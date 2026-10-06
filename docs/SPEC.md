@@ -39,7 +39,7 @@ These change what we build, so they come first.
 
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 2.1 | **[changed]** Grid of product cards: **2 per row on phones, 4 per row on tablet/desktop** | Done | Original said 4 per row. On a phone that makes each card about 80 px wide holding 3 numbers, which is unreadable. **[changed 2026-10-06]** With the larger text for older users: 1 per row on narrow phones (under 420 px), 2 on phones, 3 on laptops, 4 on wide screens (1536 px and up). `components/ProductGrid.tsx`. Shows the top 8 sellers, with "Show all". Each card opens the product in Inventory. |
+| 2.1 | **[changed]** Grid of product cards: **2 per row on phones, 4 per row on tablet/desktop** | Done | Original said 4 per row. On a phone that makes each card about 80 px wide holding 3 numbers, which is unreadable. **[changed 2026-10-06]** With the larger text for older users: 1 per row on narrow phones (under 420 px), 2 on phones, 3 on laptops, 4 on wide screens (1536 px and up). `components/ProductGrid.tsx`. Shows the top 12 sellers (8 before 2026-10-06; 12 fills whole rows of 2, 3 or 4), with "Show all". Each card opens the product in Inventory. |
 | 2.2 | Each card: product name, **products sold** (big number) | Done | Cases sold |
 | 2.3 | **[changed]** "Products sold" means **sold today**, with a date switch (today / 7 days / 30 days) | Done | The original didn't say over what period. Counts cases when the sale counts (6.3): delivered, or paid when placed. Refused cases are left out. |
 | 2.4 | Upper-left box: price (decision 0.3) | Done | List price per case, or per kg for catch weight |
@@ -162,6 +162,11 @@ Built 2026-10-06. Most of the people using the staff app are older, so the app s
 | 12.5 | One title per screen, one way to do each thing | Done | The header carries the page name; pages show a one-line summary under it. One search box per screen, one period control on Sales, one New order button. |
 | 12.6 | The rounded content panel stays in place | Done | From tablet width up, only the content inside the panel scrolls, so both curved corners stay in view. Phones scroll the whole page. |
 | 12.7 | Rearranging screens | Kept | "Rearrange" on the Dashboard, POS and Sales stays as it was, at the client's request. |
+| 12.8 | POS checkout shows how the customer pays | Done | Total, payment method and Checkout are pinned together at the bottom of the order panel; only the items scroll. Clear can be undone for 8 seconds. |
+| 12.9 | Long lists come in pages | Done | Orders and Inventory's stock history show 20 per page (`Pager` in `components/ui.tsx`); the stock table shows 10. Attention lists show 5 with "Show all". Tables keep their columns on phones and scroll sideways, at the client's request. |
+| 12.10 | One word per status | Done | Delivery statuses read the same everywhere (`STATUS_LABEL`): Scheduled, Being packed, Loaded, En route, Arrived, Delivered, Problem. |
+
+Second critique on 2026-10-06 scored the app 26/40 (from 21). Its fixes are in 12.8 to 12.10, plus: one search box per screen, distinct period labels on the Dashboard ("Sold today" for products, "Last 14 days" for the chart), charts measure their box as soon as it appears (they used to start 600 px wide and could push a phone page sideways), grouped product picker on Production, overdue customers first. Laptop text was left at the 87.5% base at the client's request.
 
 ---
 

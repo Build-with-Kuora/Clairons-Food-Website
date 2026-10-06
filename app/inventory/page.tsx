@@ -1,12 +1,12 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Download, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
+import { Download, Factory, ListFilter, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CategoryTile } from "@/components/CategoryTile";
 import { AdjustModal, HoldModal, MoveModal } from "@/components/InventoryModals";
 import { ProductForm } from "@/components/ProductForm";
-import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
+import { Badge, Drawer, Empty, LevelBar, LotBadge, PageHead, Pager, Panel, Tabs, ZoneTag, cx } from "@/components/ui";
 import { capitalize, count, dateKey, dateTime, day, daysUntil, money, money0, plural, temp, unitPlural, units } from "@/lib/format";
 import { useIsAdmin } from "@/lib/auth";
 import { queryParam, useMaps, useNow, useStock } from "@/lib/hooks";
@@ -28,11 +28,14 @@ const MOVE_TONE: Record<MoveType, "good" | "neutral" | "warn" | "bad" | "accent"
   RELEASE: "good",
 };
 
+/** A stock change with its sign: "+12", "−5" (a real minus sign), or a dash for no change. */
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "–");
+
 const MOVE_LABEL: Record<MoveType, string> = {
   PRODUCE: "Produced",
   SHIP: "Shipped",
   PICKUP: "Walk-in",
-  ADJUST: "Count adj.",
+  ADJUST: "Count corrected",
   WASTE: "Written off",
   TRANSFER: "Moved",
   RETURN: "Returned",
@@ -103,7 +106,7 @@ function InventoryPage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "stock", label: "Stock", count: all.length },
+          { id: "stock", label: "Stock" },
           { id: "lots", label: "Batches and best-by dates", count: shortDated.length + held.length || undefined },
           { id: "moves", label: "Stock history" },
           { id: "products", label: "Products and prices" },
@@ -164,6 +167,9 @@ const STATUS_PILL: Record<StockStatus, { label: string; dot: string; text: strin
 type StatusFilter = "" | "in" | "below" | "out" | "hold";
 
 const PAGE = 10;
+
+/** Stock history rows per page. */
+const HISTORY_PAGE = 20;
 
 function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) => void }) {
   const admin = useIsAdmin();
@@ -330,19 +336,7 @@ function StockTab({ rows, onOpen }: { rows: StockRow[]; onOpen: (sku: string) =>
         </table>
         {list.length === 0 && <Empty title="No products match these filters">Clear the search or set the filters back to all.</Empty>}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 sm:px-6">
-        <div className="flex gap-2">
-          <button className="btn btn-ghost" onClick={() => setPage(at - 1)} disabled={at === 0}>
-            <ChevronLeft size={20} aria-hidden /> Previous
-          </button>
-          <button className="btn btn-ghost" onClick={() => setPage(at + 1)} disabled={at >= pages - 1}>
-            Next <ChevronRight size={20} aria-hidden />
-          </button>
-        </div>
-        <span className="text-body text-ink-2">
-          Page {at + 1} of {pages}
-        </span>
-      </div>
+      <Pager page={at} pages={pages} onChange={setPage} />
       <p className="border-t border-line px-5 py-3 hint sm:px-6">
         Counted in each product&rsquo;s selling unit. &ldquo;Available&rdquo; is what is in storage minus what is set aside for orders. Open a product to see its batches, best-by dates and to correct a count.
       </p>
@@ -509,7 +503,7 @@ function ProductDrawer({ row, onClose }: { row: StockRow; onClose: () => void })
               {m.ref && <span className="code mr-1.5">{m.ref}</span>}
               <span className="text-ink-2">{m.note ?? (m.lotCode ? `Batch ${m.lotCode}` : "")}</span>
             </span>
-            <span className={cx("w-12 text-right font-semibold", m.qty > 0 ? "text-good" : m.qty < 0 ? "text-ink" : "text-ink-3")}>{m.qty > 0 ? `+${m.qty}` : m.qty || "–"}</span>
+            <span className={cx("w-12 text-right font-semibold", m.qty > 0 ? "text-good" : m.qty < 0 ? "text-ink" : "text-ink-3")}>{signed(m.qty)}</span>
             <span className="w-[130px] text-right text-small text-ink-3">{dateTime(m.at)}</span>
           </li>
         ))}
@@ -581,7 +575,7 @@ function LotsTab({ onOpen }: { onOpen: (sku: string) => void }) {
                   </td>
                   <td className="whitespace-nowrap text-ink-2">{day(l.madeAt)}</td>
                   <td className="r font-semibold whitespace-nowrap">
-                    {l.qty} <span className="text-small font-normal text-ink-3">{p?.unit}</span>
+                    {l.qty} <span className="text-small font-normal text-ink-3">{l.qty === 1 ? p?.unit : unitPlural(p?.unit ?? "unit")}</span>
                   </td>
                   <td className="r text-ink-2">{reserved[l.id] || "–"}</td>
                   <td><LotBadge lot={l} now={now} /></td>
@@ -601,14 +595,33 @@ function MovesTab() {
   const maps = useMaps();
   const [type, setType] = useState<MoveType | "">("");
   const [q, setQ] = useState("");
-  const list = movements
-    .filter((m) => (!type || m.type === type) && (!q || m.sku.toLowerCase().includes(q.toLowerCase()) || (m.ref ?? "").toLowerCase().includes(q.toLowerCase()) || (m.lotCode ?? "").includes(q)))
-    .slice(0, 250);
+  const [page, setPage] = useState(0);
+  const list = movements.filter((m) => (!type || m.type === type) && (!q || m.sku.toLowerCase().includes(q.toLowerCase()) || (m.ref ?? "").toLowerCase().includes(q.toLowerCase()) || (m.lotCode ?? "").includes(q)));
+  const pages = Math.max(1, Math.ceil(list.length / HISTORY_PAGE));
+  const at = Math.min(page, pages - 1);
+  const shown = list.slice(at * HISTORY_PAGE, at * HISTORY_PAGE + HISTORY_PAGE);
   return (
     <Panel bodyClass="">
       <div className="flex flex-wrap items-center gap-3 border-b border-line p-4 sm:px-6">
-        <input className="input max-w-[320px]" placeholder="Product code, batch or order number" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search stock history" />
-        <select className="input w-auto" value={type} onChange={(e) => setType(e.target.value as MoveType | "")} aria-label="Kind of change">
+        <input
+          className="input max-w-[320px]"
+          placeholder="Product code, batch or order number"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(0);
+          }}
+          aria-label="Search stock history"
+        />
+        <select
+          className="input w-auto"
+          value={type}
+          onChange={(e) => {
+            setType(e.target.value as MoveType | "");
+            setPage(0);
+          }}
+          aria-label="Kind of change"
+        >
           <option value="">All kinds of change</option>
           {(Object.keys(MOVE_LABEL) as MoveType[]).map((t) => (
             <option key={t} value={t}>
@@ -616,9 +629,9 @@ function MovesTab() {
             </option>
           ))}
         </select>
-        <span className="hint lg:ml-auto">Showing {list.length} of {count(movements.length)}</span>
+        <span className="hint lg:ml-auto">{count(list.length)} of {count(movements.length)} changes, newest first</span>
       </div>
-      <div className="max-h-[70vh] overflow-auto scroll-thin">
+      <div className="overflow-x-auto scroll-thin">
         <table className="tbl min-w-[960px]">
           <thead>
             <tr>
@@ -633,7 +646,7 @@ function MovesTab() {
             </tr>
           </thead>
           <tbody>
-            {list.map((m) => (
+            {shown.map((m) => (
               <tr key={m.id}>
                 <td className="whitespace-nowrap text-ink-2">{dateTime(m.at)}</td>
                 <td>
@@ -643,7 +656,7 @@ function MovesTab() {
                   <div className="max-w-[280px] font-semibold">{maps.product.get(m.sku)?.name}</div>
                 </td>
                 <td className="code">{m.lotCode ?? "–"}</td>
-                <td className={cx("r font-semibold", m.qty > 0 && "text-good")}>{m.qty > 0 ? `+${m.qty}` : m.qty || "–"}</td>
+                <td className={cx("r font-semibold", m.qty > 0 && "text-good")}>{signed(m.qty)}</td>
                 <td className="code">{m.ref ?? "–"}</td>
                 <td className="text-ink-2">{m.by}</td>
                 <td className="max-w-[280px] text-ink-2">{m.note ?? ""}</td>
@@ -652,6 +665,7 @@ function MovesTab() {
           </tbody>
         </table>
       </div>
+      <Pager page={at} pages={pages} onChange={setPage} />
     </Panel>
   );
 }
@@ -687,7 +701,7 @@ function ProductsTab({ onOpen }: { onOpen: (sku: string) => void }) {
               <th>Sold per</th>
               <th className="r">Price</th>
               <th className="r">Make more under</th>
-              <th className="r">Aim for</th>
+              <th className="r">Fill back up to</th>
               <th>Status</th>
               <th>
                 <span className="sr-only">Actions</span>

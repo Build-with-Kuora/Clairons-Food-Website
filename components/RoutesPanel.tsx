@@ -3,7 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clock, tempBare } from "@/lib/format";
+import { clock, temp } from "@/lib/format";
 import { useMaps } from "@/lib/hooks";
 import { TRUCK_LIMIT_C, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
@@ -42,7 +42,7 @@ export function RoutesPanel({ today }: { today: string }) {
               </div>
               {last && (
                 <div className={cx("mt-1 text-small font-semibold", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
-                  Van temperature {tempBare(last.c)}°C <span className="font-normal text-ink-3">at {clock(last.at)}</span>
+                  Van temperature {temp(last.c)} <span className="font-normal text-ink-3">at {clock(last.at)}</span>
                 </div>
               )}
             </div>

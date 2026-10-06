@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   MapPin,
   PackageCheck,
@@ -111,7 +113,7 @@ export function Segmented<T extends string>({
 
 /**
  * Change against an earlier period as a pill: "+12%" up, "−8%" down. Rising is green and falling red
- * unless `invert` (for counts where fewer is better). No earlier figure reads "New".
+ * unless `invert` (for counts where fewer is better). With no earlier figure it reads "Nothing before".
  */
 export function Delta({ now, prev, invert = false, onDark = false }: { now: number; prev: number; invert?: boolean; onDark?: boolean }) {
   const pct = pctChange(now, prev);
@@ -119,7 +121,7 @@ export function Delta({ now, prev, invert = false, onDark = false }: { now: numb
   const flat = pct === 0 || (pct === null && now === 0);
   const good = flat ? null : up !== invert;
   const Icon = flat ? null : up ? TrendingUp : TrendingDown;
-  const text = pct === null ? (now === 0 ? "0%" : "New") : `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${Math.abs(pct)}%`;
+  const text = pct === null ? (now === 0 ? "0%" : "Nothing before") : `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${Math.abs(pct)}%`;
   return (
     <span
       className={cx(
@@ -358,6 +360,26 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
           )}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Previous / Next under a long list, with "Page 2 of 5". Pages are counted from 0. */
+export function Pager({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {
+  if (pages <= 1) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 sm:px-6">
+      <div className="flex gap-2">
+        <button className="btn btn-ghost" onClick={() => onChange(page - 1)} disabled={page === 0}>
+          <ChevronLeft size={20} aria-hidden /> Previous
+        </button>
+        <button className="btn btn-ghost" onClick={() => onChange(page + 1)} disabled={page >= pages - 1}>
+          Next <ChevronRight size={20} aria-hidden />
+        </button>
+      </div>
+      <span className="text-body text-ink-2">
+        Page {page + 1} of {pages}
+      </span>
     </div>
   );
 }

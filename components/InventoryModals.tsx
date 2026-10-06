@@ -138,7 +138,7 @@ export function HoldModal({ lot, onClose }: { lot: Lot | null; onClose: () => vo
       }
     >
       {releasing && lot.holdReason && <p className="mb-3 rounded-md bg-sunk p-2.5 text-small text-ink-2">{lot.holdReason}</p>}
-      <Field label={releasing ? "QA finding" : "Why is this lot on hold?"}>
+      <Field label={releasing ? "What the quality check found" : "Why is this batch on hold?"}>
         <textarea
           className="input"
           rows={3}
