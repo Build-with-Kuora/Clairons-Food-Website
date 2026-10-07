@@ -129,7 +129,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v7";
+export const STORAGE_KEY = "clairons-coldline-ph-v8";
 
 export const useStore = create<Store>()(
   persist(

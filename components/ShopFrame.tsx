@@ -72,7 +72,7 @@ export function ShopFrame({ children }: { children: ReactNode }) {
       <footer className="border-t border-line bg-panel">
         <div className="mx-auto flex max-w-[1200px] flex-wrap gap-x-6 gap-y-1 px-4 py-5 text-caption text-ink-3">
           <span className="font-semibold text-ink-2">Clairon&rsquo;s Food</span>
-          <span>Made in Metro Manila, delivered frozen Monday to Saturday.</span>
+          <span>Made in Iloilo City, delivered frozen Monday to Saturday.</span>
           <span>Prototype store: no real payments are taken.</span>
         </div>
       </footer>

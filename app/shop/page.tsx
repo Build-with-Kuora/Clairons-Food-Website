@@ -40,7 +40,7 @@ export default function Shop() {
               Frozen favorites, <span className="text-brand">delivered cold.</span>
             </h1>
             <p className="mt-3 max-w-[520px] text-body text-ink-2">
-              Siopao, siomai, fish balls, tocino and more, made by Clairon&rsquo;s in Metro Manila and sold by the case. Order today, and our refrigerated vans and riders bring it to your door.
+              Siopao, siomai, fish balls, tocino and more, made by Clairon&rsquo;s in Iloilo City and sold by the case. Order today, and our refrigerated vans and riders bring it to your door.
             </p>
           </div>
           <ul className="grid content-center gap-3 text-small">

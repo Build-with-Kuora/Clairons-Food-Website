@@ -19,7 +19,7 @@ export default function ContactPage() {
                 <dt className="lp-display text-[1.5rem]">Clairon&rsquo;s Food</dt>
                 <dd className="sr-only">Contact details</dd>
               </div>
-              <Row label="Address" value="Street, barangay, city" />
+              <Row label="Address" value="Iloilo Fish Port Complex, Iloilo City" />
               <Row label="Mobile" value="0900 000 0000" />
               <Row label="Messenger" value="facebook.com/your-page" />
               <Row label="E-mail" value="orders@your-domain.ph" />
@@ -28,7 +28,7 @@ export default function ContactPage() {
                 <dd className="font-semibold">Monday to Saturday, 8 am to 5 pm</dd>
               </div>
             </dl>
-            <p className="mt-3 text-[0.9rem] text-[var(--lp-ink-2)]">Address, mobile, Messenger and e-mail are placeholders until the real ones are in.</p>
+            <p className="mt-3 text-[0.9rem] text-[var(--lp-ink-2)]">Mobile, Messenger and e-mail are placeholders until the real ones are in. The address comes from the sign on the building.</p>
           </div>
         </div>
       </section>
