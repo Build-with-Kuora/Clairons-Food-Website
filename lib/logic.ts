@@ -454,18 +454,19 @@ export function freeBlastBin(lots: Lot[]) {
 
 /** Cities the online store delivers to, and the van route that covers each. Dispatch can still hand a stop to a rider. */
 export const SERVICE_AREAS: Record<string, string> = {
-  Manila: "MNL",
-  Caloocan: "MNL",
-  "Quezon City": "QC",
-  "San Juan": "QC",
-  Marikina: "QC",
-  Mandaluyong: "STH",
-  Makati: "STH",
-  Pasig: "STH",
-  Taguig: "STH",
-  Pasay: "STH",
-  "Parañaque": "STH",
-  "Las Piñas": "STH",
+  "Iloilo City": "CTY",
+  Pavia: "NTH",
+  Leganes: "NTH",
+  "Santa Barbara": "NTH",
+  Zarraga: "NTH",
+  Pototan: "NTH",
+  "Passi City": "NTH",
+  "Roxas City": "NTH",
+  Oton: "STH",
+  Tigbauan: "STH",
+  Guimbal: "STH",
+  Miagao: "STH",
+  "San Jose de Buenavista": "STH",
 };
 
 /** Online shoppers buy at list price (tier C), the same as walk-in COD accounts. */

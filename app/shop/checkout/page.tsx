@@ -113,7 +113,7 @@ export default function Checkout() {
               <Field label="Street address, barangay and landmark" className="sm:col-span-2">
                 <input className="input" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} />
               </Field>
-              <Field label="City" hint="We deliver within these Metro Manila cities.">
+              <Field label="City" hint="We deliver to these Western Visayas towns and cities.">
                 <select className="input" value={city} onChange={(e) => setCity(e.target.value)}>
                   <option value="">Choose a city</option>
                   {Object.keys(SERVICE_AREAS).map((c) => (

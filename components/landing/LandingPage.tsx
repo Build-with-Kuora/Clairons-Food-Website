@@ -14,7 +14,7 @@ import { ROUTES } from "@/lib/seed";
 
 /** Title and description for search engines; used by the home page, which shows this page to logged-out visitors. */
 export const LANDING_METADATA: Metadata = {
-  title: "Clairon's Food | Frozen siopao, siomai and merienda, delivered in Metro Manila",
+  title: "Clairon's Food | Frozen siopao, siomai and merienda, delivered across Iloilo and Western Visayas",
   description: "Clairon's Food makes siopao, siomai, fishballs, tocino and more, and delivers them frozen, Monday to Saturday.",
 };
 
@@ -273,7 +273,7 @@ function About() {
           <Headline text="Who makes it" className="lp-display lp-mega lg:col-span-5" />
           <div className="lg:col-span-6 lg:col-start-7">
             <p className="text-[1.15rem] leading-relaxed text-white/90">
-              Clairon&rsquo;s Food is a Filipino-owned food maker in Metro Manila. We make the merienda and streetfood favourites that carinderias, carts
+              Clairon&rsquo;s Food is a Filipino-owned food maker based in Iloilo City. We make the merienda and streetfood favourites that carinderias, carts
               and families buy every week, freeze them ourselves and bring them to you on our own vans.
             </p>
             <p className="lp-todo mt-6 max-w-[65ch]">

@@ -1,6 +1,6 @@
 # Coldline, Clairon's Foods
 
-Prototype POS, cold-storage inventory and delivery tracking for a Metro Manila wholesaler of frozen Chinese-Filipino food and streetfood: siopao, siomai, hakaw, fish balls, kikiam, tocino, longganisa and more.
+Prototype POS, cold-storage inventory and delivery tracking for an Iloilo City wholesaler, serving Western Visayas, of frozen Chinese-Filipino food and streetfood: siopao, siomai, hakaw, fish balls, kikiam, tocino, longganisa and more.
 
 Prices are in Philippine pesos (₱, VAT-inclusive), temperatures in °C, weights in kg.
 
@@ -41,7 +41,7 @@ Anyone can browse `/shop` without logging in. Sign up makes a customer account, 
 | `/clients` | Accounts with terms, credit use, past due, and full delivery history showing who signed and at what temperature. |
 | `/driver` | Phone-sized handheld for van drivers and riders (log in as the rider): start route, arrive, unload, capture signature and temps, report problems. Open it in a second browser window next to Dispatch to watch updates sync. |
 | `/shop` | Public online store: browse by category, search, see what is in stock, add to cart. Delivery fees match the counter (₱150, plus ₱300 under ₱5,000). |
-| `/shop/checkout` | Customers only: delivery address (Metro Manila cities mapped to a van route), delivery day, GCash, card or cash on delivery. Payment is simulated; nothing is charged. The order goes through the same `placeOrder` as the counter, so it reserves stock, gets an invoice number, lands on Delivery and counts as a sale by the same rule. Staff see it in Orders tagged "Online". |
+| `/shop/checkout` | Customers only: delivery address (Iloilo, Capiz and Antique towns and cities mapped to a van route), delivery day, GCash, card or cash on delivery. Payment is simulated; nothing is charged. The order goes through the same `placeOrder` as the counter, so it reserves stock, gets an invoice number, lands on Delivery and counts as a sale by the same rule. Staff see it in Orders tagged "Online". |
 | `/shop/orders` | Customers only: their orders with a four-step tracker (placed, packed, out for delivery, delivered), payment status and what was delivered. |
 
 On phones a bottom bar replaces the sidebar: Inventory, Production, Home, Delivery, and Sales (a menu with the sales table, Counter, Orders, Clients and Log out; staff see it as "More", without the sales table).

@@ -94,9 +94,9 @@ const RAW: Raw[] = [
 const TUBS = new Set(["DE-7001", "DE-7002", "DE-7003"]);
 
 export const ROUTES: Route[] = [
-  { id: "MNL", name: "Binondo & Manila", truck: "Ref van 02", driver: "Rommel Santos", setPointC: -20 },
-  { id: "QC", name: "Quezon City loop", truck: "Ref van 05", driver: "Jun Dela Cruz", setPointC: -20 },
-  { id: "STH", name: "Makati, Pasig & south", truck: "Ref van 07", driver: "Arnel Reyes", setPointC: -20 },
+  { id: "CTY", name: "City Proper & Molo", truck: "Ref van 02", driver: "Rommel Santos", setPointC: -20 },
+  { id: "NTH", name: "Jaro, La Paz & north to Capiz", truck: "Ref van 05", driver: "Jun Dela Cruz", setPointC: -20 },
+  { id: "STH", name: "Mandurriao, Arevalo & south to Antique", truck: "Ref van 07", driver: "Arnel Reyes", setPointC: -20 },
 ];
 
 export const RIDERS: Rider[] = [
@@ -105,25 +105,25 @@ export const RIDERS: Rider[] = [
   { id: "rd-3", name: "Dodong Reyes", phone: "0927 555 1186", bike: "Honda TMX, ABK 903", active: false },
 ];
 
-/** Small cash drops go by motorbike: Ella covers Manila, Jomar the rest. */
-const riderFor = (c: Client) => (c.terms !== "COD" ? undefined : c.routeId === "MNL" ? RIDERS[1] : RIDERS[0]);
+/** Small cash drops go by motorbike: Ella covers City Proper and Molo, Jomar the rest. */
+const riderFor = (c: Client) => (c.terms !== "COD" ? undefined : c.routeId === "CTY" ? RIDERS[1] : RIDERS[0]);
 
 const CLIENTS: Client[] = [
-  { id: "c-wahlee", name: "Wah Lee Dimsum House", type: "Restaurant", tier: "B", terms: "NET15", creditLimit: 150000, balance: 48250.5, pastDue: 0, address: "618 Ongpin St, Binondo", city: "Manila", contact: "Benson Uy", phone: "(02) 8244-3381", routeId: "MNL", window: "6–8 am", dockNote: "Back door on Salazar St. Walk-in freezer is past the steamers." },
-  { id: "c-lucky", name: "Lucky Dragon Noodle House", type: "Restaurant", tier: "B", terms: "NET15", creditLimit: 120000, balance: 61200, pastDue: 18400, address: "1021 Masangkay St, Binondo", city: "Manila", contact: "Grace Tan", phone: "(02) 8244-9017", routeId: "MNL", window: "7–9 am", dockNote: "One-lane street, unload fast. Kitchen signs, not the cashier." },
-  { id: "c-nena", name: "Aling Nena's Carinderia", type: "Carinderia", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "2214 Dimasalang St, Sampaloc", city: "Manila", contact: "Aling Nena", phone: "0917 555 2291", routeId: "MNL", window: "6–7 am", dockNote: "Cash or GCash on delivery. Small chest freezer, six cases max." },
-  { id: "c-kuyajun", name: "Kuya Jun's Fishball Carts", type: "Food cart franchise", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "45 Hidalgo St, Quiapo", city: "Manila", contact: "Jun Mendoza", phone: "0918 555 6612", routeId: "MNL", window: "7–9 am", dockNote: "Commissary in the back for six carts. Collect before unloading." },
-  { id: "c-dapitan", name: "Dapitan Food Hub canteen", type: "School canteen", tier: "A", terms: "NET30", creditLimit: 400000, balance: 186400, pastDue: 0, address: "Dapitan St cor. Lacson Ave, Sampaloc", city: "Manila", contact: "Canteen manager", phone: "(02) 8731-5500", routeId: "MNL", window: "8–10 am", dockNote: "Gate 3. Guard logs the plate number. Finish before first break at 9:30." },
-  { id: "c-murallas", name: "Casa Murallas Hotel", type: "Hotel", tier: "A", terms: "NET30", creditLimit: 750000, balance: 318900, pastDue: 0, address: "Gen. Luna St, Intramuros", city: "Manila", contact: "Purchasing", phone: "(02) 8527-1000", routeId: "MNL", window: "9–11 am", dockNote: "Receiving dock B. Receiver probes every case, −18°C or colder." },
-  { id: "c-titababy", name: "Tita Baby's Siopao & Siomai", type: "Food cart franchise", tier: "A", terms: "NET15", creditLimit: 500000, balance: 212300, pastDue: 0, address: "112 Kamuning Rd", city: "Quezon City", contact: "Commissary head", phone: "0917 555 8820", routeId: "QC", window: "6–8 am", dockNote: "Commissary for 14 kiosks, freezer on 2F. Use the service lift." },
-  { id: "c-sampaguita", name: "Sampaguita Supermart, Commonwealth", type: "Supermarket", tier: "A", terms: "NET30", creditLimit: 900000, balance: 402500, pastDue: 0, address: "Commonwealth Ave, Brgy. Holy Spirit", city: "Quezon City", contact: "Receiving supervisor", phone: "(02) 8931-2240", routeId: "QC", window: "8–10 am", dockNote: "Back dock. QA checks ice cream hardness before accepting." },
-  { id: "c-stisidore", name: "St. Isidore General Hospital", type: "Hospital", tier: "A", terms: "NET30", creditLimit: 600000, balance: 264800, pastDue: 52300, address: "88 E. Rodriguez Sr. Ave", city: "Quezon City", contact: "Dietary office", phone: "(02) 8723-0101", routeId: "QC", window: "9–11 am", dockNote: "Sign in at security. Dietary manager signs and probes temps." },
-  { id: "c-maginhawa", name: "Maginhawa Silog Spot", type: "Restaurant", tier: "C", terms: "NET15", creditLimit: 60000, balance: 22400, pastDue: 0, address: "Maginhawa St, Teachers Village", city: "Quezon City", contact: "Paolo Ramos", phone: "0927 555 3108", routeId: "QC", window: "10 am–12 pm", dockNote: "Opens at 10. Do not leave product at the door." },
-  { id: "c-kapitolyo", name: "Kapitolyo Kitchen Catering", type: "Caterer", tier: "B", terms: "NET15", creditLimit: 250000, balance: 104700, pastDue: 0, address: "15 East Capitol Dr, Kapitolyo", city: "Pasig", contact: "Chef Mika", phone: "0917 555 4402", routeId: "STH", window: "6–8 am", dockNote: "Loading bay off United St. Ring twice." },
-  { id: "c-lorenzo", name: "Colegio de San Lorenzo canteen", type: "School canteen", tier: "A", terms: "NET30", creditLimit: 350000, balance: 141900, pastDue: 0, address: "Dr. A. Santos Ave, Sucat", city: "Parañaque", contact: "Canteen concessionaire", phone: "(02) 8825-6600", routeId: "STH", window: "7–9 am", dockNote: "Gate 2 only. Pallets must be shrink-wrapped." },
-  { id: "c-rizalmart", name: "Rizal Mart Convenience", type: "Convenience store", tier: "B", terms: "NET30", creditLimit: 450000, balance: 198600, pastDue: 0, address: "Ortigas Ave Extension", city: "Pasig", contact: "Warehouse lead", phone: "(02) 8655-9012", routeId: "STH", window: "9–11 am", dockNote: "DC receiving for 8 branches. Bring two copies of the invoice." },
-  { id: "c-poblacion", name: "Poblacion Night Market stalls", type: "Food cart franchise", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "Kalayaan Ave, Poblacion", city: "Makati", contact: "Stall coordinator", phone: "0918 555 1170", routeId: "STH", window: "9–11 am", dockNote: "Cash or GCash. Ice cream goes to the stall 4 chest freezer." },
-  { id: "c-tonyo", name: "Mang Tonyo's Sari-sari & Frozen", type: "Sari-sari store", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "Real St, Brgy. Pamplona", city: "Las Piñas", contact: "Mang Tonyo", phone: "0928 555 7731", routeId: "STH", window: "10 am–12 pm", dockNote: "Narrow street. Park on Real St and hand-carry." },
+  { id: "c-wahlee", name: "Wah Lee Dimsum House", type: "Restaurant", tier: "B", terms: "NET15", creditLimit: 150000, balance: 48250.5, pastDue: 0, address: "Iznart St, City Proper", city: "Iloilo City", contact: "Benson Uy", phone: "(033) 335-3381", routeId: "CTY", window: "6–8 am", dockNote: "Back door on Rizal St. Walk-in freezer is past the steamers." },
+  { id: "c-lucky", name: "Lucky Dragon Noodle House", type: "Restaurant", tier: "B", terms: "NET15", creditLimit: 120000, balance: 61200, pastDue: 18400, address: "Ledesma St, City Proper", city: "Iloilo City", contact: "Grace Tan", phone: "(033) 336-9017", routeId: "CTY", window: "7–9 am", dockNote: "One-lane street, unload fast. Kitchen signs, not the cashier." },
+  { id: "c-nena", name: "Nang Nena's Carinderia", type: "Carinderia", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "Near Molo Plaza, Molo", city: "Iloilo City", contact: "Nang Nena", phone: "0917 555 2291", routeId: "CTY", window: "6–7 am", dockNote: "Cash or GCash on delivery. Small chest freezer, six cases max." },
+  { id: "c-kuyajun", name: "Nong Jun's Fishball Carts", type: "Food cart franchise", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "Mabini St, City Proper", city: "Iloilo City", contact: "Jun Salvilla", phone: "0918 555 6612", routeId: "CTY", window: "7–9 am", dockNote: "Commissary in the back for six carts. Collect before unloading." },
+  { id: "c-dapitan", name: "Gen. Luna Food Hub canteen", type: "School canteen", tier: "A", terms: "NET30", creditLimit: 400000, balance: 186400, pastDue: 0, address: "Gen. Luna St, City Proper", city: "Iloilo City", contact: "Canteen manager", phone: "(033) 337-5500", routeId: "CTY", window: "8–10 am", dockNote: "Gate 3. Guard logs the plate number. Finish before first break at 9:30." },
+  { id: "c-murallas", name: "Casa Muelle Hotel", type: "Hotel", tier: "A", terms: "NET30", creditLimit: 750000, balance: 318900, pastDue: 0, address: "Muelle Loney St, City Proper", city: "Iloilo City", contact: "Purchasing", phone: "(033) 337-1000", routeId: "CTY", window: "9–11 am", dockNote: "Receiving dock B. Receiver probes every case, −18°C or colder." },
+  { id: "c-titababy", name: "Tiya Baby's Siopao & Siomai", type: "Food cart franchise", tier: "A", terms: "NET15", creditLimit: 500000, balance: 212300, pastDue: 0, address: "E. Lopez St, Jaro", city: "Iloilo City", contact: "Commissary head", phone: "0917 555 8820", routeId: "NTH", window: "6–8 am", dockNote: "Commissary for 14 kiosks, freezer on 2F. Use the service lift." },
+  { id: "c-sampaguita", name: "Sampaguita Supermart, Pavia", type: "Supermarket", tier: "A", terms: "NET30", creditLimit: 900000, balance: 402500, pastDue: 0, address: "Brgy. Ungka II", city: "Pavia", contact: "Receiving supervisor", phone: "(033) 329-2240", routeId: "NTH", window: "8–10 am", dockNote: "Back dock. QA checks ice cream hardness before accepting." },
+  { id: "c-stisidore", name: "St. Isidore General Hospital", type: "Hospital", tier: "A", terms: "NET30", creditLimit: 600000, balance: 264800, pastDue: 52300, address: "Lopez Jaena St, Jaro", city: "Iloilo City", contact: "Dietary office", phone: "(033) 320-0101", routeId: "NTH", window: "9–11 am", dockNote: "Sign in at security. Dietary manager signs and probes temps." },
+  { id: "c-maginhawa", name: "La Paz Batchoy & Silog Spot", type: "Restaurant", tier: "C", terms: "NET15", creditLimit: 60000, balance: 22400, pastDue: 0, address: "Huervana St, La Paz", city: "Iloilo City", contact: "Paolo Ramos", phone: "0927 555 3108", routeId: "NTH", window: "10 am–12 pm", dockNote: "Opens at 10. Do not leave product at the door." },
+  { id: "c-kapitolyo", name: "Mandurriao Kitchen Catering", type: "Caterer", tier: "B", terms: "NET15", creditLimit: 250000, balance: 104700, pastDue: 0, address: "Pison Ave, San Rafael, Mandurriao", city: "Iloilo City", contact: "Chef Mika", phone: "0917 555 4402", routeId: "STH", window: "6–8 am", dockNote: "Loading bay at the back. Ring twice." },
+  { id: "c-lorenzo", name: "Colegio de San Lorenzo canteen", type: "School canteen", tier: "A", terms: "NET30", creditLimit: 350000, balance: 141900, pastDue: 0, address: "Brgy. Poblacion", city: "Tigbauan", contact: "Canteen concessionaire", phone: "(033) 511-6600", routeId: "STH", window: "7–9 am", dockNote: "Gate 2 only. Pallets must be shrink-wrapped." },
+  { id: "c-rizalmart", name: "Rizal Mart Convenience", type: "Convenience store", tier: "B", terms: "NET30", creditLimit: 450000, balance: 198600, pastDue: 0, address: "Brgy. Tabucan, Mandurriao", city: "Iloilo City", contact: "Warehouse lead", phone: "(033) 321-9012", routeId: "STH", window: "9–11 am", dockNote: "DC receiving for 8 branches. Bring two copies of the invoice." },
+  { id: "c-poblacion", name: "Oton Night Market stalls", type: "Food cart franchise", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "Brgy. Poblacion North", city: "Oton", contact: "Stall coordinator", phone: "0918 555 1170", routeId: "STH", window: "9–11 am", dockNote: "Cash or GCash. Ice cream goes to the stall 4 chest freezer." },
+  { id: "c-tonyo", name: "Nong Tonyo's Sari-sari & Frozen", type: "Sari-sari store", tier: "C", terms: "COD", creditLimit: 0, balance: 0, pastDue: 0, address: "Brgy. Calaparan, Arevalo", city: "Iloilo City", contact: "Nong Tonyo", phone: "0928 555 7731", routeId: "STH", window: "10 am–12 pm", dockNote: "Narrow street. Park on the main road and hand-carry." },
 ];
 
 const BUYS: Record<Client["type"], Category[]> = {
@@ -196,8 +196,8 @@ export const SELLER: Seller = {
   registeredName: "Clairon's Food Trading Corp.",
   tradeName: "Clairon's Food",
   tin: "000-000-000-00000",
-  address: "88 Sto. Cristo St, Binondo, Manila 1006",
-  phone: "(02) 8000-0000",
+  address: "Iloilo Fish Port Complex, Iloilo City 5000",
+  phone: "(033) 000-0000",
   email: "orders@example.com",
   permitNo: "SAMPLE-PTU-0000-000000",
   permitDate: "Jan 1, 2026",
@@ -210,12 +210,12 @@ export const SELLER: Seller = {
 const CLIENT_EXTRA: Record<string, Pick<Client, "email" | "tin">> = {
   "c-wahlee": { email: "benson@wahlee.example.com", tin: "000-201-334-00000" },
   "c-lucky": { email: "grace@luckydragon.example.com" },
-  "c-dapitan": { email: "canteen@dapitan.example.com", tin: "000-318-552-00000" },
-  "c-murallas": { email: "purchasing@casamurallas.example.com", tin: "000-402-117-00000" },
-  "c-titababy": { email: "commissary@titababy.example.com", tin: "000-415-906-00000" },
+  "c-dapitan": { email: "canteen@genlunafoodhub.example.com", tin: "000-318-552-00000" },
+  "c-murallas": { email: "purchasing@casamuelle.example.com", tin: "000-402-117-00000" },
+  "c-titababy": { email: "commissary@tiyababy.example.com", tin: "000-415-906-00000" },
   "c-sampaguita": { email: "receiving@sampaguita.example.com", tin: "000-509-221-00003" },
   "c-stisidore": { email: "dietary@stisidore.example.com", tin: "000-611-480-00000" },
-  "c-kapitolyo": { email: "mika@kapitolyokitchen.example.com", tin: "000-704-385-00000" },
+  "c-kapitolyo": { email: "mika@mandurriaokitchen.example.com", tin: "000-704-385-00000" },
   "c-lorenzo": { email: "canteen@sanlorenzo.example.com", tin: "000-812-670-00000" },
   "c-rizalmart": { email: "warehouse@rizalmart.example.com", tin: "000-905-142-00002" },
 };
@@ -517,7 +517,7 @@ export function buildSeed(now = Date.now()): Data {
   type Plan = { client: string; status: DeliveryStatus; at?: number; eta?: number; rider?: Rider };
   const yesterday = today - DAY;
   const plans: Record<string, { depart: number; departed: boolean; stops: Plan[] }> = {
-    MNL: {
+    CTY: {
       depart: now - 3 * HOUR - 20 * MIN,
       departed: true,
       stops: [
@@ -529,7 +529,7 @@ export function buildSeed(now = Date.now()): Data {
         { client: "c-murallas", status: "EN_ROUTE", eta: now + 40 * MIN },
       ],
     },
-    QC: {
+    NTH: {
       depart: now - 150 * MIN,
       departed: true,
       stops: [
@@ -601,7 +601,7 @@ export function buildSeed(now = Date.now()): Data {
       makeDelivery(o, todayKey, seq, s.status, evs, extra);
     });
     const start = plan.departed ? plan.depart - 40 * MIN : now - 70 * MIN;
-    const excursion = rt.id === "QC" ? { from: now - 125 * MIN, to: now - 78 * MIN, peak: -6 } : undefined;
+    const excursion = rt.id === "NTH" ? { from: now - 125 * MIN, to: now - 78 * MIN, peak: -6 } : undefined;
     run.temps = reeferLog(r, start, now, rt.setPointC, doors, excursion);
   }
 
