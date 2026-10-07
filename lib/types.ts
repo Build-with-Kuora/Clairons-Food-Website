@@ -202,8 +202,28 @@ export interface Order {
   channel?: "ONLINE";
   /** Name a walk-in buyer gave at the counter, printed in place of the account name */
   buyerName?: string;
-  /** Money owed back for cases refused on an order that was already paid, and when it was handed back */
+  /** Money owed back on an order that was already paid (cases refused, or the order cancelled), and when it was handed back */
   refund?: { amount: number; at?: number; by?: string };
+  /** Who cancelled the order, when and why */
+  cancelled?: { at: number; by: string; reason: string };
+  /** Paid so far on an on-account order. It is paid in full once this reaches what is due. */
+  paidAmount?: number;
+}
+
+export type PaymentMethod = "CASH" | "CHECK" | "BANK" | "GCASH";
+
+/** Money an account customer paid toward what they owe. */
+export interface Payment {
+  id: string;
+  at: number;
+  clientId: string;
+  amount: number;
+  method: PaymentMethod;
+  /** Check number or transfer reference */
+  ref?: string;
+  by: string;
+  /** The invoices it paid, oldest first. Anything left over paid down older balance. */
+  applied: { orderId: string; amount: number }[];
 }
 
 /** What a customer gives at checkout on the online store. Becomes (or updates) their client record. */
@@ -263,6 +283,8 @@ export interface Delivery {
   eta?: number;
   pod?: Pod;
   exception?: { reason: string; note?: string; at: number };
+  /** When the stop last went back to Scheduled (moved to another day, or sent again after a problem). Its status steps count from here. */
+  restartedAt?: number;
 }
 
 export interface Route {

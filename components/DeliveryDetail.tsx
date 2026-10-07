@@ -11,6 +11,7 @@ import { TempTrace } from "./charts";
 import { AssignCarrier } from "./AssignCarrier";
 import { StopPlan } from "./StopPlan";
 import { ExceptionForm, PodForm } from "./Pod";
+import { ResolveProblem } from "./ResolveProblem";
 import { Badge, Modal, Signature, StatusPill, cx } from "./ui";
 
 const BY = "Dispatch";
@@ -22,6 +23,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
   const now = useNow(20_000);
   const [pod, setPod] = useState(false);
   const [exc, setExc] = useState(false);
+  const [fix, setFix] = useState(false);
   const c = maps.client.get(d.clientId)!;
   const o = maps.order.get(d.orderId)!;
   const route = maps.route.get(d.routeId)!;
@@ -77,6 +79,11 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
               Capture proof of delivery
             </button>
           )}
+          {d.status === "EXCEPTION" && (
+            <button className="btn btn-primary" onClick={() => setFix(true)}>
+              Resolve problem
+            </button>
+          )}
           {!final && (
             <button className="btn btn-danger" onClick={() => setExc(true)}>
               Report problem
@@ -124,6 +131,7 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
             {d.exception.reason}, {clock(d.exception.at)}
           </div>
           {d.exception.note && <p className="mt-0.5 text-ink">{d.exception.note}</p>}
+          <p className="mt-2 text-ink-2">Resolve it to put the stock right, then send the order again or cancel it.</p>
         </div>
       )}
 
@@ -250,6 +258,9 @@ export function DeliveryDetail({ delivery: d }: { delivery: Delivery }) {
 
       <Modal open={pod} onClose={() => setPod(false)} title={`Proof of delivery, ${c.name}`} width={600}>
         <PodForm delivery={d} order={o} by={carrier.person} onDone={() => setPod(false)} onCancel={() => setPod(false)} />
+      </Modal>
+      <Modal open={fix} onClose={() => setFix(false)} title={`Resolve the problem at ${c.name}`} width={560}>
+        <ResolveProblem delivery={d} order={o} onDone={() => setFix(false)} onCancel={() => setFix(false)} />
       </Modal>
       <Modal open={exc} onClose={() => setExc(false)} title="Report a delivery problem" width={480}>
         <ExceptionForm delivery={d} by={BY} onDone={() => setExc(false)} onCancel={() => setExc(false)} />

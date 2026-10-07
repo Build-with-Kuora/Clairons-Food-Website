@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { STATUS_LABEL, ZONES, isFreezing, pctChange, readyAt } from "@/lib/logic";
 import { clock, dateTime, startOfDay, tempBare } from "@/lib/format";
 import type { DeliveryStatus, Lot, ZoneId } from "@/lib/types";
@@ -262,6 +263,12 @@ export function LotBadge({ lot, now, sellable = "Sellable" }: { lot: Lot; now: n
   return <Badge tone="accent">Freezing, ready {startOfDay(at) === startOfDay(now) ? clock(at) : dateTime(at)}</Badge>;
 }
 
+/**
+ * Overlays render at the end of <body>. Inside a page they would sit in the stacking context of a sticky
+ * panel, under the header and under positioned parts of the page next to it.
+ */
+const toBody = (node: ReactNode) => (typeof document === "undefined" ? node : createPortal(node, document.body));
+
 export function Modal({
   open,
   onClose,
@@ -278,20 +285,26 @@ export function Modal({
   width?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Parents pass a new onClose on every render (and the store ticks every 30 s), so keep it in a ref:
+  // the effect below runs once per opening and never pulls focus back to the first field mid-typing.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const first = ref.current?.querySelector<HTMLElement>("[autofocus], input, select, textarea, button:not([data-close])");
     first?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       prev?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
-  return (
+  return toBody(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/45 p-4 pt-[8vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={ref}
@@ -321,7 +334,7 @@ export function Drawer({ open, onClose, title, sub, children, footer }: { open: 
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  return toBody(
     <div className="fixed inset-0 z-40 flex justify-end bg-ink/30" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <aside role="dialog" aria-modal="true" className="rise flex h-full w-full max-w-[700px] flex-col border-l border-line bg-panel shadow-[-20px_0_50px_-30px_rgba(15,37,52,0.5)]">
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">

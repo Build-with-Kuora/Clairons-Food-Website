@@ -3,9 +3,9 @@
 import { AlertTriangle, CalendarClock, Factory, PackageCheck, PackageSearch, PauseCircle, Snowflake, Truck } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
-import { clock, dateTime, daysUntil, plural, startOfDay, units } from "@/lib/format";
+import { clock, dateTime, dayShort, daysUntil, keyToTs, plural, startOfDay, units } from "@/lib/format";
 import { useMaps, useStock, useToday } from "@/lib/hooks";
-import { STATUS_LABEL, carrierOf, isFreezing, readyAt, runKey, toMake } from "@/lib/logic";
+import { STATUS_LABEL, carrierOf, isFreezing, openProblems, readyAt, runKey, toMake } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import { AttentionList } from "./AttentionList";
 import { RoutesPanel } from "./RoutesPanel";
@@ -27,6 +27,7 @@ export function StaffToday() {
   const stopsToday = deliveries.filter((d) => d.date === today);
   const done = stopsToday.filter((d) => d.status === "DELIVERED").length;
   const exceptions = stopsToday.filter((d) => d.status === "EXCEPTION");
+  const problems = openProblems(deliveries);
   const toLoad = stopsToday.filter((d) => d.status === "SCHEDULED" || d.status === "PICKING" || d.status === "LOADED");
   const trucksOut = routes.filter((r) => runs[runKey(r.id, today)]?.departedAt && !runs[runKey(r.id, today)]?.returnedAt).length;
   const blast = lots.filter((l) => l.qty > 0 && isFreezing(l)).sort((a, b) => readyAt(a) - readyAt(b));
@@ -107,11 +108,11 @@ export function StaffToday() {
           tone="bad"
           title="Delivery problems"
           empty="All deliveries are fine so far."
-          items={exceptions.map((d) => ({
+          items={problems.map((d) => ({
             key: d.id,
             href: `/dispatch?stop=${d.id}`,
             main: maps.client.get(d.clientId)?.name ?? "",
-            side: d.exception?.reason ?? "",
+            side: `${d.exception?.reason ?? "Problem"}${d.date === today ? "" : `, ${dayShort(keyToTs(d.date))}`}. Resolve it on Delivery.`,
           }))}
         />
         <AttentionList

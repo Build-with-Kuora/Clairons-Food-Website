@@ -9,6 +9,7 @@ import type {
   Category,
   Order,
   PayMethod,
+  PaymentMethod,
   Product,
   ProductInput,
   ReceiptChannel,
@@ -107,6 +108,27 @@ export function productError(i: ProductInput, products: Product[]): string | nul
   if (!isWhole(i.shelfDays) || i.shelfDays < 1) return "Shelf life must be at least 1 day.";
   if (!HOME_ZONES.includes(i.zone)) return "Pick where the product is stored.";
   if (!i.bin.trim() || i.bin.trim().charAt(0).toUpperCase() !== ZONES[i.zone].prefix) return `Home bin must be in ${ZONES[i.zone].name.toLowerCase()}, starting with ${ZONES[i.zone].prefix}-.`;
+  return null;
+}
+
+/**
+ * What one case works out to per piece, stick, kg or gallon, from what the owner wrote as its contents
+ * ("10 × 50 pcs", "10 × 500 g", "3 gal"). Catch-weight items are already priced per kg. Null when the
+ * contents can't be read.
+ */
+export function unitPrice(p: Product, tier: Tier): { amount: number; per: string } | null {
+  if (p.catchWeight) return { amount: p.price[tier], per: "kg" };
+  const total = casePrice(p, tier);
+  const packs = p.pack.match(/^(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(pcs?|sticks?|kg|g)$/i);
+  if (packs) {
+    const n = Number(packs[1]) * Number(packs[2]);
+    const u = packs[3].toLowerCase();
+    if (u === "kg") return { amount: round2(total / n), per: "kg" };
+    if (u === "g") return { amount: round2(total / (n / 1000)), per: "kg" };
+    return { amount: round2(total / n), per: u.startsWith("stick") ? "stick" : "piece" };
+  }
+  const gal = p.pack.match(/^(\d+(?:\.\d+)?)\s*gal/i);
+  if (gal) return { amount: round2(total / Number(gal[1])), per: "gallon" };
   return null;
 }
 
@@ -267,6 +289,51 @@ export function refusedSettlement(order: Order): "ACCOUNT" | "REFUND" | "COLLECT
   if (order.payMethod === "ACCOUNT") return "ACCOUNT";
   if (order.paid) return "REFUND";
   return order.payMethod === "COD" ? "COLLECT_LESS" : "NONE";
+}
+
+/**
+ * How a cancelled order is paid back: the whole amount comes off the balance for on-account orders,
+ * is owed back as a refund for orders already paid, and nothing is owed on unpaid cash on delivery.
+ */
+export function cancelSettlement(o: Order): { kind: "ACCOUNT" | "REFUND" | "NONE"; amount: number } {
+  if (o.payMethod === "ACCOUNT") return { kind: "ACCOUNT", amount: o.total };
+  if (o.paid) return { kind: "REFUND", amount: o.total };
+  return { kind: "NONE", amount: 0 };
+}
+
+export const PAYMENT_LABEL: Record<PaymentMethod, string> = { CASH: "Cash", CHECK: "Check", BANK: "Bank transfer", GCASH: "GCash" };
+
+/** Still to pay on an on-account order: its total, less cases refused at the door, less what was already paid. */
+export function amountDue(o: Order, d?: Delivery) {
+  return round2(o.total - refusedCredit(o, d?.pod?.shorts ?? []) - (o.paidAmount ?? 0));
+}
+
+/** Spreads a payment over the account's unpaid on-account invoices, oldest first. `rest` paid down older balance. */
+export function applyPayment(orders: Order[], deliveries: Delivery[], clientId: string, amount: number) {
+  const byId = new Map(deliveries.map((d) => [d.id, d]));
+  const unpaid = orders
+    .filter((o) => o.clientId === clientId && o.payMethod === "ACCOUNT" && o.status !== "CANCELLED" && !o.paid)
+    .sort((a, b) => a.createdAt - b.createdAt);
+  let left = round2(amount);
+  const applied: { orderId: string; amount: number }[] = [];
+  for (const o of unpaid) {
+    if (left <= 0) break;
+    const due = amountDue(o, o.deliveryId ? byId.get(o.deliveryId) : undefined);
+    if (due <= 0) continue;
+    const take = Math.min(due, left);
+    applied.push({ orderId: o.id, amount: take });
+    left = round2(left - take);
+  }
+  return { applied, rest: left };
+}
+
+/** Why a payment can't be recorded, or null when it can. */
+export function paymentError(c: Client, amount: number, method: PaymentMethod, ref: string): string | null {
+  if (!(amount > 0)) return "Enter the amount received.";
+  if (c.balance <= 0) return `${c.name} owes nothing right now.`;
+  if (round2(amount) > round2(c.balance)) return `That is more than the ${money(c.balance)} they owe.`;
+  if (method === "CHECK" && !ref.trim()) return "Enter the check number.";
+  return null;
 }
 
 /** Units sold per SKU since `since`. */
@@ -608,14 +675,44 @@ export const runKey = (routeId: string, date: string) => `${routeId}|${date}`;
 /** Reefer readings that cover this delivery: from load until hand-off (or now). */
 export function deliveryTrace(d: Delivery, run: Run | undefined, now = Date.now()) {
   if (!run) return [];
-  const loaded = d.events.find((e) => e.status === "LOADED")?.at ?? run.departedAt;
+  const loaded = statusAt(d, "LOADED") ?? run.departedAt;
   if (!loaded) return [];
   const end = d.pod?.at ?? d.exception?.at ?? now;
   return run.temps.filter((t) => t.at >= loaded - 1 && t.at <= end + 1);
 }
 
+/** When the stop reached a status, counting from when it last went back to Scheduled. */
 export function statusAt(d: Delivery, s: DeliveryStatus) {
-  return d.events.find((e) => e.status === s)?.at;
+  const from = d.restartedAt ?? 0;
+  return d.events.find((e) => e.status === s && e.at >= from)?.at;
+}
+
+/** Whether a stop's cases have left the shelf: it was loaded since it was last scheduled. */
+export const stockLeft = (d: Delivery) => statusAt(d, "LOADED") !== undefined;
+
+/** What happens to the cases that come back from a stop that went wrong. */
+export type ReturnedStock = "SHELF" | "HOLD" | "WRITE_OFF";
+
+export const RETURNED_LABEL: Record<ReturnedStock, string> = {
+  SHELF: "Put back in stock",
+  HOLD: "Hold for a quality check",
+  WRITE_OFF: "Write off as spoiled or damaged",
+};
+
+/** A sensible first choice for returned cases, from what went wrong. */
+export function returnedDefault(reason: string): ReturnedStock {
+  if (/warm/i.test(reason)) return "HOLD";
+  if (/damage/i.test(reason)) return "WRITE_OFF";
+  return "SHELF";
+}
+
+/** Stops with a problem nobody has resolved yet, from any day, oldest first. */
+export const openProblems = (deliveries: Delivery[]) =>
+  deliveries.filter((d) => d.status === "EXCEPTION").sort((a, b) => (a.exception?.at ?? 0) - (b.exception?.at ?? 0));
+
+/** A van can check back in at the dock once it has left and none of its stops are still out on the road. */
+export function vanCanReturn(run: Run | undefined, vanStops: Delivery[]) {
+  return !!run?.departedAt && !run.returnedAt && !vanStops.some((d) => d.status === "EN_ROUTE" || d.status === "ARRIVED");
 }
 
 export function nextAction(d: Delivery): { to: DeliveryStatus; label: string } | null {
@@ -655,19 +752,26 @@ export function deliveryDays(now: number, n: number, fromToday = false) {
   return out;
 }
 
+type DayCheck = { today: string; vanLeft: boolean; lots: Lot[]; order?: Order };
+
 /** Why a stop can't move to `date`, or null when it can. `vanLeft` is whether the van on its route has left that day. */
-export function rescheduleError(d: Delivery, date: string, opts: { today: string; vanLeft: boolean; lots: Lot[]; order?: Order }) {
+export function rescheduleError(d: Delivery, date: string, opts: DayCheck) {
   if (!RESCHEDULABLE.includes(d.status)) return "This stop is already loaded or on its way. Move it before it is loaded.";
+  return dayError(date, { ...opts, rider: !!d.riderId });
+}
+
+/** Why a stop (by van, or by `rider`) can't go out on `date` with the batches its order holds, or null when it can. */
+export function dayError(date: string, opts: DayCheck & { rider: boolean }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "Pick a date.";
   if (date < opts.today) return "Pick today or a later day.";
   if (!isDeliveryDay(date)) return "No deliveries on Sundays. Pick another day.";
-  if (!d.riderId && opts.vanLeft) return "The van has already left that day. Pick another day or give the stop to a rider.";
+  if (!opts.rider && opts.vanLeft) return "The van has already left that day. Pick another day or give the stop to a rider.";
   const byId = new Map(opts.lots.map((l) => [l.id, l]));
   const end = keyToTs(date) + DAY;
   for (const line of opts.order?.lines ?? []) {
     for (const a of line.allocs) {
       const lot = byId.get(a.lotId);
-      if (lot && lot.bestBy < end) return `Lot ${lot.code} of ${line.name} is past its best-by by then. Pick an earlier day.`;
+      if (lot && lot.bestBy < end) return `Batch ${lot.code} of ${line.name} is past its best-by by then. Pick an earlier day.`;
     }
   }
   return null;

@@ -1,16 +1,16 @@
 "use client";
 
-import { Truck } from "lucide-react";
+import { Truck, Warehouse } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { DeliveryDetail } from "@/components/DeliveryDetail";
 import { DeliveryTable } from "@/components/DeliveryTable";
 import { RiderList } from "@/components/RiderList";
 import { RouteLine } from "@/components/RouteLine";
-import { Badge, Empty, PageHead, Panel, StatusPill, Tabs, cx } from "@/components/ui";
+import { Badge, Drawer, Empty, PageHead, Panel, StatusPill, Tabs, cx } from "@/components/ui";
 import { clock, dateKey, dayShort, keyToTs, temp, units } from "@/lib/format";
-import { useMaps, useNow } from "@/lib/hooks";
-import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
+import { useMaps, useMedia, useNow } from "@/lib/hooks";
+import { TRUCK_LIMIT_C, commonUnit, runKey, vanCanReturn } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
 type View = "routes" | "table" | "riders";
@@ -20,6 +20,7 @@ export default function Dispatch() {
   const routes = useStore((s) => s.routes);
   const runs = useStore((s) => s.runs);
   const dispatchRoute = useStore((s) => s.dispatchRoute);
+  const returnRun = useStore((s) => s.returnRun);
   const toast = useUi((s) => s.toast);
   const maps = useMaps();
   const now = useNow(20_000);
@@ -42,6 +43,13 @@ export default function Dispatch() {
   const [view, setView] = useState<View>(() => (params.get("view") as View | null) ?? "routes");
   const [date, setDate] = useState(init.date);
   const [sel, setSel] = useState<string | undefined>(init.sel);
+  // Below laptop width the stop opens in a drawer instead of a column far down the page.
+  const wide = useMedia("(min-width: 1280px)");
+  const [sheet, setSheet] = useState(() => !!params.get("stop"));
+  const pick = (id: string) => {
+    setSel(id);
+    setSheet(true);
+  };
 
   const stops = deliveries.filter((d) => d.date === date);
   const riderStops = stops.filter((d) => d.riderId);
@@ -94,11 +102,11 @@ export default function Dispatch() {
         />
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_580px]">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_580px]">
         <div className="space-y-5">
           {view === "table" && (
             <Panel title="Deliveries" bodyClass="p-0">
-              <DeliveryTable stops={stops} selectedId={selected?.id} onSelect={setSel} />
+              <DeliveryTable stops={stops} selectedId={selected?.id} onSelect={pick} />
             </Panel>
           )}
           {view === "riders" && <RiderList />}
@@ -124,7 +132,7 @@ export default function Dispatch() {
                 }
                 actions={
                   <>
-                    {last && date === today && (
+                    {last && date === today && !run?.returnedAt && (
                       <span className={cx("text-small font-semibold whitespace-nowrap", last.c > TRUCK_LIMIT_C ? "text-bad" : "text-ink-2")}>
                         Van temperature {temp(last.c)}
                       </span>
@@ -140,7 +148,22 @@ export default function Dispatch() {
                         <Truck size={18} aria-hidden /> Send van out
                       </button>
                     )}
-                    {run?.departedAt && <Badge tone="accent">Out since {clock(run.departedAt)}</Badge>}
+                    {vanCanReturn(run, rs) && date === today && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          const res = returnRun(r.id, date, "Dispatch");
+                          toast(res.ok ? `${r.truck} is back at the dock` : res.error, res.ok ? "ok" : "warn");
+                        }}
+                      >
+                        <Warehouse size={18} aria-hidden /> Van is back
+                      </button>
+                    )}
+                    {run?.returnedAt ? (
+                      <Badge>Back at {clock(run.returnedAt)}</Badge>
+                    ) : (
+                      run?.departedAt && <Badge tone="accent">Out since {clock(run.departedAt)}</Badge>
+                    )}
                   </>
                 }
                 bodyClass=""
@@ -150,7 +173,7 @@ export default function Dispatch() {
                 ) : (
                   <>
                     <div className="px-4 pt-3 pb-2 sm:px-6">
-                      <RouteLine stops={rs} run={run} clients={maps.client} selectedId={selected?.id} onSelect={setSel} />
+                      <RouteLine stops={rs} run={run} clients={maps.client} selectedId={selected?.id} onSelect={pick} />
                     </div>
                     <div className="overflow-x-auto scroll-thin">
                       <table className="tbl min-w-[560px]">
@@ -169,7 +192,7 @@ export default function Dispatch() {
                             const o = maps.order.get(d.orderId);
                             const at = d.pod?.at ?? d.exception?.at;
                             return (
-                              <tr key={d.id} className={cx("clickable", selected?.id === d.id && "selected")} onClick={() => setSel(d.id)}>
+                              <tr key={d.id} className={cx("clickable", selected?.id === d.id && "selected")} onClick={() => pick(d.id)}>
                                 <td className="pl-5 text-lead font-semibold text-ink-2 sm:pl-6">{d.seq}</td>
                                 <td>
                                   <div className="font-semibold">{c.name}</div>
@@ -200,17 +223,24 @@ export default function Dispatch() {
           })}
           {view === "routes" && riderStops.length > 0 && (
             <Panel title="Rider deliveries" sub="By motorbike, no temperature log" bodyClass="p-0">
-              <DeliveryTable stops={riderStops} selectedId={selected?.id} onSelect={setSel} />
+              <DeliveryTable stops={riderStops} selectedId={selected?.id} onSelect={pick} />
             </Panel>
           )}
         </div>
 
-        <aside className="xl:sticky xl:top-6">
-          <Panel bodyClass="p-5 sm:p-6 xl:max-h-[calc(100vh-10rem)] xl:overflow-y-auto scroll-thin">
-            {selected ? <DeliveryDetail key={selected.id} delivery={selected} /> : <Empty title="No deliveries on this day">Place a delivery order on the POS to schedule one.</Empty>}
-          </Panel>
-        </aside>
+        {wide && (
+          <aside className="sticky top-6">
+            <Panel bodyClass="p-5 sm:p-6 max-h-[calc(100vh-10rem)] overflow-y-auto scroll-thin">
+              {selected ? <DeliveryDetail key={selected.id} delivery={selected} /> : <Empty title="No deliveries on this day">Place a delivery order on the POS to schedule one.</Empty>}
+            </Panel>
+          </aside>
+        )}
       </div>
+      {!wide && sheet && selected && (
+        <Drawer open onClose={() => setSheet(false)} title="Delivery stop">
+          <DeliveryDetail key={selected.id} delivery={selected} />
+        </Drawer>
+      )}
     </div>
   );
 }

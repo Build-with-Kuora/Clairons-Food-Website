@@ -10,7 +10,7 @@ import { Badge, Drawer, Empty, PageHead, Pager, Panel, StatusPill } from "@/comp
 import { useIsAdmin } from "@/lib/auth";
 import { dateTime, dayShort, invoiceNumber, keyToTs, money, money0, startOfDay } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { PAY_LABEL, buyerName } from "@/lib/logic";
+import { PAY_LABEL, PAYMENT_LABEL, buyerName, cancelSettlement } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Order } from "@/lib/types";
 
@@ -58,7 +58,7 @@ export default function Orders() {
   return (
     <div className="mx-auto max-w-[1500px]">
       <PageHead
-        sub={`${orders.filter((o) => o.status === "OPEN").length} orders still open, ${money0(orders.filter((o) => !o.paid && o.status !== "CANCELLED").reduce((s, o) => s + o.total, 0))} not yet paid.`}
+        sub={`${orders.filter((o) => o.status === "OPEN").length} orders still open, ${money0(orders.filter((o) => !o.paid && o.status !== "CANCELLED").reduce((s, o) => s + o.total - (o.paidAmount ?? 0), 0))} not yet paid.`}
       />
       <Panel bodyClass="">
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-4 sm:px-6">
@@ -132,7 +132,16 @@ export default function Orders() {
                     <td>{o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : d ? <StatusPill status={d.status} /> : <Badge tone="good">Sold at counter</Badge>}</td>
                     <td>
                       <div className="text-ink-2">{PAY_LABEL[o.payMethod]}</div>
-                      {o.status !== "CANCELLED" && (o.paid ? <Badge tone="good">Paid</Badge> : o.payMethod === "COD" ? <Badge tone="warn">Collect on delivery</Badge> : <Badge>To be paid</Badge>)}
+                      {o.status !== "CANCELLED" &&
+                        (o.paid ? (
+                          <Badge tone="good">Paid</Badge>
+                        ) : o.payMethod === "COD" ? (
+                          <Badge tone="warn">Collect on delivery</Badge>
+                        ) : o.paidAmount ? (
+                          <Badge>Part paid {money0(o.paidAmount)}</Badge>
+                        ) : (
+                          <Badge>To be paid</Badge>
+                        ))}
                       {o.refund && !o.refund.at && (
                         <Badge tone="warn" className="ml-1.5">
                           Refund owed {money(o.refund.amount)}
@@ -173,8 +182,11 @@ export default function Orders() {
                 <button
                   className="btn btn-danger ml-auto"
                   onClick={() => {
+                    const settle = cancelSettlement(open);
                     cancelOrder(open.id, "Counter 1");
-                    toast(`${open.number} cancelled, stock put back`);
+                    toast(
+                      `${open.number} cancelled, stock put back${settle.kind === "REFUND" ? `. Refund owed ${money(settle.amount)}` : settle.kind === "ACCOUNT" ? `. ${money(settle.amount)} off the balance` : ""}`,
+                    );
                   }}
                 >
                   Cancel order
@@ -198,7 +210,13 @@ function OrderBody({ order }: { order: Order }) {
   const c = maps.client.get(order.clientId)!;
   return (
     <div className="-mx-5 -my-4">
+      {order.cancelled && (
+        <div className="border-b border-line bg-sunk px-5 py-3 text-body">
+          <span className="font-semibold">Cancelled</span> {dateTime(order.cancelled.at)} by {order.cancelled.by}. {order.cancelled.reason}.
+        </div>
+      )}
       {order.refund && <RefundBar order={order} />}
+      {order.payMethod === "ACCOUNT" && order.status !== "CANCELLED" && <PaidBar order={order} />}
       {d && (
         <div className="flex flex-wrap items-center gap-3 border-b border-line bg-sunk px-5 py-3 text-body">
           <StatusPill status={d.status} />
@@ -218,22 +236,41 @@ function OrderBody({ order }: { order: Order }) {
   );
 }
 
-/** Money owed back for refused cases on a paid order. Only the owner marks it handed back. */
+/** What has been paid on an on-account order, and by which payments. */
+function PaidBar({ order }: { order: Order }) {
+  const payments = useStore((s) => s.payments);
+  const mine = payments.filter((p) => p.applied.some((a) => a.orderId === order.id));
+  if (!order.paidAmount) return null;
+  return (
+    <div className="border-b border-line bg-sunk px-5 py-3 text-body">
+      <span className="font-semibold">{order.paid ? "Paid in full" : `Part paid, ${money(order.paidAmount)} so far`}</span>
+      {mine.length > 0 && (
+        <span className="text-ink-2">
+          {" "}
+          by {mine.map((p) => `${PAYMENT_LABEL[p.method]}${p.ref ? ` ${p.ref}` : ""} on ${dateTime(p.at)}`).join("; ")}.
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Money owed back on a paid order: cases refused at the door, or the whole order cancelled. Only the owner marks it handed back. */
 function RefundBar({ order }: { order: Order }) {
   const markRefunded = useStore((s) => s.markRefunded);
   const toast = useUi((s) => s.toast);
   const isAdmin = useIsAdmin();
   const r = order.refund!;
+  const why = order.status === "CANCELLED" ? "for the cancelled order" : "for cases refused at the door";
   if (r.at)
     return (
       <div className="border-b border-line bg-sunk px-5 py-3 text-body">
-        Refunded <span className="font-semibold">{money(r.amount)}</span> for refused cases on {dateTime(r.at)} by {r.by}.
+        Refunded <span className="font-semibold">{money(r.amount)}</span> {why} on {dateTime(r.at)} by {r.by}.
       </div>
     );
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-line bg-warn-bg px-5 py-3 text-body">
       <span className="flex-1">
-        <span className="font-semibold">Refund owed {money(r.amount)}</span> for cases refused at the door. {isAdmin ? "Mark it once the money is handed back." : "The owner marks it once the money is handed back."}
+        <span className="font-semibold">Refund owed {money(r.amount)}</span> {why}. {isAdmin ? "Mark it once the money is handed back." : "The owner marks it once the money is handed back."}
       </span>
       {isAdmin && (
         <button

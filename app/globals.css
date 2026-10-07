@@ -186,6 +186,13 @@ html[data-auth="in"] .home-boot {
   .field-label {
     @apply mb-1.5 block text-small font-semibold text-ink-2;
   }
+  /* A choice card: a radio button, its label and a line of help. The chosen one gets a dark border. */
+  .choice {
+    @apply flex cursor-pointer items-start gap-3 rounded-xl border border-line-2 bg-panel px-3.5 py-3 transition-colors hover:bg-sunk has-checked:border-ink has-checked:bg-accent-bg/60;
+  }
+  .choice input {
+    @apply mt-1 size-4.5 shrink-0 cursor-pointer accent-ink;
+  }
 
   /* Type helpers */
   .code {
@@ -287,17 +294,56 @@ html:has(.home-public) {
   scrollbar-width: none;
 }
 
+/* Printing an invoice or the sales report prints only that, once, from the top of the first page.
+   Everything that does not hold it drops out of the layout (hiding it would still leave its height, and
+   blank pages). The modal, drawer or scrolling panel around it prints as a plain block: a fixed overlay
+   would repeat on every page, and a scroll box would cut it off. */
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    margin: 12mm;
   }
-  .print-area,
-  .print-area * {
-    visibility: visible;
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body *:not(:has(.print-area)):not(.print-area):not(.print-area *) {
+    display: none !important;
+  }
+  body *:has(.print-area) {
+    position: static !important;
+    display: block !important;
+    inset: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    background: none !important;
+    animation: none !important;
   }
   .print-area {
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
+    position: relative !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  /* Paper fits more rows than a screen: tighter tables, and no row split across two pages */
+  .print-area .tbl {
+    font-size: 11pt;
+  }
+  .print-area .tbl th,
+  .print-area .tbl td {
+    padding: 4pt 6pt;
+  }
+  .print-area tr {
+    break-inside: avoid;
   }
 }

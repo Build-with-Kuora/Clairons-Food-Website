@@ -43,7 +43,7 @@ export function RouteLine({
         </div>
         <div className="mt-1 text-center text-caption leading-tight">
           <div className="font-semibold">Dock</div>
-          <div className="text-ink-3">{run?.departedAt ? `Out ${clock(run.departedAt)}` : run ? `Departs ${clock(run.plannedDepart)}` : "Not planned"}</div>
+          <div className="text-ink-3">{run?.returnedAt ? `Back ${clock(run.returnedAt)}` : run?.departedAt ? `Out ${clock(run.departedAt)}` : run ? `Departs ${clock(run.plannedDepart)}` : "Not planned"}</div>
         </div>
       </div>
 

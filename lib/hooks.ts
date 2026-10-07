@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { dateKey } from "./format";
 import { reservedByLot, salesOf, stockRows } from "./logic";
 import { useStore } from "./store";
@@ -13,6 +13,19 @@ export function useNow(ms = 30_000) {
     return () => clearInterval(t);
   }, [ms]);
   return now;
+}
+
+/** Whether a media query matches, following changes. False on the server and before the app loads. */
+export function useMedia(query: string) {
+  const subscribe = useMemo(
+    () => (onChange: () => void) => {
+      const m = window.matchMedia(query);
+      m.addEventListener("change", onChange);
+      return () => m.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
 }
 
 export function useStock() {

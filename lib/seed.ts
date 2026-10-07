@@ -1,5 +1,5 @@
 import { DAY, HOUR, MIN, dateKey, lotCode, startOfDay } from "./format";
-import { WALK_IN, ZONES, allocateFEFO, orderTotals, priceLines, refusedCredit, round2, runKey, zoneOfBin } from "./logic";
+import { WALK_IN, ZONES, allocateFEFO, orderTotals, priceLines, round2, runKey, zoneOfBin } from "./logic";
 import type {
   Alloc,
   Batch,
@@ -13,6 +13,7 @@ import type {
   Movement,
   Order,
   OrderLine,
+  Payment,
   Pod,
   Product,
   Rider,
@@ -234,21 +235,14 @@ export interface Data {
   zones: Zone[];
   batches: Batch[];
   priceChanges: PriceChange[];
+  payments: Payment[];
   counters: { so: number; batch: number; invoice: number };
   seededAt: number;
 }
 
-export function buildSeed(now = Date.now()): Data {
-  const r = rng(20261001);
-  const int = (a: number, b: number) => a + Math.floor(r() * (b - a + 1));
-  const pick = <T,>(arr: T[]) => arr[Math.floor(r() * arr.length)];
-  const today = startOfDay(now);
-  const todayKey = dateKey(now);
-  const tomorrowKey = dateKey(today + DAY + 2 * HOUR);
-  let mv = 0;
-  const mvId = () => `mv-${++mv}`;
-
-  const products: Product[] = RAW.map(([sku, name, category, pack, caseKg, catchWeight, zone, bin, cost, a, reorderPoint, par, shelfDays]) => ({
+/** The demo catalogue with its prices, before any stock or orders. The landing page lists it too. */
+export function catalogue(): Product[] {
+  return RAW.map(([sku, name, category, pack, caseKg, catchWeight, zone, bin, cost, a, reorderPoint, par, shelfDays]) => ({
     sku,
     name,
     category,
@@ -265,6 +259,19 @@ export function buildSeed(now = Date.now()): Data {
     shelfDays,
     active: true,
   }));
+}
+
+export function buildSeed(now = Date.now()): Data {
+  const r = rng(20261001);
+  const int = (a: number, b: number) => a + Math.floor(r() * (b - a + 1));
+  const pick = <T,>(arr: T[]) => arr[Math.floor(r() * arr.length)];
+  const today = startOfDay(now);
+  const todayKey = dateKey(now);
+  const tomorrowKey = dateKey(today + DAY + 2 * HOUR);
+  let mv = 0;
+  const mvId = () => `mv-${++mv}`;
+
+  const products = catalogue();
 
   // ---------- Lots ----------
   // Every lot is one production batch. `qty` is what is on hand now. `madeQty`, the batch record and
@@ -584,17 +591,13 @@ export function buildSeed(now = Date.now()): Data {
         if (o.payMethod === "COD") o.paid = true;
       }
       if (s.status === "EXCEPTION") {
-        const ic = o.lines.find((l) => l.sku.startsWith("DE-")) ?? o.lines.find((l) => l.sku.startsWith("DM-")) ?? o.lines[0];
-        const refused = Math.min(ic.qty, 4);
-        evs.push({ status: "EXCEPTION", at: s.at!, by: rt.driver, note: "Partial refusal" });
+        // The whole drop was refused, so its cases ride back to the dock for dispatch to sort out.
+        evs.push({ status: "EXCEPTION", at: s.at!, by: rt.driver, note: "Too warm on arrival" });
         extra.exception = {
           at: s.at!,
           reason: "Too warm on arrival",
-          note: `Box warmed past −15°C after the rear door stayed open at the prior stop. Receiver refused ${refused} cs ${ic.name.toLowerCase()} as soft; rest accepted. Refused cases returning to dock for QA.`,
+          note: "Box warmed past −15°C after the rear door stayed open at the prior stop. Receiver probed −9°C and refused the whole drop as soft. Cases are coming back on the van.",
         };
-        const shorts = [{ sku: ic.sku, qty: refused, reason: "Refused, soft on arrival" }];
-        extra.pod = { ...pod(c, s.at!, round2(o.total - refusedCredit(o, shorts)), o.payMethod), productTempC: -9.2, shorts };
-        movements.push({ id: mvId(), at: s.at!, sku: ic.sku, lotCode: ic.allocs[0].lotCode, type: "RETURN", qty: refused, ref: o.number, by: rt.driver, note: "Refused, soft on arrival" });
       }
       if (s.eta) extra.eta = s.eta;
       if (s.rider) extra.riderId = s.rider.id;
@@ -657,6 +660,29 @@ export function buildSeed(now = Date.now()): Data {
   // Invoices are issued in the order sales were placed.
   let invoice = 1200;
   for (const o of [...orders].sort((a, b) => a.createdAt - b.createdAt)) o.invoiceNo = ++invoice;
+
+  // ---------- Payments ----------
+  // On-account invoices marked paid above were settled by one check or transfer per account, a few days after the last one.
+  // Its own number stream, so the orders above stay the same.
+  const pr = rng(20261007);
+  const payments: Payment[] = [];
+  for (const c of clients) {
+    const paid = orders.filter((o) => o.clientId === c.id && o.payMethod === "ACCOUNT" && o.paid).sort((a, b) => a.createdAt - b.createdAt);
+    if (!paid.length) continue;
+    for (const o of paid) o.paidAmount = o.total;
+    const check = pr() < 0.6;
+    payments.push({
+      id: `pay-${c.id}`,
+      at: Math.min(now - 2 * HOUR, paid.at(-1)!.createdAt + (2 + Math.floor(pr() * 3)) * DAY + 3 * HOUR),
+      clientId: c.id,
+      amount: round2(paid.reduce((t, o) => t + o.total, 0)),
+      method: check ? "CHECK" : "BANK",
+      ref: check ? String(100000 + Math.floor(pr() * 900000)) : `BDO ${String(Math.floor(pr() * 1e8)).padStart(8, "0")}`,
+      by: "Owner",
+      applied: paid.map((o) => ({ orderId: o.id, amount: o.total })),
+    });
+  }
+  payments.sort((a, b) => b.at - a.at);
   return {
     seller: SELLER,
     products,
@@ -671,6 +697,7 @@ export function buildSeed(now = Date.now()): Data {
     zones,
     batches,
     priceChanges: [],
+    payments,
     counters: { so, batch: lots.length, invoice },
     seededAt: now,
   };

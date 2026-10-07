@@ -90,6 +90,13 @@ function OrderCard({ order: o, delivery: d }: { order: Order; delivery?: Deliver
         </div>
       </header>
 
+      {cancelled && (
+        <p className="mx-5 mt-4 rounded-md bg-sunk px-3 py-2 text-small text-ink-2">
+          This order was cancelled{o.cancelled ? ` on ${dateTime(o.cancelled.at)}` : ""}.
+          {o.refund && (o.refund.at ? ` We refunded ${money(o.refund.amount)} on ${dateTime(o.refund.at)}.` : ` We owe you ${money(o.refund.amount)} back and will call you to arrange it.`)}
+        </p>
+      )}
+
       {!cancelled && (
         <div className="px-5 pt-4">
           <ol className="grid grid-cols-4 gap-2" aria-label="Delivery progress">

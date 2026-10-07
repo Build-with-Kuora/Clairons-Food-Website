@@ -1,13 +1,14 @@
 "use client";
 
-import { ChevronRight, Phone, Search } from "lucide-react";
+import { Banknote, ChevronRight, Phone, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Badge, Drawer, PageHead, Panel, Signature, StatusPill, cx } from "@/components/ui";
+import { PaymentForm } from "@/components/PaymentForm";
+import { Badge, Drawer, Modal, PageHead, Panel, Signature, StatusPill, cx } from "@/components/ui";
 import { DAY, dateKey, dateTime, dayShort, keyToTs, money, money0, temp } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { TERMS_LABEL, TRUCK_LIMIT_C, isWalkIn } from "@/lib/logic";
+import { PAYMENT_LABEL, TERMS_LABEL, TRUCK_LIMIT_C, isWalkIn } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Client } from "@/lib/types";
 
@@ -121,12 +122,15 @@ export default function Clients() {
 function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: ReturnType<typeof useStore.getState>["orders"]; onClose: () => void }) {
   const maps = useMaps();
   const deliveries = useStore((s) => s.deliveries);
+  const payments = useStore((s) => s.payments);
   const setCounterClient = useUi((s) => s.setCounterClient);
+  const [paying, setPaying] = useState(false);
   const router = useRouter();
   const now = useNow();
   const ds = deliveries.filter((d) => d.clientId === c.id).sort((a, b) => b.date.localeCompare(a.date) || b.seq - a.seq);
   const spend30 = orders.filter((o) => o.createdAt > now - 30 * DAY && o.status !== "CANCELLED").reduce((s, o) => s + o.total, 0);
   const onTime = ds.filter((d) => d.pod).length;
+  const paid = payments.filter((p) => p.clientId === c.id);
 
   return (
     <Drawer
@@ -145,6 +149,11 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
           >
             New order for {c.name.split(" ")[0] === "The" ? c.name.split(" ").slice(0, 3).join(" ") : c.name.split(" ").slice(0, 2).join(" ")}
           </button>
+          {c.balance > 0 && (
+            <button className="btn btn-dark" onClick={() => setPaying(true)}>
+              <Banknote size={18} aria-hidden /> Record payment
+            </button>
+          )}
           <a className="btn btn-ghost" href={`tel:${c.phone.replace(/\D/g, "")}`}>
             <Phone size={18} aria-hidden /> {c.phone}
           </a>
@@ -198,6 +207,29 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
         </div>
       </dl>
 
+      {(c.creditLimit > 0 || paid.length > 0) && (
+        <>
+          <h3 className="display mt-7 mb-3 text-title font-semibold">Payments</h3>
+          <ul className="divide-y divide-line rounded-lg border border-line">
+            {paid.length === 0 && <li className="p-3 text-small text-ink-3">No payments recorded yet.</li>}
+            {paid.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 px-3 py-2.5 text-small">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold">
+                    {PAYMENT_LABEL[p.method]}
+                    {p.ref && <span className="font-normal text-ink-2"> {p.ref}</span>}
+                  </div>
+                  <div className="text-ink-3">
+                    {dateTime(p.at)}, {p.by}. {p.applied.length ? `Paid ${p.applied.map((a) => maps.order.get(a.orderId)?.number ?? "").join(", ")}` : "Paid older balance"}
+                  </div>
+                </div>
+                <span className="font-semibold">{money(p.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <h3 className="display mt-7 mb-3 text-title font-semibold">Deliveries</h3>
       <ul className="divide-y divide-line rounded-lg border border-line">
         {ds.length === 0 && <li className="p-3 text-small text-ink-3">No deliveries yet.</li>}
@@ -246,12 +278,15 @@ function ClientDrawer({ client: c, orders, onClose }: { client: Client; orders: 
                 <span className="flex-1 text-ink-2">
                   {dateTime(o.createdAt)}, {o.lines.length} lines
                 </span>
-                {o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : o.paid ? <Badge tone="good">Paid</Badge> : <Badge>Open invoice</Badge>}
+                {o.status === "CANCELLED" ? <Badge>Cancelled</Badge> : o.paid ? <Badge tone="good">Paid</Badge> : o.paidAmount ? <Badge>Part paid</Badge> : <Badge>Open invoice</Badge>}
                 <span className="w-24 text-right font-semibold">{money(o.total)}</span>
               </Link>
             </li>
           ))}
       </ul>
+      <Modal open={paying} onClose={() => setPaying(false)} title="Record a payment" width={520}>
+        <PaymentForm client={c} onDone={() => setPaying(false)} onCancel={() => setPaying(false)} />
+      </Modal>
     </Drawer>
   );
 }

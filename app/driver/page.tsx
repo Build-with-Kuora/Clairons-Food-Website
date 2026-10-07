@@ -8,7 +8,7 @@ import { StatusPill, cx } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { clock, dateKey, temp, units } from "@/lib/format";
 import { useMaps, useNow } from "@/lib/hooks";
-import { TRUCK_LIMIT_C, commonUnit, runKey } from "@/lib/logic";
+import { TRUCK_LIMIT_C, commonUnit, runKey, vanCanReturn } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 
 const KEY = "coldline-driver-route";
@@ -20,6 +20,7 @@ export default function Driver() {
   const runs = useStore((s) => s.runs);
   const advance = useStore((s) => s.advance);
   const dispatchRoute = useStore((s) => s.dispatchRoute);
+  const returnRun = useStore((s) => s.returnRun);
   const toast = useUi((s) => s.toast);
   const maps = useMaps();
   const now = useNow(15_000);
@@ -205,8 +206,27 @@ export default function Driver() {
 
       {!current && (run?.departedAt || (rider && stops.length > 0 && loaded === 0)) && (
         <div className="mt-4 rounded-xl border border-line bg-panel p-5 text-center">
-          <div className="display text-heading font-semibold">{done.length === stops.length ? "Route complete" : "No stop in progress"}</div>
-          <p className="mt-1 text-body text-ink-2">{done.length === stops.length ? route ? "Head back to the dock and plug in the ref van." : "Head back to the dock." : "Ask dispatch to release your next stop."}</p>
+          <div className="display text-heading font-semibold">{run?.returnedAt ? `Back at the dock, ${clock(run.returnedAt)}` : done.length === stops.length ? "Route complete" : "No stop in progress"}</div>
+          <p className="mt-1 text-body text-ink-2">
+            {run?.returnedAt
+              ? "Plug in the ref van and hand any returned cases to the dock."
+              : done.length === stops.length
+                ? route
+                  ? "Head back to the dock and plug in the ref van."
+                  : "Head back to the dock."
+                : "Ask dispatch to release your next stop."}
+          </p>
+          {route && done.length === stops.length && vanCanReturn(run, stops) && (
+            <button
+              className="btn btn-primary btn-lg mt-4 w-full"
+              onClick={() => {
+                const r = returnRun(route.id, today, me);
+                toast(r.ok ? "Checked in. Dispatch knows the van is back." : r.error, r.ok ? "ok" : "warn");
+              }}
+            >
+              I&rsquo;m back at the dock
+            </button>
+          )}
         </div>
       )}
 

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { DAY, HOUR, dateKey, keyToTs, lotCode, uid, unitPlural } from "./format";
+import { DAY, HOUR, dateKey, dayShort, keyToTs, lotCode, uid, unitPlural } from "./format";
 import {
   ASSIGNABLE,
   NOTE_MAX,
@@ -11,11 +11,16 @@ import {
   WALK_IN,
   WALK_IN_ID,
   allocateFEFO,
+  amountDue,
+  applyPayment,
+  cancelSettlement,
   customerError,
+  dayError,
   freeBlastBin,
   nextSku,
   priceDiff,
   orderTotals,
+  paymentError,
   priceLines,
   productError,
   receiptToError,
@@ -25,7 +30,9 @@ import {
   reservedByLot,
   round2,
   runKey,
+  stockLeft,
   zoneOfBin,
+  type ReturnedStock,
 } from "./logic";
 import { SELLER, buildSeed, type Data } from "./seed";
 import type {
@@ -38,6 +45,8 @@ import type {
   Order,
   OrderLine,
   PayMethod,
+  Payment,
+  PaymentMethod,
   Pod,
   Product,
   ProductInput,
@@ -67,6 +76,21 @@ export interface ProduceInput {
   note?: string;
 }
 
+export interface ResolveInput {
+  /** What happens to cases that already left the shelf. Ignored when the stop was never loaded. */
+  stock: ReturnedStock;
+  /** Deliver again on `date`, or cancel the order. */
+  next: "RETRY" | "CANCEL";
+  date?: string;
+}
+
+export interface PaymentInput {
+  clientId: string;
+  amount: number;
+  method: PaymentMethod;
+  ref?: string;
+}
+
 export interface RiderInput {
   id?: string;
   name: string;
@@ -79,11 +103,17 @@ interface Actions {
   reset(): void;
   tick(): void;
   placeOrder(i: PlaceOrderInput): { ok: true; order: Order } | { ok: false; error: string };
-  cancelOrder(orderId: string, by: string): void;
+  cancelOrder(orderId: string, by: string, reason?: string): void;
   advance(deliveryId: string, to: DeliveryStatus, by: string, note?: string): void;
   dispatchRoute(routeId: string, date: string, by: string): void;
   completeDelivery(deliveryId: string, pod: Omit<Pod, "at">, by: string): void;
   reportException(deliveryId: string, reason: string, note: string, by: string): void;
+  /** Settle a stop that has a problem: deal with any cases that came back, then deliver again or cancel the order. */
+  resolveProblem(deliveryId: string, i: ResolveInput, by: string): { ok: true } | { ok: false; error: string };
+  /** The van is back at the dock: its run ends and its temperature log stops. */
+  returnRun(routeId: string, date: string, by: string): { ok: true } | { ok: false; error: string };
+  /** Money an account customer paid toward what they owe. */
+  receivePayment(i: PaymentInput, by: string): { ok: true; payment: Payment } | { ok: false; error: string };
   /** Give a stop to a rider, or back to the van on its route (riderId null). */
   assignDelivery(deliveryId: string, riderId: string | null, by: string): { ok: true } | { ok: false; error: string };
   saveRider(i: RiderInput): { ok: true; rider: Rider } | { ok: false; error: string };
@@ -121,6 +151,7 @@ const empty: Data = {
   zones: [],
   batches: [],
   priceChanges: [],
+  payments: [],
   counters: { so: 0, batch: 0, invoice: 0 },
   seededAt: 0,
 };
@@ -128,8 +159,23 @@ const empty: Data = {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const mv = (m: Omit<Movement, "id" | "at"> & { at?: number }): Movement => ({ id: uid(), at: Date.now(), ...m });
 
+/** The changes that cancel an order: it keeps its invoice number, its stop comes off the board, and the money is put right. */
+function cancelled(s: Data, o: Order, by: string, reason: string): Partial<Data> {
+  const settle = cancelSettlement(o);
+  const at = Date.now();
+  return {
+    orders: s.orders.map((x) =>
+      x.id === o.id
+        ? { ...x, status: "CANCELLED", cancelled: { at, by, reason }, ...(settle.kind === "REFUND" ? { refund: { amount: settle.amount } } : {}) }
+        : x,
+    ),
+    deliveries: s.deliveries.filter((x) => x.id !== o.deliveryId),
+    clients: settle.kind === "ACCOUNT" ? s.clients.map((c) => (c.id === o.clientId ? { ...c, balance: round2(c.balance - settle.amount) } : c)) : s.clients,
+  };
+}
+
 // Bump when the saved data shape changes, so browsers with old demo data reseed.
-export const STORAGE_KEY = "clairons-coldline-ph-v8";
+export const STORAGE_KEY = "clairons-coldline-ph-v9";
 
 export const useStore = create<Store>()(
   persist(
@@ -248,19 +294,14 @@ export const useStore = create<Store>()(
         return { ok: true, order };
       },
 
-      cancelOrder: (orderId, by) => {
+      cancelOrder: (orderId, by, reason = "Stopped before it left the building") => {
         const s = get();
         const o = s.orders.find((x) => x.id === orderId);
         if (!o || o.status !== "OPEN") return;
         const d = s.deliveries.find((x) => x.id === o.deliveryId);
         if (d && !["SCHEDULED", "PICKING"].includes(d.status)) return;
         set({
-          orders: s.orders.map((x) => (x.id === orderId ? { ...x, status: "CANCELLED" } : x)),
-          deliveries: s.deliveries.filter((x) => x.id !== o.deliveryId),
-          clients:
-            o.payMethod === "ACCOUNT"
-              ? s.clients.map((c) => (c.id === o.clientId ? { ...c, balance: round2(c.balance - o.total) } : c))
-              : s.clients,
+          ...cancelled(s, o, by, reason),
           movements: [mv({ sku: o.lines[0]?.sku ?? "", type: "RELEASE", qty: 0, ref: o.number, by, note: "Order cancelled, reservation released" }), ...s.movements],
         });
       },
@@ -374,6 +415,101 @@ export const useStore = create<Store>()(
         });
       },
 
+      resolveProblem: (deliveryId, i, by) => {
+        const s = get();
+        const d = s.deliveries.find((x) => x.id === deliveryId);
+        const o = s.orders.find((x) => x.id === d?.orderId);
+        if (!d || !o) return { ok: false, error: "Stop not found." };
+        if (d.status !== "EXCEPTION") return { ok: false, error: "This stop has no problem to resolve." };
+        const now = Date.now();
+        const why = d.exception?.reason ?? "Delivery problem";
+
+        // Cases that left on the van come back: onto the shelf, into a held batch, or written off.
+        let lots = s.lots;
+        let movements = s.movements;
+        if (stockLeft(d)) {
+          const home = new Map(s.products.map((p) => [p.sku, p.bin]));
+          for (const l of o.lines) {
+            for (const a of l.allocs) {
+              const lot = lots.find((x) => x.id === a.lotId);
+              const base = { sku: l.sku, lotCode: a.lotCode, ref: o.number, by };
+              const back = mv({ ...base, type: "RETURN", qty: a.qty, note: `Back from ${o.number}: ${why}` });
+              if (i.stock === "WRITE_OFF") {
+                movements = [mv({ ...base, type: "WASTE", qty: -a.qty, note: `Written off after the problem: ${why}` }), back, ...movements];
+              } else if (i.stock === "HOLD" && lot) {
+                // Kept apart from the good cases of the same batch until someone checks them.
+                const held: Lot = { ...lot, id: uid(), madeQty: 0, qty: a.qty, bin: home.get(l.sku) ?? lot.bin, status: "HOLD", holdReason: `Came back from ${o.number}: ${why}. Check before selling.` };
+                lots = [...lots, held];
+                movements = [mv({ ...base, type: "HOLD", qty: 0, note: "Held for a quality check" }), back, ...movements];
+              } else {
+                lots = lots.map((x) => (x.id === a.lotId ? { ...x, qty: x.qty + a.qty } : x));
+                movements = [back, ...movements];
+              }
+            }
+          }
+        }
+
+        if (i.next === "CANCEL") {
+          set({ lots, movements, ...cancelled({ ...s, lots }, o, by, `Delivery problem: ${why}`) });
+          return { ok: true };
+        }
+
+        // Deliver again: reserve fresh stock, first-expiry-first-out, as if the order were placed now.
+        const date = i.date ?? "";
+        const reserved = reservedByLot(s.orders, s.deliveries);
+        const lines: OrderLine[] = [];
+        for (const l of o.lines) {
+          const allocs = allocateFEFO(lots, l.sku, l.qty, reserved, now);
+          if (!allocs) return { ok: false, error: `Not enough stock to send ${l.name} again. Make more, or cancel the order.` };
+          for (const a of allocs) reserved[a.lotId] = (reserved[a.lotId] ?? 0) + a.qty;
+          lines.push({ ...l, allocs });
+        }
+        const order = { ...o, lines };
+        const error = dayError(date, { today: dateKey(now), vanLeft: !!s.runs[runKey(d.routeId, date)]?.departedAt, rider: !!d.riderId, lots, order });
+        if (error) return { ok: false, error };
+        const seq =
+          Math.max(0, ...s.deliveries.filter((x) => x.date === date && x.id !== d.id && (d.riderId ? x.riderId === d.riderId : x.routeId === d.routeId && !x.riderId)).map((x) => x.seq)) + 1;
+        const k = runKey(d.routeId, date);
+        const runs = d.riderId || s.runs[k] ? s.runs : { ...s.runs, [k]: { routeId: d.routeId, date, plannedDepart: keyToTs(date) + 5.5 * HOUR, temps: [] } };
+        set({
+          lots,
+          movements,
+          runs,
+          orders: s.orders.map((x) => (x.id === o.id ? order : x)),
+          deliveries: s.deliveries.map((x) =>
+            x.id === d.id
+              ? {
+                  ...x,
+                  date,
+                  seq,
+                  status: "SCHEDULED",
+                  eta: undefined,
+                  exception: undefined,
+                  restartedAt: now,
+                  events: [...x.events, { status: "SCHEDULED", at: now, by, note: `Sending again ${dayShort(keyToTs(date))} after the problem: ${why}` }],
+                }
+              : x,
+          ),
+        });
+        return { ok: true };
+      },
+
+      returnRun: (routeId, date, by) => {
+        const s = get();
+        const k = runKey(routeId, date);
+        const run = s.runs[k];
+        if (!run?.departedAt) return { ok: false, error: "This van hasn't left yet." };
+        if (run.returnedAt) return { ok: true };
+        const out = s.deliveries.filter((d) => d.routeId === routeId && !d.riderId && d.date === date && (d.status === "EN_ROUTE" || d.status === "ARRIVED"));
+        if (out.length) return { ok: false, error: `${out.length === 1 ? "One stop is" : `${out.length} stops are`} still open on this van. Finish ${out.length === 1 ? "it" : "them"} first.` };
+        const route = s.routes.find((r) => r.id === routeId);
+        set({
+          runs: { ...s.runs, [k]: { ...run, returnedAt: Date.now() } },
+          movements: [mv({ sku: "", type: "TRANSFER", qty: 0, by, note: `${route?.truck ?? "Van"} back at the dock` }), ...s.movements],
+        });
+        return { ok: true };
+      },
+
       assignDelivery: (deliveryId, riderId, by) => {
         const s = get();
         const d = s.deliveries.find((x) => x.id === deliveryId);
@@ -413,11 +549,12 @@ export const useStore = create<Store>()(
         const seq =
           Math.max(0, ...s.deliveries.filter((x) => x.date === date && x.id !== d.id && (d.riderId ? x.riderId === d.riderId : x.routeId === d.routeId && !x.riderId)).map((x) => x.seq)) + 1;
         const runs = d.riderId || s.runs[k] ? s.runs : { ...s.runs, [k]: { routeId: d.routeId, date, plannedDepart: keyToTs(date) + 5.5 * HOUR, temps: [] } };
-        const note = `Moved from ${d.date} to ${date}`;
+        const note = `Moved from ${dayShort(keyToTs(d.date))} to ${dayShort(keyToTs(date))}`;
+        const now = Date.now();
         set({
           runs,
           deliveries: s.deliveries.map((x) =>
-            x.id === deliveryId ? { ...x, date, seq, status: "SCHEDULED", eta: undefined, events: [...x.events, { status: "SCHEDULED", at: Date.now(), by, note }] } : x,
+            x.id === deliveryId ? { ...x, date, seq, status: "SCHEDULED", eta: undefined, restartedAt: now, events: [...x.events, { status: "SCHEDULED", at: now, by, note }] } : x,
           ),
         });
         return { ok: true };
@@ -521,6 +658,30 @@ export const useStore = create<Store>()(
         const refund = { ...o.refund, at: Date.now(), by };
         set({ orders: s.orders.map((x) => (x.id === orderId ? { ...x, refund } : x)) });
         return { ok: true };
+      },
+
+      receivePayment: (i, by) => {
+        const s = get();
+        const client = s.clients.find((c) => c.id === i.clientId);
+        if (!client) return { ok: false, error: "Customer not found." };
+        const amount = round2(i.amount);
+        const error = paymentError(client, amount, i.method, i.ref ?? "");
+        if (error) return { ok: false, error };
+        const { applied } = applyPayment(s.orders, s.deliveries, client.id, amount);
+        const payment: Payment = { id: `pay-${uid()}`, at: Date.now(), clientId: client.id, amount, method: i.method, ref: i.ref?.trim() || undefined, by, applied };
+        const byOrder = new Map(applied.map((a) => [a.orderId, a.amount]));
+        const byId = new Map(s.deliveries.map((d) => [d.id, d]));
+        set({
+          payments: [payment, ...s.payments],
+          clients: s.clients.map((c) => (c.id === client.id ? { ...c, balance: round2(c.balance - amount), pastDue: Math.max(0, round2(c.pastDue - amount)) } : c)),
+          orders: s.orders.map((o) => {
+            const paid = byOrder.get(o.id);
+            if (paid === undefined) return o;
+            const next = { ...o, paidAmount: round2((o.paidAmount ?? 0) + paid) };
+            return { ...next, paid: amountDue(next, o.deliveryId ? byId.get(o.deliveryId) : undefined) <= 0 };
+          }),
+        });
+        return { ok: true, payment };
       },
 
       produce: (i) => {

@@ -250,7 +250,7 @@ export function ExceptionForm({ delivery, by, onDone, onCancel }: { delivery: De
             onDone();
           }}
         >
-          Log exception
+          Report problem
         </button>
       </div>
     </div>

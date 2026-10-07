@@ -10,9 +10,9 @@ import { StaffToday } from "@/components/StaffToday";
 import { AreaTrend } from "@/components/trendCharts";
 import { Badge, Delta, Panel, Segmented, Stat } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { DAY, count, daysUntil, money, money0, pesoK, plural, startOfDay, units } from "@/lib/format";
+import { DAY, count, dayShort, daysUntil, keyToTs, money, money0, pesoK, plural, startOfDay, units } from "@/lib/format";
 import { useMaps, useSales, useStock, useToday } from "@/lib/hooks";
-import { buyerName, runKey } from "@/lib/logic";
+import { buyerName, openProblems, runKey } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 
 /** Home is different per role: the owner gets sales and money, staff get today's work. Riders never land here. */
@@ -49,6 +49,7 @@ function OwnerToday() {
   const stopsToday = deliveries.filter((d) => d.date === today);
   const done = stopsToday.filter((d) => d.status === "DELIVERED").length;
   const exceptions = stopsToday.filter((d) => d.status === "EXCEPTION");
+  const problems = openProblems(deliveries);
   const toPick = deliveries.filter((d) => d.status === "SCHEDULED" || d.status === "PICKING").length;
   const trucksOut = routes.filter((r) => runs[runKey(r.id, today)]?.departedAt && !runs[runKey(r.id, today)]?.returnedAt).length;
 
@@ -163,11 +164,11 @@ function OwnerToday() {
                   tone="bad"
                   title="Delivery problems"
                   empty="All deliveries are fine so far."
-                  items={exceptions.map((d) => ({
+                  items={problems.map((d) => ({
                     key: d.id,
                     href: `/dispatch?stop=${d.id}`,
                     main: maps.client.get(d.clientId)?.name ?? "",
-                    side: d.exception?.reason ?? "",
+                    side: `${d.exception?.reason ?? "Problem"}${d.date === today ? "" : `, ${dayShort(keyToTs(d.date))}`}. Resolve it on Delivery.`,
                   }))}
                 />
                 <AttentionList
@@ -204,7 +205,7 @@ function OwnerToday() {
                       key: o.id,
                       href: `/orders?id=${o.id}`,
                       main: buyerName(o, maps.client.get(o.clientId)),
-                      side: `Refund owed ${money(o.refund!.amount)} for refused cases`,
+                      side: `Refund owed ${money(o.refund!.amount)} ${o.status === "CANCELLED" ? "for a cancelled order" : "for refused cases"}`,
                     })),
                     ...held.map((l) => ({ key: l.id, href: `/inventory?sku=${l.sku}`, main: `${maps.product.get(l.sku)?.name}`, side: `Batch ${l.code} held for a quality check` })),
                     ...overCredit.map((c) => ({
