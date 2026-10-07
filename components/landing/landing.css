@@ -32,21 +32,27 @@
 /* Type */
 .lp-display {
   font-family: var(--font-manrope), var(--font-inter), sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
   text-wrap: balance;
 }
 .lp-h1 {
   font-size: clamp(2.5rem, 6vw, 4.25rem);
 }
 .lp-h2 {
-  font-size: clamp(1.9rem, 3.6vw, 2.75rem);
+  font-size: clamp(2.2rem, 4.6vw, 3.8rem);
 }
 .lp-h3 {
-  font-size: 1.3rem;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
+  font-size: 1.4rem;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+/* The section titles: as big and tight as the film's */
+.lp-mega {
+  font-size: clamp(2.8rem, 7.4vw, 6.6rem);
+  line-height: 0.92;
+  letter-spacing: -0.055em;
 }
 .lp-figure {
   font-variant-numeric: tabular-nums;
@@ -153,46 +159,80 @@
   font-weight: 600;
 }
 
-/* Hero: their building fading into a black field, logo red glowing from the far edge */
+/* Hero: the film's opening. Their building, slowly pushing in under a dark shade, a red slash from the left. */
 .lp-hero {
   color: #fff;
-  background: var(--lp-ink);
+  background: #14161a;
 }
-.lp-hero-fade {
-  pointer-events: none;
+.lp-hero-photo {
+  transform-origin: 30% 50%;
+}
+.lp-hero-shade {
   background:
-    radial-gradient(90% 45% at 50% 100%, rgb(215 31 38 / 0.85) 0%, rgb(155 20 26 / 0.45) 45%, transparent 80%),
-    linear-gradient(180deg, rgb(20 21 24 / 0) 0%, rgb(20 21 24 / 0.08) 22%, rgb(20 21 24 / 0.3) 32%, rgb(20 21 24 / 0.6) 41%, rgb(20 21 24 / 0.85) 50%, var(--lp-ink) 60%);
+    radial-gradient(ellipse at 50% 48%, rgb(20 22 26 / 0.62), rgb(20 22 26 / 0.94) 72%),
+    linear-gradient(0deg, rgb(20 22 26 / 0.7), transparent 45%);
 }
-@media (min-width: 1024px) {
-  .lp-hero-fade {
-    background:
-      radial-gradient(55% 75% at 100% 100%, rgb(215 31 38 / 0.9) 0%, rgb(155 20 26 / 0.5) 42%, transparent 78%),
-      radial-gradient(40% 55% at 100% 0%, rgb(155 20 26 / 0.6) 0%, transparent 72%),
-      linear-gradient(90deg, rgb(20 21 24 / 0) 18%, rgb(20 21 24 / 0.06) 28%, rgb(20 21 24 / 0.2) 37%, rgb(20 21 24 / 0.42) 45%, rgb(20 21 24 / 0.66) 53%, rgb(20 21 24 / 0.85) 61%, rgb(20 21 24 / 0.96) 69%, var(--lp-ink) 76%);
-  }
+.lp-hero-slash {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: -14%;
+  width: 44%;
+  background: #d71f26;
+  mix-blend-mode: multiply;
+  transform: skewX(-14deg);
+}
+.lp-btn-lg {
+  height: 3.5rem;
+  padding: 0 2rem;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 @media (prefers-reduced-motion: no-preference) {
+  .lp-hero-photo {
+    animation: lp-push 9s ease-out both;
+  }
+  .lp-hero-slash {
+    animation: lp-slash 1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  }
   .lp-hero-logo {
-    animation: lp-arrive 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: lp-arrive 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
   }
   .lp-hero-actions {
-    animation: lp-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: lp-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.9s both;
+  }
+}
+@keyframes lp-push {
+  from {
+    transform: scale(1.16);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes lp-slash {
+  from {
+    transform: translateX(-120%) skewX(-14deg);
+  }
+  to {
+    transform: skewX(-14deg);
   }
 }
 @keyframes lp-arrive {
   from {
-    transform: scale(0.96);
+    transform: scale(1.35);
     opacity: 0;
+    filter: blur(16px);
   }
   to {
     transform: none;
     opacity: 1;
+    filter: none;
   }
 }
 @keyframes lp-rise {
   from {
-    transform: translateY(14px);
+    transform: translateY(24px);
     opacity: 0;
   }
   to {
@@ -204,10 +244,10 @@
 /* Form panel */
 .lp-label {
   background: var(--lp-label);
-  border: 1px solid var(--lp-line);
-  border-radius: var(--lp-radius);
+  border: 4px solid #14161a;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 8px 28px -12px rgb(20 22 26 / 0.18);
+  box-shadow: 10px 10px 0 #d71f26;
 }
 .lp-label-head {
   background: var(--lp-ink);
@@ -238,8 +278,9 @@
 .lp-stamp {
   display: inline-block;
   padding: 0.4rem 0.8rem;
-  border: 1px solid var(--lp-red);
+  border: 3px solid var(--lp-red);
   border-radius: 8px;
+  rotate: -5deg;
   background: rgb(215 31 38 / 0.06);
   color: var(--lp-red);
   opacity: 0;
@@ -362,6 +403,14 @@
   background: #fff;
   color: var(--lp-red);
 }
+/* The red field turns --lp-ink white, which would put white text on the white paper button */
+.lp-red-field .lp-btn-paper {
+  color: #14161a;
+}
+.lp-red-field .lp-btn-paper:hover {
+  background: #14161a;
+  color: #fff;
+}
 
 /* Form */
 .lp-input {
@@ -412,4 +461,767 @@ textarea.lp-input {
 }
 .lp-red-field .lp-label .lp-btn-red:hover {
   background: var(--lp-red-press);
+}
+
+/* About film: a short promo in the logo's colours. Scenes wipe in from the left behind a red edge. */
+.lp-film {
+  margin: 0;
+}
+.lp-film-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--lp-radius);
+  background: #14161a;
+  color: #fff;
+  font-size: clamp(0.95rem, 2.6vw, 1.15rem);
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
+}
+@media (min-width: 640px) {
+  .lp-film-stage {
+    aspect-ratio: 16 / 9;
+    font-size: clamp(1rem, 1.5vw, 1.3rem);
+  }
+}
+.lp-film-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  margin-left: -14px;
+  background: #d71f26;
+  border-right: 4px solid #fff;
+  pointer-events: none;
+}
+.lp-film-grain {
+  position: absolute;
+  inset: -50%;
+  z-index: 100000;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.09;
+  mix-blend-mode: overlay;
+  animation: lp-film-grain 0.6s steps(3) infinite;
+}
+@keyframes lp-film-grain {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-4%, 3%); }
+  66% { transform: translate(3%, -5%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Fields */
+.lp-film-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.lp-film-ink {
+  background: #14161a;
+  color: #fff;
+}
+.lp-film-red {
+  background: #d71f26;
+  color: #fff;
+}
+.lp-film-paper,
+.lp-film-door-paper {
+  --lp-ink: #14161a;
+  --lp-ink-2: #4a4f58;
+  background: #fff;
+  color: #14161a;
+}
+.lp-film-pad {
+  padding: 1.75rem;
+}
+@media (min-width: 640px) {
+  .lp-film-pad {
+    padding: 3rem 4rem;
+  }
+}
+
+/* Type */
+.lp-film-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
+.lp-film-head {
+  font-size: clamp(1.8rem, 4.6vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+}
+.lp-film-giant {
+  font-size: clamp(2.8rem, 9vw, 8rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+.lp-film-list {
+  font-size: clamp(1.8rem, 4.5vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+.lp-film-line {
+  max-width: 40ch;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+.lp-film-kicker {
+  margin-bottom: 0.35em;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.lp-film-count {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 1rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+/* Opening */
+.lp-film-shade {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgb(20 22 26 / 0.72), rgb(20 22 26 / 0.95) 70%),
+    linear-gradient(0deg, rgb(20 22 26 / 0.6), transparent 40%);
+}
+.lp-film-slash {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: -12%;
+  width: 46%;
+  background: #d71f26;
+  mix-blend-mode: multiply;
+}
+
+/* Menu */
+.lp-film-marquee {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6%;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-size: clamp(2.6rem, 9vw, 8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1.5px currentColor;
+  opacity: 0.22;
+}
+.lp-film-ink .lp-film-marquee,
+.lp-film-red .lp-film-marquee {
+  -webkit-text-stroke-color: #fff;
+}
+.lp-film-paper .lp-film-marquee {
+  -webkit-text-stroke-color: #14161a;
+}
+.lp-film-marquee span {
+  padding-right: 0.5em;
+}
+.lp-film-marquee-big {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  font-size: clamp(4rem, 15vw, 13rem);
+  opacity: 0.14;
+}
+.lp-film-food {
+  width: clamp(96px, 20vw, 250px);
+  height: auto;
+  filter: drop-shadow(8px 10px 0 rgb(0 0 0 / 0.18));
+}
+
+/* The master case */
+.lp-film-box-wrap {
+  display: flex;
+  justify-content: center;
+  perspective: 700px;
+}
+.lp-film-box {
+  position: relative;
+  width: min(76%, 330px);
+  aspect-ratio: 5 / 4;
+  border: 4px solid #14161a;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 14px 14px 0 #d71f26;
+  font-size: 0.95em;
+  transform-style: preserve-3d;
+}
+.lp-film-flap {
+  position: absolute;
+  top: -4px;
+  width: calc(50% + 4px);
+  height: 30%;
+  border: 4px solid #14161a;
+  background: #fff;
+  transform-origin: top;
+}
+.lp-film-flap-l {
+  left: -4px;
+}
+.lp-film-flap-r {
+  right: -4px;
+}
+.lp-film-tape {
+  position: absolute;
+  top: 9%;
+  left: -4px;
+  right: -4px;
+  height: 13%;
+  background: #d71f26;
+  transform-origin: left;
+}
+.lp-film-sticker {
+  position: absolute;
+  inset: 38% 9% 9%;
+  display: grid;
+  align-content: start;
+  gap: 0.1em;
+  border: 2px solid #14161a;
+  background: #fff;
+  padding: 0.55em 0.7em;
+  font-size: 0.8em;
+}
+.lp-film-rule {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75em;
+  border-top: 1px solid #c9ccd1;
+  padding-top: 0.15em;
+}
+.lp-film-stamp {
+  position: absolute;
+  right: -9%;
+  bottom: -12%;
+  border: 4px solid #d71f26;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.9);
+  padding: 0.35em 0.7em;
+  color: #d71f26;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-size: 1.15em;
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* The road */
+.lp-film-city {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22%;
+  background-repeat: repeat-x;
+  background-size: 600px 100%;
+  animation: lp-film-scroll linear infinite;
+}
+.lp-film-city-far {
+  height: 46%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cg fill='white'%3E%3Crect x='0' y='40' width='50' height='80'/%3E%3Crect x='55' y='15' width='40' height='105'/%3E%3Crect x='100' y='55' width='60' height='65'/%3E%3Crect x='165' y='30' width='35' height='90'/%3E%3Crect x='205' y='60' width='70' height='60'/%3E%3Crect x='280' y='10' width='45' height='110'/%3E%3Crect x='330' y='45' width='55' height='75'/%3E%3Crect x='390' y='25' width='38' height='95'/%3E%3Crect x='433' y='65' width='62' height='55'/%3E%3Crect x='500' y='35' width='48' height='85'/%3E%3Crect x='553' y='50' width='47' height='70'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.07;
+  animation-duration: 30s;
+}
+.lp-film-city-near {
+  height: 30%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cg fill='white'%3E%3Crect x='10' y='50' width='80' height='70'/%3E%3Crect x='100' y='30' width='55' height='90'/%3E%3Crect x='170' y='70' width='90' height='50'/%3E%3Crect x='275' y='40' width='60' height='80'/%3E%3Crect x='350' y='62' width='100' height='58'/%3E%3Crect x='465' y='22' width='50' height='98'/%3E%3Crect x='530' y='58' width='70' height='62'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.13;
+  animation-duration: 12s;
+}
+@keyframes lp-film-scroll {
+  to {
+    background-position-x: -600px;
+  }
+}
+.lp-film-road {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22%;
+  border-top: 3px solid #3a3d44;
+  background: #22242a;
+}
+.lp-film-lane {
+  position: absolute;
+  top: 46%;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: repeating-linear-gradient(90deg, #fff 0 48px, transparent 48px 96px);
+  opacity: 0.7;
+  animation: lp-film-lane 0.45s linear infinite;
+}
+@keyframes lp-film-lane {
+  to {
+    background-position-x: -96px;
+  }
+}
+.lp-film-van {
+  position: absolute;
+  left: 7%;
+  bottom: 14%;
+  width: min(48%, 380px);
+}
+.lp-film-wheel {
+  position: absolute;
+  bottom: -9%;
+  width: 15%;
+  height: auto;
+}
+.lp-film-temp {
+  position: absolute;
+  top: -1.6em;
+  right: 2%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.25em 0.75em;
+  color: #14161a;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 0 #d71f26;
+}
+.lp-film-rider {
+  position: absolute;
+  bottom: 4%;
+  height: 13%;
+}
+
+/* The week */
+.lp-film-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  perspective: 600px;
+}
+@media (min-width: 640px) {
+  .lp-film-week {
+    gap: 0.75rem;
+    margin-top: 2.25rem;
+  }
+}
+.lp-film-day {
+  display: flex;
+  aspect-ratio: 3 / 4;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 10px;
+  background: #fff;
+  color: #14161a;
+  font-size: clamp(0.8rem, 2.2vw, 1.5rem);
+  font-weight: 800;
+  transform-origin: top;
+  box-shadow: 0 6px 0 rgb(0 0 0 / 0.2);
+}
+.lp-film-day-off {
+  border: 2px dashed rgb(255 255 255 / 0.7);
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+
+/* The two doors */
+.lp-film-door {
+  border-radius: 16px;
+  padding: 1.25rem 1.4rem;
+}
+@media (min-width: 640px) {
+  .lp-film-door {
+    padding: 2rem 2.25rem;
+  }
+}
+.lp-film-door-red {
+  background: #d71f26;
+  color: #fff;
+}
+
+/* Controls */
+.lp-film-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+.lp-film-play {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff;
+  color: #14161a;
+  cursor: pointer;
+}
+.lp-film-track {
+  display: flex;
+  flex: 1;
+  gap: 0.35rem;
+}
+.lp-film-seg {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0;
+  cursor: pointer;
+}
+.lp-film-seg::before {
+  content: "";
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.35);
+}
+.lp-film-fill {
+  display: block;
+  height: 4px;
+  margin-top: -4px;
+  border-radius: 2px;
+  background: #fff;
+}
+.lp-film-label {
+  display: none;
+  min-width: 9.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+@media (min-width: 640px) {
+  .lp-film-label {
+    display: block;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-film-grain,
+  .lp-film-city,
+  .lp-film-lane {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   The film's look across the public pages: hard cuts between black, red and
+   white fields, case-label cards with a hard red shadow, outlined type moving
+   past, film grain on the dark fields.
+   ========================================================================== */
+
+.lp-topbar {
+  background: #14161a;
+  color: #fff;
+  border-bottom: 4px solid #d71f26;
+}
+.lp-footbar {
+  background: #14161a;
+  color: #fff;
+  border-top: 4px solid #d71f26;
+}
+.lp-topbar .lp-navlink,
+.lp-footbar .lp-navlink {
+  color: rgb(255 255 255 / 0.75);
+}
+.lp-topbar .lp-navlink:hover,
+.lp-footbar .lp-navlink:hover,
+.lp-topbar .lp-navlink[aria-current="page"] {
+  color: #fff;
+}
+.lp-topbar :focus-visible,
+.lp-footbar :focus-visible {
+  outline-color: #fff;
+}
+
+.lp-paper {
+  background: #fff;
+  color: #14161a;
+}
+.lp-ink-field {
+  --lp-ink: #ffffff;
+  --lp-ink-2: rgb(255 255 255 / 0.8);
+  --lp-line: rgb(255 255 255 / 0.2);
+  background: #14161a;
+  color: #fff;
+}
+.lp-ink-field :focus-visible {
+  outline-color: #fff;
+}
+
+/* Film grain over a dark field */
+.lp-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-grain::after {
+    animation: lp-grain-shift 0.6s steps(3) infinite;
+  }
+}
+@keyframes lp-grain-shift {
+  0% { background-position: 0 0; }
+  33% { background-position: -40px 30px; }
+  66% { background-position: 30px -50px; }
+  100% { background-position: 0 0; }
+}
+
+/* The menu ticker under the hero */
+.lp-ticker {
+  overflow: hidden;
+  border-block: 4px solid #14161a;
+  background: #d71f26;
+  color: #fff;
+  padding: 0.85rem 0;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-size: clamp(1.5rem, 3.4vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.lp-ticker-outline {
+  background: transparent;
+  color: transparent;
+  -webkit-text-stroke: 1.5px currentColor;
+}
+.lp-ticker-row {
+  display: flex;
+  width: max-content;
+}
+.lp-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  padding-right: 0.6em;
+}
+.lp-ticker-flake {
+  width: 0.6em;
+  height: 0.6em;
+  opacity: 0.8;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-ticker-row {
+    animation: lp-marquee 32s linear infinite;
+  }
+}
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Case-label cards */
+.lp-case {
+  position: relative;
+  overflow: hidden;
+  border: 4px solid #14161a;
+  border-radius: 8px;
+  background: #fff;
+  color: #14161a;
+  box-shadow: 10px 10px 0 #d71f26;
+  transition:
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out;
+}
+.lp-case:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 13px 13px 0 #d71f26;
+}
+.lp-case-tape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 4px solid #14161a;
+  background: #d71f26;
+  color: #fff;
+  padding: 0.85rem 1.25rem;
+}
+.lp-case-food {
+  width: 58px;
+  height: 58px;
+  margin: -10px 0;
+  rotate: 8deg;
+}
+.lp-case .lp-photo-flush {
+  border-bottom: 4px solid #14161a;
+}
+.lp-case-ink {
+  --lp-ink: #fff;
+  background: #14161a;
+  color: #fff;
+}
+.lp-outline {
+  color: transparent;
+  -webkit-text-stroke: 2px #fff;
+}
+.lp-rubber {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  rotate: -10deg;
+  border: 4px solid #d71f26;
+  border-radius: 6px;
+  padding: 0.3em 0.6em;
+  color: #d71f26;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.lp-food {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+/* Delivery */
+.lp-arrow {
+  position: relative;
+  height: 4px;
+  margin-right: 14px;
+  background: #d71f26;
+}
+.lp-arrow::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -14px;
+  border-block: 10px solid transparent;
+  border-left: 16px solid #d71f26;
+  transform: translateY(-50%);
+}
+.lp-roadband {
+  position: relative;
+  height: clamp(190px, 26vw, 320px);
+  margin-top: 3rem;
+  overflow: hidden;
+}
+.lp-roadband-van {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  width: min(46%, 360px);
+  translate: -50% 0;
+  font-size: clamp(0.85rem, 1.4vw, 1.1rem);
+}
+.lp-roadband-rider {
+  position: absolute;
+  bottom: 4%;
+  left: -20%;
+  height: 13%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-roadband-rider {
+    animation: lp-ride 9s linear infinite;
+  }
+}
+@keyframes lp-ride {
+  0%,
+  55% {
+    left: -20%;
+  }
+  85%,
+  100% {
+    left: 120%;
+  }
+}
+.lp-days {
+  margin-top: 1.75rem;
+}
+.lp-route {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 2px solid rgb(255 255 255 / 0.55);
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+}
+
+/* The two doors, over the brand name sliding past */
+.lp-bigmarquee {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  translate: 0 -50%;
+  overflow: hidden;
+  font-family: var(--font-manrope), var(--font-inter), sans-serif;
+  font-size: clamp(5rem, 17vw, 15rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 2px #14161a;
+  opacity: 0.09;
+}
+.lp-bigmarquee-row {
+  display: flex;
+  width: max-content;
+}
+.lp-bigmarquee-row span {
+  padding-right: 0.4em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-bigmarquee-row {
+    animation: lp-marquee 40s linear infinite;
+  }
+}
+.lp-door {
+  position: relative;
+  border: 4px solid #14161a;
+  border-radius: 10px;
+  padding: 2rem 1.5rem;
+  color: #fff;
+}
+@media (min-width: 640px) {
+  .lp-door {
+    padding: 2.75rem 2.5rem;
+  }
+}
+.lp-door-red {
+  --lp-ink: #fff;
+  background: #d71f26;
+  box-shadow: 12px 12px 0 #14161a;
+}
+.lp-door-ink {
+  --lp-ink: #fff;
+  background: #14161a;
+  box-shadow: 12px 12px 0 #d71f26;
+}
+.lp-door-food {
+  position: absolute;
+  top: -30px;
+  right: 1.5rem;
+  width: 96px;
+  height: 96px;
+  padding: 10px;
+  border: 4px solid #14161a;
+  border-radius: 50%;
+  background: #fff;
+  rotate: 10deg;
+}
+.lp-door .lp-btn-paper {
+  color: #14161a;
 }
