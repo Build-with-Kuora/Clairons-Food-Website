@@ -145,8 +145,71 @@ export const FOOD: Record<string, ReactNode> = {
       <path d="M34 66 L40 48 M52 72 L58 52 M70 76 L76 56" stroke={RED} strokeWidth={6} strokeLinecap="round" transform="rotate(-10 60 60)" />
     </>
   ),
+  Drumstick: (
+    <>
+      <path d="M70 18 Q104 18 104 50 Q104 78 74 80 L52 80 Q34 78 40 58 Q46 18 70 18 Z" fill="#fff" {...S} />
+      <path d="M44 74 L24 96" {...S} strokeWidth={9} />
+      <circle cx="18" cy="96" r="8" fill="#fff" {...S} />
+      <circle cx="26" cy="104" r="8" fill="#fff" {...S} />
+      <path d="M62 40 Q72 34 84 40" fill="none" stroke={RED} strokeWidth={6} strokeLinecap="round" />
+    </>
+  ),
+  Fish: (
+    <>
+      <path d="M16 60 Q48 26 86 52 L106 34 L102 60 L106 86 L86 68 Q48 94 16 60 Z" fill="#fff" {...S} />
+      <circle cx="36" cy="56" r="5" fill={INK} />
+      <path d="M52 50 Q58 60 52 70 M64 48 Q70 60 64 72" fill="none" stroke={RED} strokeWidth={5} strokeLinecap="round" />
+    </>
+  ),
+  "Ice cream": (
+    <>
+      <path d="M26 50 H94 L88 104 H32 Z" fill="#fff" {...S} />
+      <path d="M30 72 H90" stroke={RED} strokeWidth={8} />
+      <path d="M30 50 Q30 24 60 24 Q90 24 90 50 Z" fill={RED} {...S} />
+      <path d="M44 38 Q52 32 60 38" fill="none" stroke="#fff" strokeWidth={4} strokeLinecap="round" />
+    </>
+  ),
+  Flan: (
+    <>
+      <path d="M28 52 Q30 36 60 36 Q90 36 92 52 L98 84 Q60 98 22 84 Z" fill="#fff" {...S} />
+      <path d="M28 52 Q60 64 92 52 Q90 36 60 36 Q30 36 28 52 Z" fill={RED} {...S} />
+      <path d="M14 88 Q60 104 106 88" fill="none" {...S} />
+    </>
+  ),
+  Fries: (
+    <>
+      <path d="M38 24 V60 M50 16 V60 M62 22 V60 M74 14 V60 M86 26 V60" stroke={INK} strokeWidth={8} strokeLinecap="round" />
+      <path d="M38 24 V60 M50 16 V60 M62 22 V60 M74 14 V60 M86 26 V60" stroke="#fff" strokeWidth={3} strokeLinecap="round" />
+      <path d="M28 48 H94 L86 106 H36 Z" fill={RED} {...S} />
+      <path d="M44 66 Q61 76 78 66" fill="none" stroke="#fff" strokeWidth={5} strokeLinecap="round" />
+    </>
+  ),
+  Cheese: (
+    <>
+      <path d="M14 82 L96 34 L106 46 V86 H14 Z" fill="#fff" {...S} />
+      <path d="M14 82 L96 34 L106 46 L24 92 Z" fill="#fff" {...S} />
+      <circle cx="52" cy="76" r="6" fill={RED} />
+      <circle cx="80" cy="70" r="4" fill={RED} />
+      <circle cx="90" cy="80" r="5" fill={RED} />
+    </>
+  ),
+  Buchi: (
+    <>
+      <circle cx="60" cy="62" r="38" fill="#fff" {...S} />
+      <path d="M44 44 l4 2 M62 36 l4 -1 M78 48 l3 3 M40 66 l3 3 M58 58 l4 1 M76 70 l2 4 M50 82 l4 1 M68 86 l3 -2" stroke={INK} strokeWidth={4} strokeLinecap="round" />
+      <path d="M44 100 Q60 108 76 100" fill="none" stroke={RED} strokeWidth={6} strokeLinecap="round" />
+    </>
+  ),
+  Egg: (
+    <>
+      <ellipse cx="46" cy="64" rx="24" ry="30" fill="#fff" {...S} />
+      <ellipse cx="78" cy="68" rx="24" ry="30" fill="#fff" {...S} />
+      <circle cx="78" cy="70" r="10" fill={RED} />
+    </>
+  ),
 };
-export const MENU = Object.keys(FOOD);
+/** The eight shown in the ticker and the film. FOOD also has drawings for the rest of the catalogue. */
+export const MENU = ["Siopao", "Siomai", "Hakaw", "Fish balls", "Kikiam", "Tocino", "Longganisa", "Turon"];
 
 export function Van() {
   return (

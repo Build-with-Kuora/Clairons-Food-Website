@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock3, Search, ShoppingCart, Snowflake, Truck } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ShopFrame, Stepper } from "@/components/ShopFrame";
 import { cx } from "@/components/ui";
@@ -22,14 +23,20 @@ export default function Shop() {
   const toast = useUi((s) => s.toast);
   const { rows } = useStock();
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState<Category | "All">("All");
+  // The landing page's menu links here with ?cat= to open on that category.
+  const params = useSearchParams();
+  const [cat, setCat] = useState<Category | "All">(() => {
+    const c = params.get("cat");
+    return CATEGORIES.includes(c as Category) ? (c as Category) : "All";
+  });
 
   const active = products.filter((p) => p.active);
   const cats = CATEGORIES.filter((c) => active.some((p) => p.category === c));
   const needle = q.trim().toLowerCase();
   const shown = active
     .filter((p) => (cat === "All" || p.category === cat) && (!needle || p.name.toLowerCase().includes(needle) || p.category.toLowerCase().includes(needle)))
-    .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+    // Category order puts dimsum and streetfood first, the way the menu reads.
+    .sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || a.name.localeCompare(b.name));
 
   return (
     <ShopFrame>

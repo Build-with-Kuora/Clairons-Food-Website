@@ -2,7 +2,6 @@
 
 import { Pause, Play, Snowflake, Truck } from "lucide-react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { temp } from "@/lib/format";
@@ -132,36 +131,34 @@ function Scene({ id, still, play }: { id: SceneId; still: boolean; play: boolean
   }
 }
 
+/** A title card: the film sits right under the hero, so it opens on words rather than repeating the building and logo. */
 function Open({ still }: { still: boolean }) {
   return (
-    <div className="lp-film-field lp-film-ink">
-      <motion.div className="absolute inset-0" initial={still ? false : { scale: 1.2 }} animate={{ scale: 1.02 }} transition={{ duration: 5.2, ease: "linear" }}>
-        <Image src="/landing/clairons-building.jpg" alt="" fill sizes="(min-width: 1320px) 1272px, 100vw" className="object-cover object-[20%_55%]" />
-      </motion.div>
-      <div className="lp-film-shade absolute inset-0" />
+    <div className="lp-film-field lp-film-red">
       <motion.span
-        className="lp-film-slash"
+        className="lp-film-slash lp-film-slash-ink"
         initial={still ? false : { x: "-120%", skewX: -14 }}
         animate={{ x: "0%", skewX: -14 }}
-        transition={{ duration: 0.9, delay: 0.15, ease: EASE }}
+        transition={{ duration: 0.9, delay: 0.1, ease: EASE }}
         aria-hidden
       />
-      <div className="relative flex h-full flex-col items-center justify-center px-6 text-center">
-        <motion.div
-          className="w-[min(70%,480px)]"
-          initial={still ? false : { opacity: 0, scale: 1.4, filter: "blur(16px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          transition={{ duration: 1, delay: 0.5, ease: EASE }}
-        >
-          <Image src="/brand/clairons-logo-reverse.png" alt="Clairon's Food" width={1478} height={596} sizes="480px" className="h-auto w-full drop-shadow-[0_10px_30px_rgb(0_0_0/0.55)]" />
-        </motion.div>
-        <p className="lp-display mt-5 text-[clamp(1.15rem,2.8vw,2.1rem)] leading-tight font-extrabold text-white">
-          <Words text="Merienda and streetfood, made by us." delay={1.3} still={still} />
+      <div className="lp-film-pad relative flex h-full flex-col justify-center">
+        <p className="lp-display lp-film-giant">
+          <span className="block">
+            <Words text="Merienda" delay={0.3} still={still} />
+          </span>
+          <span className="block">
+            <Words text="and streetfood," delay={0.5} step={0.1} still={still} />
+          </span>
+          <span className="block">
+            <Words text="made by us." delay={0.8} step={0.1} still={still} />
+          </span>
         </p>
-        <p className="mt-2 text-[clamp(0.9rem,1.4vw,1.1rem)] text-white/85">
-          <Words text="A Filipino-owned food maker." delay={1.9} step={0.05} still={still} />
+        <p className="mt-4 text-[clamp(1rem,1.8vw,1.35rem)] font-semibold">
+          <Words text="A Filipino-owned food maker." delay={1.4} step={0.05} still={still} />
         </p>
       </div>
+      <Frost still={still} />
     </div>
   );
 }
