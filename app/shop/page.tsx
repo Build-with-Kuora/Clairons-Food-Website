@@ -4,6 +4,7 @@ import { Clock3, Search, ShoppingCart, Snowflake, Truck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ShopFrame, Stepper } from "@/components/ShopFrame";
+import { FOOD, foodFor } from "@/components/landing/motifs";
 import { cx } from "@/components/ui";
 import { CART_MAX, useCart } from "@/lib/cart";
 import { money } from "@/lib/format";
@@ -11,6 +12,9 @@ import { useStock } from "@/lib/hooks";
 import { CATEGORIES, DROP_FEE, DROP_MIN, FUEL_FEE, ONLINE_TIER, casePrice, priceUnit } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category } from "@/lib/types";
+
+/** The backdrop behind each card's drawing, in turn, as on the landing page's menu board. */
+const ART_BG = ["bg-[#f4f4f5]", "bg-brand", "bg-ink"];
 
 /** Below this many free to sell, the card warns the shopper. */
 const FEW_LEFT = 5;
@@ -84,44 +88,56 @@ export default function Shop() {
         <p className="rounded-xl border border-line bg-panel px-4 py-10 text-center text-body text-ink-3">No products match. Try another word or category.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {shown.map((p) => {
+          {shown.map((p, i) => {
             const left = rows.get(p.sku)?.available ?? 0;
             const inCart = lines.find((l) => l.sku === p.sku)?.qty ?? 0;
             const price = p.price[ONLINE_TIER];
             return (
-              <article key={p.sku} className="flex flex-col rounded-xl border border-line bg-panel p-4">
-                <div className="text-caption font-semibold tracking-[0.06em] text-ink-3 uppercase">{p.category}</div>
-                <h2 className="mt-1 text-lead leading-snug font-semibold">{p.name}</h2>
-                <p className="mt-0.5 text-small text-ink-3">
-                  Per {p.unit}: {p.pack}
-                </p>
-                <div className="mt-auto pt-4">
-                  <div className="flex items-baseline gap-1">
-                    <span className="display text-heading leading-none font-semibold">{money(price)}</span>
-                    <span className="text-caption text-ink-3">/{priceUnit(p)}</span>
-                  </div>
-                  {p.catchWeight && <p className="text-caption text-ink-3">About {money(casePrice(p, ONLINE_TIER))} a {p.unit}, billed by weight</p>}
-                  <p className={cx("mt-1 text-caption font-semibold", left === 0 ? "text-bad" : left <= FEW_LEFT ? "text-warn" : "text-good")}>
-                    {left === 0 ? "Out of stock" : left <= FEW_LEFT ? `Only ${left} left` : "In stock"}
-                  </p>
-                  <div className="mt-3">
-                    {inCart > 0 ? (
-                      <div className="flex items-center justify-between gap-2">
-                        <Stepper qty={inCart} max={Math.min(CART_MAX, left)} onChange={(n) => setQty(p.sku, n)} label={p.name} />
-                        <span className="text-caption text-ink-3">in cart</span>
-                      </div>
-                    ) : (
-                      <button
-                        className="btn btn-primary w-full"
-                        disabled={left === 0}
-                        onClick={() => {
-                          add(p.sku);
-                          toast(`${p.name} added to cart`);
-                        }}
-                      >
-                        <ShoppingCart size={15} aria-hidden /> Add to cart
-                      </button>
-                    )}
+              <article key={p.sku} className="group flex flex-col overflow-hidden rounded-xl border border-line bg-panel">
+                <div className={cx("relative grid aspect-[16/10] place-items-center border-b border-line", ART_BG[i % ART_BG.length])}>
+                  <svg
+                    viewBox="0 0 120 120"
+                    className="w-[44%] max-w-[150px] rounded-full border-[3px] border-ink bg-white p-[7%] transition-transform duration-300 motion-safe:group-hover:scale-105 motion-safe:group-hover:-rotate-[10deg]"
+                    aria-hidden
+                  >
+                    {FOOD[foodFor(p.name)]}
+                  </svg>
+                  <span className="absolute bottom-2.5 left-2.5 rounded-md border-2 border-ink bg-white px-1.5 py-0.5 text-caption font-semibold text-ink">
+                    <span className="sr-only">Per {p.unit}: </span>
+                    {p.pack}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-4">
+                  <div className="text-caption font-semibold tracking-[0.06em] text-ink-3 uppercase">{p.category}</div>
+                  <h2 className="mt-1 text-lead leading-snug font-semibold">{p.name}</h2>
+                  <div className="mt-auto pt-4">
+                    <div className="flex items-baseline gap-1">
+                      <span className="display text-heading leading-none font-semibold">{money(price)}</span>
+                      <span className="text-caption text-ink-3">/{priceUnit(p)}</span>
+                    </div>
+                    {p.catchWeight && <p className="text-caption text-ink-3">About {money(casePrice(p, ONLINE_TIER))} a {p.unit}, billed by weight</p>}
+                    <p className={cx("mt-1 text-caption font-semibold", left === 0 ? "text-bad" : left <= FEW_LEFT ? "text-warn" : "text-good")}>
+                      {left === 0 ? "Out of stock" : left <= FEW_LEFT ? `Only ${left} left` : "In stock"}
+                    </p>
+                    <div className="mt-3">
+                      {inCart > 0 ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <Stepper qty={inCart} max={Math.min(CART_MAX, left)} onChange={(n) => setQty(p.sku, n)} label={p.name} />
+                          <span className="text-caption text-ink-3">in cart</span>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn btn-primary w-full"
+                          disabled={left === 0}
+                          onClick={() => {
+                            add(p.sku);
+                            toast(`${p.name} added to cart`);
+                          }}
+                        >
+                          <ShoppingCart size={15} aria-hidden /> Add to cart
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>
