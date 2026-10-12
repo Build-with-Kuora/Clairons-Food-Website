@@ -135,6 +135,9 @@ export function unitPrice(p: Product, tier: Tier): { amount: number; per: string
 export const caseCost = (p: Product) => (p.catchWeight ? p.cost * p.caseKg : p.cost);
 export const casePrice = (p: Product, tier: Tier) => (p.catchWeight ? p.price[tier] * p.caseKg : p.price[tier]);
 
+/** The price on the list everyone sees (price list C): per case, or per kg for catch-weight items. */
+export const listPrice = (p: Product) => p.price.C;
+
 /** Stock tied to orders that have not left the building yet. */
 const RESERVING: DeliveryStatus[] = ["SCHEDULED", "PICKING"];
 
@@ -482,14 +485,14 @@ export function salesCsv(sum: ReturnType<typeof salesSummary>, products: Map<str
   };
   const lines = [
     row("Clairon's Food, sales by product", period),
-    row("SKU", "Product", "Unit", "Sold", "Sales", "VATable sales", "VAT 12%", "Amount"),
+    row("SKU", "Product", "Unit", "List price", "Sold", "Sales", "VATable sales", "VAT 12%", "Amount"),
     ...sum.rows.map((r) => {
       const p = products.get(r.sku);
-      return row(r.sku, p?.name ?? r.sku, p?.unit ?? "", r.qty, r.orders, ...money(r.amount));
+      return row(r.sku, p?.name ?? r.sku, p?.unit ?? "", p ? listPrice(p).toFixed(2) : "", r.qty, r.orders, ...money(r.amount));
     }),
-    row("", "Products", "", sum.cases, "", ...money(sum.products)),
-    row("", "Delivery fees (small drop, fuel)", "", "", "", ...money(sum.fees)),
-    row("", "Total", "", sum.cases, sum.count, ...money(sum.total)),
+    row("", "Products", "", "", sum.cases, "", ...money(sum.products)),
+    row("", "Delivery fees (small drop, fuel)", "", "", "", "", ...money(sum.fees)),
+    row("", "Total", "", "", sum.cases, sum.count, ...money(sum.total)),
   ];
   return lines.join("\r\n") + "\r\n";
 }
