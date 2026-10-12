@@ -2,6 +2,7 @@ import { Inter, Manrope } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { MobileMenu } from "./MobileMenu";
 import "./landing.css";
 
 /** The light version of the logo (white wordmark, red script), for the black header and footer. */
@@ -25,30 +26,32 @@ export function PublicFrame({ page, children }: { page: Page; children: ReactNod
   );
 }
 
+const NAV = [
+  { href: "/#products", label: "Products" },
+  { href: "/#delivery", label: "Delivery" },
+  { href: "/#about", label: "About" },
+  { href: "/contact", label: "Contact" },
+];
+
 function Header({ page }: { page: Page }) {
+  const current = page === "contact" ? "/contact" : undefined;
   return (
     <header className="lp-topbar sticky top-0 z-30">
-      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center gap-8 px-4 sm:px-6">
+      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center gap-3 px-4 sm:gap-8 sm:px-6">
         <Link href="/" aria-label="Clairon's Food, home">
           <ReverseLogo height={38} />
         </Link>
         <nav aria-label="Main" className="hidden items-center gap-7 md:flex">
-          <Link href="/#products" className="lp-navlink">
-            Products
-          </Link>
-          <Link href="/#delivery" className="lp-navlink">
-            Delivery
-          </Link>
-          <Link href="/#about" className="lp-navlink">
-            About
-          </Link>
-          <Link href="/contact" className="lp-navlink" aria-current={page === "contact" ? "page" : undefined}>
-            Contact
-          </Link>
+          {NAV.map((l) => (
+            <Link key={l.href} href={l.href} className="lp-navlink" aria-current={current === l.href ? "page" : undefined}>
+              {l.label}
+            </Link>
+          ))}
         </nav>
         <Link href="/shop" className="lp-btn lp-btn-red lp-btn-sm ml-auto">
           Shop online
         </Link>
+        <MobileMenu links={NAV} current={current} />
       </div>
     </header>
   );

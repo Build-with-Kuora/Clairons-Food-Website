@@ -208,6 +208,31 @@ export const FOOD: Record<string, ReactNode> = {
     </>
   ),
 };
+
+/** Which drawing stands in for a product, by its name, until the client's photos arrive. Used by the menu board and the online store. */
+export function foodFor(name: string) {
+  const n = name.toLowerCase();
+  const rules: [RegExp, string][] = [
+    [/siopao|kuapao|mantou|pandesal|ensaymada/, "Siopao"],
+    [/siomai/, "Siomai"],
+    [/hakaw|machang/, "Hakaw"],
+    [/ball|isaw|barbecue/, "Fish balls"],
+    [/kikiam|hotdog|embutido|lumpia/, "Kikiam"],
+    [/longganisa/, "Longganisa"],
+    [/tocino|tapa|liempo|pata|spareribs/, "Tocino"],
+    [/turon/, "Turon"],
+    [/chicken|wing/, "Drumstick"],
+    [/bangus|tempura|shrimp|squid/, "Fish"],
+    [/ice cream/, "Ice cream"],
+    [/flan|halaya/, "Flan"],
+    [/fries/, "Fries"],
+    [/cheese|keso/, "Cheese"],
+    [/buchi/, "Buchi"],
+    [/egg/, "Egg"],
+  ];
+  return rules.find(([re]) => re.test(n))?.[1] ?? "Siomai";
+}
+
 /** The eight shown in the ticker and the film. FOOD also has drawings for the rest of the catalogue. */
 export const MENU = ["Siopao", "Siomai", "Hakaw", "Fish balls", "Kikiam", "Tocino", "Longganisa", "Turon"];
 

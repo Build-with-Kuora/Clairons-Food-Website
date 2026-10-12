@@ -6,7 +6,7 @@ import { useState } from "react";
 import { money, money0 } from "@/lib/format";
 import { CATEGORIES, ONLINE_TIER, casePrice, unitPrice } from "@/lib/logic";
 import type { Category, Product } from "@/lib/types";
-import { EASE, FOOD } from "./motifs";
+import { EASE, FOOD, foodFor } from "./motifs";
 
 /** What the store calls each category on the public page. */
 const LABEL: Partial<Record<Category, string>> = { "Tocino & longganisa": "Breakfast", Chiller: "Chilled" };
@@ -24,30 +24,6 @@ const FOR: Record<Category, string> = {
   Fries: "Frozen fries for the fryer.",
   Chiller: "Kept cold, not frozen: cheese, quail eggs and ube halaya.",
 };
-
-/** The drawing that stands in for each product until the client's photos arrive. */
-function drawingFor(p: Product) {
-  const n = p.name.toLowerCase();
-  const rules: [RegExp, string][] = [
-    [/siopao|kuapao|mantou|pandesal|ensaymada/, "Siopao"],
-    [/siomai/, "Siomai"],
-    [/hakaw|machang/, "Hakaw"],
-    [/ball|isaw|barbecue/, "Fish balls"],
-    [/kikiam|hotdog|embutido|lumpia/, "Kikiam"],
-    [/longganisa/, "Longganisa"],
-    [/tocino|tapa|liempo|pata|spareribs/, "Tocino"],
-    [/turon/, "Turon"],
-    [/chicken|wing/, "Drumstick"],
-    [/bangus|tempura|shrimp|squid/, "Fish"],
-    [/ice cream/, "Ice cream"],
-    [/flan|halaya/, "Flan"],
-    [/fries/, "Fries"],
-    [/cheese|keso/, "Cheese"],
-    [/buchi/, "Buchi"],
-    [/egg/, "Egg"],
-  ];
-  return rules.find(([re]) => re.test(n))?.[1] ?? "Siomai";
-}
 
 const PER: Record<string, string> = { piece: "a piece", stick: "a stick", kg: "a kg", gallon: "a gallon" };
 
@@ -94,7 +70,7 @@ export function MenuBoard({ products }: { products: Product[] }) {
               >
                 <div className={`lp-item-art ${i % 3 === 1 ? "lp-item-art-red" : i % 3 === 2 ? "lp-item-art-ink" : ""}`} aria-hidden>
                   <svg viewBox="0 0 120 120" className="lp-item-food">
-                    {FOOD[drawingFor(p)]}
+                    {FOOD[foodFor(p.name)]}
                   </svg>
                   <span className="lp-item-pack">{p.pack}</span>
                 </div>
