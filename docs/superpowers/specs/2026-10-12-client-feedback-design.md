@@ -2,7 +2,7 @@
 
 Branch: `nelson`
 Date: 2026-10-12
-Status: designed. Building parts 1 (list price) and 2 (roles) now; part 3 (reservations) is deferred to a later round, part 4 (payroll) waits on the client.
+Status: parts 1 (list price) and 2 (roles) built on nelson. The sales table keeps its columns and gains only List price, so the explanatory notes in section 1 were left out at Nelson's request; part 3 (reservations) is deferred to a later round, part 4 (payroll) waits on the client.
 
 ## Goal
 
