@@ -2,7 +2,7 @@
 
 Branch: `nelson`
 Date: 2026-10-12
-Status: designed, not built
+Status: designed. Building parts 1 (list price) and 2 (roles) now; part 3 (reservations) is deferred to a later round, part 4 (payroll) waits on the client.
 
 ## Goal
 

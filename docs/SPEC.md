@@ -70,7 +70,7 @@ These change what we build, so they come first.
 | 4.4 | Batch blast-freezes before it is put away | Done | Batches land in a blast-freezer bin and can't be reserved or sold there; Inventory shows them as "Freezing" with a ready time 24 hours after they are made, then "Frozen, move to freezer". Moving the lot to a freezer bin makes it sellable. Moving stays a manual step. |
 | 4.5 | Consumes raw materials per recipe | Deferred | Decision 0.2 |
 | 4.6 | Seeded history comes from production batches, not supplier POs (decision 0.1) | Done | Every demo lot is a batch with a PRODUCE movement. Suppliers, purchase orders and receiving are gone. Inventory links to Production ("To make", "Record batch", "Make a batch" on a product). |
-| 4.7 | To make includes reservations | Missing | Added 2026-10-12. Reserved cases not yet in stock count as extra demand, with the reservation numbers (6.10). |
+| 4.7 | To make includes reservations | Deferred | Added 2026-10-12. Reserved cases not yet in stock count as extra demand, with the reservation numbers (6.10). |
 
 ## 5. Delivery
 
@@ -100,7 +100,7 @@ These change what we build, so they come first.
 | 6.7 | Record payments from account customers | Done | Added 2026-10-07. Customers → a customer → **Record payment**: amount (with Overdue and Whole balance shortcuts), check, bank transfer, cash or GCash, and the check number or reference. It comes off the balance and the overdue amount, and pays their oldest unpaid on-account invoices first (shown as Paid or Part paid on Orders). Each customer lists their payments. Demo payments are seeded for invoices already marked paid. `applyPayment`, `amountDue`, `paymentError` in `lib/logic.ts`; store action `receivePayment`. |
 | 6.8 | Cancelling a paid order records the refund | Done | Added 2026-10-07. Cancelling an order paid by cash, card, GCash or check now records a refund owed for the whole amount (it used to record nothing), and every cancellation keeps who, when and why. `cancelSettlement` in `lib/logic.ts`. |
 | 6.9 | List price on the sales table | Missing | Client feedback 2026-10-12. A **List price** column (price list C, per case or per kg) after Sold, on screen, in print and in the CSV. Amount stays what was charged, so it need not equal Sold × List price; the print note says so. Design: `docs/superpowers/specs/2026-10-12-client-feedback-design.md`. |
-| 6.10 | Reservations for clients | Missing | Client feedback 2026-10-12. A client reserves products for a needed-by date: stock on hand is held (earliest best-by first, none expiring before the date) and drops out of Available; the rest goes on To make (4.7). Made by staff at the POS (order type Reserve) or by a customer at store checkout ("Reserve for a date"). Optional deposit (cash, GCash, card, bank). Once fully held, staff make it into a normal order at the client's current price, with the deposit taken off what is due ("Less deposit" on the invoice). From the day after the date it shows on Home as Not picked up; staff extend or cancel it, nothing releases on its own. Cancelling frees the stock and a deposit becomes a refund owed. Listed on Orders → Reservations and in the store's My orders. Design: `docs/superpowers/specs/2026-10-12-client-feedback-design.md`. |
+| 6.10 | Reservations for clients | Deferred | Client feedback 2026-10-12. Designed and planned (`docs/superpowers/plans/2026-10-12-client-feedback.md`, Tasks 4–10), not built yet: this round only builds 6.9 and 10.4. A client reserves products for a needed-by date: stock on hand is held (earliest best-by first, none expiring before the date) and drops out of Available; the rest goes on To make (4.7). Made by staff at the POS (order type Reserve) or by a customer at store checkout ("Reserve for a date"). Optional deposit (cash, GCash, card, bank). Once fully held, staff make it into a normal order at the client's current price, with the deposit taken off what is due ("Less deposit" on the invoice). From the day after the date it shows on Home as Not picked up; staff extend or cancel it, nothing releases on its own. Cancelling frees the stock and a deposit becomes a refund owed. Listed on Orders → Reservations and in the store's My orders. Design: `docs/superpowers/specs/2026-10-12-client-feedback-design.md`. |
 
 ## 7. Receipts and invoicing
 
@@ -215,7 +215,7 @@ Done: dashboard product grid (2.1–2.7), Production page (4.1–4.3), productio
 
 Built: public landing page at `/` for logged-out visitors and contact page at `/contact` (section 11).
 
-Next, from the client's feedback on 2026-10-12, before they see the final prototype: list price on the sales table (6.9), roles audit (10.4), reservations (6.10, 4.7). Payroll (13) waits on the client.
+Next, from the client's feedback on 2026-10-12, before they see the final prototype: list price on the sales table (6.9) and the roles audit (10.4). Reservations (6.10, 4.7) are designed but wait for a later round. Payroll (13) waits on the client.
 
 Still open for the landing page: drop in the real photos and contact details (11.10), confirm where Clairon's is (11.11), and decide where wholesale inquiries go (11.7).
 
