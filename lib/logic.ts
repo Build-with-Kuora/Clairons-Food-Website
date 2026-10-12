@@ -22,7 +22,7 @@ import type {
   Tier,
   ZoneId,
 } from "./types";
-import { DAY, HOUR, dateKey, dateTime, invoiceNumber, keyToTs, money, startOfDay } from "./format";
+import { DAY, HOUR, dateKey, dateTime, invoiceNumber, keyToTs, money, money0, startOfDay } from "./format";
 
 export const ZONES: Record<ZoneId, { name: string; setPointC: number; maxC: number; color: string; prefix: string }> = {
   BLAST: { name: "Blast freezer", setPointC: -35, maxC: -28, color: "var(--color-z-blast)", prefix: "B" },
@@ -134,6 +134,9 @@ export function unitPrice(p: Product, tier: Tier): { amount: number; per: string
 
 export const caseCost = (p: Product) => (p.catchWeight ? p.cost * p.caseKg : p.cost);
 export const casePrice = (p: Product, tier: Tier) => (p.catchWeight ? p.price[tier] * p.caseKg : p.price[tier]);
+
+/** The price on the list everyone sees (price list C): per case, or per kg for catch-weight items. */
+export const listPrice = (p: Product) => p.price.C;
 
 /** Stock tied to orders that have not left the building yet. */
 const RESERVING: DeliveryStatus[] = ["SCHEDULED", "PICKING"];
@@ -336,6 +339,15 @@ export function paymentError(c: Client, amount: number, method: PaymentMethod, r
   return null;
 }
 
+/** Why charging `total` to this account needs the owner's approval, or null when it doesn't. Same check the POS shows. */
+export function creditError(c: Client, payMethod: PayMethod, total: number): string | null {
+  if (payMethod !== "ACCOUNT" || c.terms === "COD") return null;
+  if (c.pastDue > 0) return `${money(c.pastDue)} past due on this account.`;
+  const after = c.balance + total;
+  if (after > c.creditLimit) return `This order takes the account to ${money0(after)}, over the ${money0(c.creditLimit)} limit.`;
+  return null;
+}
+
 /** Units sold per SKU since `since`. */
 export function soldBySku(sales: Sale[], since: number) {
   const out = new Map<string, number>();
@@ -482,14 +494,14 @@ export function salesCsv(sum: ReturnType<typeof salesSummary>, products: Map<str
   };
   const lines = [
     row("Clairon's Food, sales by product", period),
-    row("SKU", "Product", "Unit", "Sold", "Sales", "VATable sales", "VAT 12%", "Amount"),
+    row("SKU", "Product", "Unit", "List price", "Sold", "Sales", "VATable sales", "VAT 12%", "Amount"),
     ...sum.rows.map((r) => {
       const p = products.get(r.sku);
-      return row(r.sku, p?.name ?? r.sku, p?.unit ?? "", r.qty, r.orders, ...money(r.amount));
+      return row(r.sku, p?.name ?? r.sku, p?.unit ?? "", p ? listPrice(p).toFixed(2) : "", r.qty, r.orders, ...money(r.amount));
     }),
-    row("", "Products", "", sum.cases, "", ...money(sum.products)),
-    row("", "Delivery fees (small drop, fuel)", "", "", "", ...money(sum.fees)),
-    row("", "Total", "", sum.cases, sum.count, ...money(sum.total)),
+    row("", "Products", "", "", sum.cases, "", ...money(sum.products)),
+    row("", "Delivery fees (small drop, fuel)", "", "", "", "", ...money(sum.fees)),
+    row("", "Total", "", "", sum.cases, sum.count, ...money(sum.total)),
   ];
   return lines.join("\r\n") + "\r\n";
 }

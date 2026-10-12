@@ -2,8 +2,9 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { Role } from "./roles";
 
-export type Role = "admin" | "staff" | "rider" | "customer";
+export { ROLE_LABEL, canOpen, homeFor, type Role } from "./roles";
 
 export interface Account {
   email: string;
@@ -30,31 +31,11 @@ export const DEMO_ACCOUNTS: Account[] = [
 export const AUTH_KEY = "coldline-auth";
 export const PASSWORD_MIN = 8;
 
-export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", staff: "Staff", rider: "Rider", customer: "Customer" };
-
-/** Where each role lands after logging in. Riders only get the driver handheld, customers the online store. */
-export const homeFor = (role: Role) => (role === "rider" ? "/driver" : role === "customer" ? "/shop" : "/");
-
-/**
- * What each role may open (spec 10.3). Admin is the owner and sees everything. Staff run the counter,
- * warehouse, production and dispatch, but not the sales report. Riders only get the driver handheld.
- * Customers only get the online store. Anyone, logged in or not, can browse the store's catalogue.
- */
-const STAFF_BLOCKED = ["/sales"];
-
-export function canOpen(role: Role | undefined, path: string) {
-  const under = (p: string) => path === p || path.startsWith(`${p}/`);
-  if (under("/contact")) return true;
-  // Logged out, / is the landing page (spec 11.9).
-  if (!role) return path === "/" || under("/login") || path === "/shop";
-  if (role === "rider") return under("/driver");
-  if (role === "customer") return under("/shop");
-  if (role === "staff") return !STAFF_BLOCKED.some(under);
-  return true;
-}
-
 /** Only the owner sets prices and products, approves orders past a credit hold, and resets the demo. */
 export const useIsAdmin = () => useAuth((s) => s.user?.role === "admin");
+
+/** For store actions: whether the person logged in on this device is the owner. */
+export const isOwner = () => useAuth.getState().user?.role === "admin";
 
 type Result = { ok: true; user: User } | { ok: false; error: string };
 

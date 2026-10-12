@@ -8,7 +8,7 @@ import { PairedBars } from "@/components/trendCharts";
 import { Delta, Empty, PageHead, Panel, Stat, cx } from "@/components/ui";
 import { DAY, HOUR, count, dateKey, day, keyToTs, money, money0, pesoK, plural, startOfDay, unitPlural, capitalize } from "@/lib/format";
 import { useMaps, useSales, useToday } from "@/lib/hooks";
-import { buyerName, commonUnit, isWalkIn, previousRange, salesByCategory, salesByClient, salesByDay, salesCsv, salesSummary, vatSplit } from "@/lib/logic";
+import { buyerName, commonUnit, isWalkIn, listPrice, previousRange, priceUnit, salesByCategory, salesByClient, salesByDay, salesCsv, salesSummary, vatSplit } from "@/lib/logic";
 
 type Preset = "today" | "yesterday" | "week" | "month" | "thisMonth";
 
@@ -300,11 +300,12 @@ export default function Sales() {
             <div className="text-small text-ink-3">{label}. Amounts in pesos, prices include VAT.</div>
           </div>
           {sum.rows.length ? (
-            <table className="tbl min-w-[720px]">
+            <table className="tbl min-w-[820px]">
               <thead>
                 <tr>
                   <th>Product</th>
                   <th className="r">Sold</th>
+                  <th className="r">List price</th>
                   <th className="r">Before VAT</th>
                   <th className="r">VAT (12%)</th>
                   <th className="r">Amount</th>
@@ -325,6 +326,16 @@ export default function Sales() {
                       <td className="r whitespace-nowrap">
                         {count(r.qty)} <span className="text-small text-ink-3">{r.qty === 1 ? p?.unit : unitPlural(p?.unit ?? "unit")}</span>
                       </td>
+                      <td className="r whitespace-nowrap text-ink-2">
+                        {p ? (
+                          <>
+                            {money(listPrice(p))}
+                            <span className="text-small text-ink-3">/{priceUnit(p)}</span>
+                          </>
+                        ) : (
+                          "–"
+                        )}
+                      </td>
                       <td className="r text-ink-2">{money(v.net)}</td>
                       <td className="r text-ink-2">{money(v.vat)}</td>
                       <td className="r font-semibold">{money(r.amount)}</td>
@@ -336,12 +347,14 @@ export default function Sales() {
                 <tr>
                   <td className="text-ink-2">Products</td>
                   <td className="r">{count(sum.cases)}</td>
+                  <td />
                   <td className="r text-ink-2">{money(products.net)}</td>
                   <td className="r text-ink-2">{money(products.vat)}</td>
                   <td className="r">{money(sum.products)}</td>
                 </tr>
                 <tr>
                   <td className="text-ink-2">Delivery fees (small order and fuel)</td>
+                  <td />
                   <td />
                   <td className="r text-ink-2">{money(fees.net)}</td>
                   <td className="r text-ink-2">{money(fees.vat)}</td>
@@ -350,6 +363,7 @@ export default function Sales() {
                 <tr className="border-t-2 border-ink text-body font-bold">
                   <td>Total</td>
                   <td className="r">{count(sum.cases)}</td>
+                  <td />
                   <td className="r">{money(total.net)}</td>
                   <td className="r">{money(total.vat)}</td>
                   <td className="r">{money(sum.total)}</td>

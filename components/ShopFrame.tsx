@@ -98,6 +98,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { rows } = useStock();
   const quote = cartQuote(products, lines);
   const short = quote.items.find((i) => i.qty > (rows.get(i.product.sku)?.available ?? 0));
+  const team = useAuth((s) => !!s.user && s.user.role !== "customer");
 
   return (
     <Drawer
@@ -118,16 +119,21 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               </div>
             </dl>
             {short && <p className="mb-2 text-caption text-bad">Only {rows.get(short.product.sku)?.available ?? 0} of {short.product.name} left. Lower the quantity to check out.</p>}
-            <button
-              className="btn btn-primary btn-lg w-full"
-              disabled={!!short}
-              onClick={() => {
-                onClose();
-                router.push("/shop/checkout");
-              }}
-            >
-              Check out
-            </button>
+            {/* The team browses the store but can't check out as a customer (spec 10.4); they take orders on the POS. */}
+            {team ? (
+              <p className="text-small text-ink-2">Customers check out here. Staff take orders on the POS.</p>
+            ) : (
+              <button
+                className="btn btn-primary btn-lg w-full"
+                disabled={!!short}
+                onClick={() => {
+                  onClose();
+                  router.push("/shop/checkout");
+                }}
+              >
+                Check out
+              </button>
+            )}
           </div>
         )
       }

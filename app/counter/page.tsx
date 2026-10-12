@@ -10,7 +10,7 @@ import { Badge, Field, Kbd, Modal, cx } from "@/components/ui";
 import { useIsAdmin } from "@/lib/auth";
 import { dayShort, keyToTs, money, money0, unitPlural, units } from "@/lib/format";
 import { useMaps, useStock } from "@/lib/hooks";
-import { DROP_MIN, PAY_LABEL, TERMS_LABEL, WALK_IN, WALK_IN_ID, buyerName, casePrice, deliveryDays, isWalkIn, orderTotals, priceLines, priceUnit, vatSplit } from "@/lib/logic";
+import { DROP_MIN, PAY_LABEL, TERMS_LABEL, WALK_IN, WALK_IN_ID, buyerName, casePrice, creditError, deliveryDays, isWalkIn, orderTotals, priceLines, priceUnit, vatSplit } from "@/lib/logic";
 import { useStore, useUi } from "@/lib/store";
 import type { Category, Order, PayMethod } from "@/lib/types";
 
@@ -114,14 +114,7 @@ export default function Counter() {
 
   const shortLines = cart.filter((l) => l.qty > (rows.get(l.sku)?.available ?? 0));
   const creditAfter = client ? client.balance + (pay === "ACCOUNT" ? totals.total : 0) : 0;
-  const creditProblem =
-    client && pay === "ACCOUNT" && client.terms !== "COD"
-      ? client.pastDue > 0
-        ? `${money(client.pastDue)} past due on this account.`
-        : creditAfter > client.creditLimit
-          ? `This order takes the account to ${money0(creditAfter)}, over the ${money0(client.creditLimit)} limit.`
-          : null
-      : null;
+  const creditProblem = client ? creditError(client, pay, totals.total) : null;
   const canPlace = !!client && cart.length > 0 && shortLines.length === 0 && (!creditProblem || override);
 
   const lastOrder = picked ? orders.filter((o) => o.clientId === picked.id && o.status !== "CANCELLED").sort((a, b) => b.createdAt - a.createdAt)[0] : undefined;
@@ -167,6 +160,7 @@ export default function Counter() {
       notes,
       by: "Counter 1",
       buyerName: anonymous ? buyer : undefined,
+      approveCredit: override,
     });
     if (!res.ok) {
       toast(res.error, "warn");
