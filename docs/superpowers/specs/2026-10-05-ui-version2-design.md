@@ -114,6 +114,9 @@ tokens only.
 
 ## 3. Dashboard (`app/page.tsx`)
 
+> Superseded on 2026-10-06. The Dashboard was trimmed to four figures, the product grid, the sales chart, one
+> routes panel and Needs attention; see `2026-10-06-readability-design.md`. Kept below as the original design.
+
 Admin (`OwnerToday`), top to bottom:
 
 1. **Figure cards** (five; wrap to 2 or 3 per row on smaller screens):
