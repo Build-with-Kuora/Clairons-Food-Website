@@ -22,7 +22,7 @@ import type {
   Tier,
   ZoneId,
 } from "./types";
-import { DAY, HOUR, dateKey, dateTime, invoiceNumber, keyToTs, money, startOfDay } from "./format";
+import { DAY, HOUR, dateKey, dateTime, invoiceNumber, keyToTs, money, money0, startOfDay } from "./format";
 
 export const ZONES: Record<ZoneId, { name: string; setPointC: number; maxC: number; color: string; prefix: string }> = {
   BLAST: { name: "Blast freezer", setPointC: -35, maxC: -28, color: "var(--color-z-blast)", prefix: "B" },
@@ -336,6 +336,15 @@ export function paymentError(c: Client, amount: number, method: PaymentMethod, r
   if (c.balance <= 0) return `${c.name} owes nothing right now.`;
   if (round2(amount) > round2(c.balance)) return `That is more than the ${money(c.balance)} they owe.`;
   if (method === "CHECK" && !ref.trim()) return "Enter the check number.";
+  return null;
+}
+
+/** Why charging `total` to this account needs the owner's approval, or null when it doesn't. Same check the POS shows. */
+export function creditError(c: Client, payMethod: PayMethod, total: number): string | null {
+  if (payMethod !== "ACCOUNT" || c.terms === "COD") return null;
+  if (c.pastDue > 0) return `${money(c.pastDue)} past due on this account.`;
+  const after = c.balance + total;
+  if (after > c.creditLimit) return `This order takes the account to ${money0(after)}, over the ${money0(c.creditLimit)} limit.`;
   return null;
 }
 

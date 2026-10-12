@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { isOwner } from "./auth";
 import { DAY, HOUR, dateKey, dayShort, keyToTs, lotCode, uid, unitPlural } from "./format";
 import {
   ASSIGNABLE,
@@ -14,6 +15,7 @@ import {
   amountDue,
   applyPayment,
   cancelSettlement,
+  creditError,
   customerError,
   dayError,
   freeBlastBin,
@@ -67,6 +69,8 @@ export interface PlaceOrderInput {
   channel?: "ONLINE";
   /** Walk-in buyer's name, optional */
   buyerName?: string;
+  /** The owner approved charging an account past its credit limit */
+  approveCredit?: boolean;
 }
 
 export interface ProduceInput {
@@ -228,6 +232,8 @@ export const useStore = create<Store>()(
         const now = Date.now();
         const subtotal = round2(lines.reduce((t, l) => t + l.lineTotal, 0));
         const totals = orderTotals(subtotal, i.fulfillment);
+        const credit = creditError(client, i.payMethod, totals.total);
+        if (credit && !(i.approveCredit && isOwner())) return { ok: false, error: `${credit} Only the owner can approve it.` };
         const n = s.counters.so + 1;
         const invoiceNo = s.counters.invoice + 1;
         const order: Order = {
@@ -588,6 +594,7 @@ export const useStore = create<Store>()(
       },
 
       saveProduct: (i, by) => {
+        if (!isOwner()) return { ok: false, error: "Only the owner can change products and prices." };
         const s = get();
         if (i.sku && !s.products.some((p) => p.sku === i.sku)) return { ok: false, error: "Product not found." };
         const error = productError(i, s.products);
@@ -651,6 +658,7 @@ export const useStore = create<Store>()(
       },
 
       markRefunded: (orderId, by) => {
+        if (!isOwner()) return { ok: false, error: "Only the owner can mark a refund handed back." };
         const s = get();
         const o = s.orders.find((x) => x.id === orderId);
         if (!o?.refund) return { ok: false, error: "No refund is owed on this order." };
