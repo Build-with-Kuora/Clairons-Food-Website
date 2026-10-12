@@ -154,7 +154,7 @@ function Open({ still }: { still: boolean }) {
             <Words text="made by us." delay={0.8} step={0.1} still={still} />
           </span>
         </p>
-        <p className="mt-4 text-[clamp(1rem,1.8vw,1.35rem)] font-semibold">
+        <p className="mt-4 text-[clamp(1rem,1.8cqi,1.35rem)] font-semibold">
           <Words text="A Filipino-owned food maker." delay={1.4} step={0.05} still={still} />
         </p>
       </div>

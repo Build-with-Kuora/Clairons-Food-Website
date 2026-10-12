@@ -481,6 +481,14 @@ textarea.lp-input {
 /* About film: a short promo in the logo's colours. Scenes wipe in from the left behind a red edge. */
 .lp-film {
   margin: 0;
+  container-type: inline-size;
+}
+/* On wide but short screens (laptops), shrink the film so the whole frame and its controls fit on screen */
+@media (min-width: 640px) {
+  .lp-film {
+    max-width: max(28rem, calc((100svh - 13rem) * 16 / 9));
+    margin-inline: auto;
+  }
 }
 .lp-film-stage {
   position: relative;
@@ -490,13 +498,13 @@ textarea.lp-input {
   border-radius: var(--lp-radius);
   background: #14161a;
   color: #fff;
-  font-size: clamp(0.95rem, 2.6vw, 1.15rem);
+  font-size: clamp(0.95rem, 2.6cqi, 1.15rem);
   box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
 }
 @media (min-width: 640px) {
   .lp-film-stage {
     aspect-ratio: 16 / 9;
-    font-size: clamp(1rem, 1.5vw, 1.3rem);
+    font-size: clamp(1rem, 1.5cqi, 1.3rem);
   }
 }
 .lp-film-edge {
@@ -565,19 +573,19 @@ textarea.lp-input {
   margin-bottom: -0.1em;
 }
 .lp-film-head {
-  font-size: clamp(1.8rem, 4.6vw, 3.6rem);
+  font-size: clamp(1.8rem, 4.6cqi, 3.6rem);
   font-weight: 800;
   line-height: 1.02;
   letter-spacing: -0.035em;
 }
 .lp-film-giant {
-  font-size: clamp(2.8rem, 9vw, 8rem);
+  font-size: clamp(2.8rem, 9cqi, 8rem);
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.05em;
 }
 .lp-film-list {
-  font-size: clamp(1.8rem, 4.5vw, 3.6rem);
+  font-size: clamp(1.8rem, 4.5cqi, 3.6rem);
   font-weight: 800;
   line-height: 1.05;
 }
@@ -631,7 +639,7 @@ textarea.lp-input {
   right: 0;
   bottom: 6%;
   font-family: var(--font-manrope), var(--font-inter), sans-serif;
-  font-size: clamp(2.6rem, 9vw, 8rem);
+  font-size: clamp(2.6rem, 9cqi, 8rem);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -654,11 +662,11 @@ textarea.lp-input {
   top: 50%;
   bottom: auto;
   transform: translateY(-50%);
-  font-size: clamp(4rem, 15vw, 13rem);
+  font-size: clamp(4rem, 15cqi, 13rem);
   opacity: 0.14;
 }
 .lp-film-food {
-  width: clamp(96px, 20vw, 250px);
+  width: clamp(96px, 20cqi, 250px);
   height: auto;
   filter: drop-shadow(8px 10px 0 rgb(0 0 0 / 0.18));
 }
@@ -848,7 +856,7 @@ textarea.lp-input {
   border-radius: 10px;
   background: #fff;
   color: #14161a;
-  font-size: clamp(0.8rem, 2.2vw, 1.5rem);
+  font-size: clamp(0.8rem, 2.2cqi, 1.5rem);
   font-weight: 800;
   transform-origin: top;
   box-shadow: 0 6px 0 rgb(0 0 0 / 0.2);
@@ -965,6 +973,39 @@ textarea.lp-input {
 .lp-topbar :focus-visible,
 .lp-footbar :focus-visible {
   outline-color: #fff;
+}
+/* Phones: a menu button in the bar, its links dropping down under it */
+.lp-menu-btn {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 2px solid rgb(255 255 255 / 0.35);
+  border-radius: 8px;
+  color: #fff;
+}
+.lp-menu-btn[aria-expanded="true"] {
+  border-color: #fff;
+}
+.lp-mobile-nav {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 1rem 1rem;
+  background: #14161a;
+  border-bottom: 4px solid #d71f26;
+  box-shadow: 0 24px 40px -24px rgb(0 0 0 / 0.7);
+}
+.lp-mobile-nav .lp-navlink {
+  padding: 0.85rem 0.25rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+  font-size: 1.05rem;
+}
+.lp-mobile-nav .lp-navlink:last-child {
+  border-bottom: 0;
 }
 
 .lp-paper {
@@ -1244,6 +1285,15 @@ textarea.lp-input {
   background: #fff;
   rotate: 10deg;
 }
+/* Keep the heading clear of the food badge in the corner */
+.lp-door .lp-h2 {
+  padding-right: 5.5rem;
+}
+@media (min-width: 640px) {
+  .lp-door .lp-h2 {
+    padding-right: 4.5rem;
+  }
+}
 .lp-door .lp-btn-paper {
   color: #14161a;
 }
@@ -1264,8 +1314,15 @@ textarea.lp-input {
 }
 .lp-floater {
   position: absolute;
+  top: var(--y);
   z-index: 1;
   translate: -50% -50%;
+}
+/* Phones: pin the food to the top and bottom edges so it stays clear of the logo */
+@media (max-width: 767.98px) {
+  .lp-floater {
+    top: var(--phone-y, var(--y));
+  }
 }
 .lp-floater-wide {
   display: none;
@@ -1273,6 +1330,21 @@ textarea.lp-input {
 @media (min-width: 768px) {
   .lp-floater-wide {
     display: block;
+  }
+}
+/* Phones turned sideways: shrink the logo so it and the buttons fit the short screen */
+@media (orientation: landscape) and (max-height: 520px) {
+  .lp-hero-body {
+    padding-block: 1.5rem;
+  }
+  .lp-hero-logo {
+    width: min(48vw, 340px);
+  }
+  .lp-hero-actions {
+    margin-top: 1.25rem;
+  }
+  .lp-hero-cue {
+    display: none;
   }
 }
 .lp-floater-badge {

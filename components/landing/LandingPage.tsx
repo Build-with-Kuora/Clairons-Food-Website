@@ -98,7 +98,7 @@ function ColdChain() {
       <div className="lp-red-field">
         <div className="mx-auto grid max-w-[1320px] gap-12 px-4 py-14 sm:px-6 lg:grid-cols-12 lg:py-20">
           <div className="lg:col-span-7">
-            <div className="flex items-end justify-between gap-4">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
               <Headline text="Monday to Saturday." as="h3" className="lp-display text-[clamp(2rem,4.4vw,3.4rem)] leading-none" />
               <NextDeliveryStamp />
             </div>

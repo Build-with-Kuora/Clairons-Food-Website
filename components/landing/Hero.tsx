@@ -12,14 +12,14 @@ import { FOOD, Frost } from "./motifs";
  * pointer. No headline, at the client's request (spec 11.2). With reduced motion everything sits still.
  */
 
-// Where each food floats, as % of the hero, how big, how deep (parallax), and whether phones show it.
+// Where each food floats, as % of the hero (phoneY: its height on phones), how big, how deep (parallax), and whether phones show it.
 const FLOATERS = [
-  { food: "Siopao", x: 13, y: 24, size: 1.15, depth: 34, phone: true },
-  { food: "Siomai", x: 84, y: 20, size: 1, depth: 26, phone: true },
+  { food: "Siopao", x: 13, y: 24, phoneY: 12, size: 1.15, depth: 34, phone: true },
+  { food: "Siomai", x: 84, y: 20, phoneY: 12, size: 1, depth: 26, phone: true },
   { food: "Fish balls", x: 7, y: 66, size: 0.9, depth: 18, phone: false },
   { food: "Hakaw", x: 90, y: 62, size: 1.1, depth: 30, phone: false },
-  { food: "Longganisa", x: 22, y: 86, size: 0.85, depth: 14, phone: true },
-  { food: "Turon", x: 76, y: 86, size: 0.9, depth: 22, phone: true },
+  { food: "Longganisa", x: 22, y: 86, phoneY: 88, size: 0.85, depth: 14, phone: true },
+  { food: "Turon", x: 76, y: 86, phoneY: 88, size: 0.9, depth: 22, phone: true },
 ] as const;
 
 export function Hero() {
@@ -61,7 +61,7 @@ export function Hero() {
         <Floater key={f.food} {...f} index={i} still={still} sx={sx} sy={sy} />
       ))}
 
-      <div className="relative z-[2] mx-auto flex min-h-[calc(100dvh-72px)] max-w-[1440px] flex-col items-center justify-center px-6 py-16">
+      <div className="lp-hero-body relative z-[2] mx-auto flex min-h-[calc(100dvh-72px)] max-w-[1440px] flex-col items-center justify-center px-6 py-16">
         <h1 className="lp-hero-logo w-[min(80vw,580px)]">
           <Image src="/brand/clairons-logo-reverse.png" alt="Clairon's Food" width={1478} height={596} preload sizes="(min-width: 1024px) 580px, 80vw" className="h-auto w-full drop-shadow-[0_12px_32px_rgb(0_0_0/0.6)]" />
         </h1>
@@ -86,6 +86,7 @@ function Floater({
   food,
   x,
   y,
+  phoneY,
   size,
   depth,
   phone,
@@ -97,6 +98,7 @@ function Floater({
   food: string;
   x: number;
   y: number;
+  phoneY?: number;
   size: number;
   depth: number;
   phone: boolean;
@@ -111,7 +113,7 @@ function Floater({
   return (
     <motion.div
       className={`lp-floater ${phone ? "" : "lp-floater-wide"}`}
-      style={{ left: `${x}%`, top: `${y}%`, x: still ? 0 : tx, y: still ? 0 : ty, ["--s" as string]: size }}
+      style={{ left: `${x}%`, ["--y" as string]: `${y}%`, ["--phone-y" as string]: phoneY === undefined ? undefined : `${phoneY}%`, x: still ? 0 : tx, y: still ? 0 : ty, ["--s" as string]: size }}
       aria-hidden
     >
       <motion.div
