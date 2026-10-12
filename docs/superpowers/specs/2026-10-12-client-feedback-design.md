@@ -26,6 +26,7 @@ Success means:
 - Sales by product (`app/sales/page.tsx`) gets a **List price** column after Sold: the product's price list C price (`prices.C`), per case, or per kg for catch-weight products.
 - Amount stays what was actually charged. Clients on price lists A and B pay less, so Sold × List price does not have to equal Amount. The column header reads "List price" and the printed note says "List price is price list C. Amount is what was charged."
 - The footer rows (Products, Delivery fees, Total) leave the column empty.
+- **As built:** only the column was added. Nelson asked to keep the original table, so the header note and the printed note described above were left out.
 - The CSV (`salesCsv` in `lib/logic.ts`) gets a "List price" column after "Unit", with the same value. Other CSV headers keep their names (spec 12.4).
 - A product no longer in the catalogue shows "–".
 
